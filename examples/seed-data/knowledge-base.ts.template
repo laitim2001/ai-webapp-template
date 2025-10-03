@@ -1,0 +1,407 @@
+/**
+ * ================================================================
+ * {{PROJECT_NAME}} - Knowledge Base Seed Data
+ * ================================================================
+ *
+ * Sample knowledge base documents for development and testing.
+ * Creates 10+ documents across different categories.
+ *
+ * @module seed-data/knowledge-base
+ */
+
+import { PrismaClient } from '@prisma/client'
+
+const prisma = new PrismaClient()
+
+/**
+ * Sample knowledge base documents
+ */
+export const sampleDocuments = [
+  {
+    title: 'Product Overview - Enterprise Solution',
+    category: 'PRODUCT',
+    content: `# Enterprise Solution Overview
+
+Our enterprise solution provides comprehensive tools for modern businesses.
+
+## Key Features
+- Advanced analytics and reporting
+- Real-time collaboration
+- Enterprise-grade security
+- Scalable architecture
+
+## Use Cases
+- Large organizations with 1000+ users
+- Multi-department collaboration
+- Complex workflow automation
+- Data-driven decision making`,
+    tags: ['product', 'enterprise', 'overview'],
+    status: 'PUBLISHED',
+    version: 1,
+  },
+  {
+    title: 'Sales Playbook - Lead Qualification',
+    category: 'SALES',
+    content: `# Lead Qualification Process
+
+## BANT Framework
+- **Budget**: Does the prospect have budget allocated?
+- **Authority**: Are we talking to the decision maker?
+- **Need**: Do they have a clear business need?
+- **Timeline**: When do they need a solution?
+
+## Qualification Criteria
+1. Company size: 50+ employees
+2. Annual revenue: $5M+
+3. Industry fit: Technology, Finance, Healthcare
+4. Pain points align with our solution
+
+## Next Steps
+- Schedule discovery call
+- Send qualification questionnaire
+- Review with sales manager`,
+    tags: ['sales', 'qualification', 'process'],
+    status: 'PUBLISHED',
+    version: 1,
+  },
+  {
+    title: 'Pricing Guide - 2024',
+    category: 'SALES',
+    content: `# 2024 Pricing Guide
+
+## Pricing Tiers
+
+### Starter Plan
+- $49/user/month
+- Up to 10 users
+- Basic features
+- Email support
+
+### Professional Plan
+- $99/user/month
+- Up to 100 users
+- Advanced features
+- Priority support
+
+### Enterprise Plan
+- Custom pricing
+- Unlimited users
+- All features
+- Dedicated account manager
+
+## Discount Policy
+- Annual payment: 15% discount
+- 50+ users: Additional 10% discount
+- Non-profit: 20% discount`,
+    tags: ['pricing', 'sales', 'guide'],
+    status: 'PUBLISHED',
+    version: 2,
+  },
+  {
+    title: 'Customer Onboarding Checklist',
+    category: 'ONBOARDING',
+    content: `# Customer Onboarding Checklist
+
+## Week 1: Setup
+- [ ] Account creation and configuration
+- [ ] User provisioning
+- [ ] Initial training session
+- [ ] Documentation handover
+
+## Week 2: Training
+- [ ] Admin training (2 hours)
+- [ ] User training sessions (1 hour each)
+- [ ] Custom workflow setup
+- [ ] Integration configuration
+
+## Week 3: Go-Live
+- [ ] Production deployment
+- [ ] Data migration (if applicable)
+- [ ] Go-live support (8 hours)
+- [ ] Post-launch review
+
+## Week 4: Follow-up
+- [ ] Usage review
+- [ ] Feedback collection
+- [ ] Additional training if needed
+- [ ] Success metrics review`,
+    tags: ['onboarding', 'process', 'checklist'],
+    status: 'PUBLISHED',
+    version: 1,
+  },
+  {
+    title: 'Common Objections and Responses',
+    category: 'SALES',
+    content: `# Handling Common Objections
+
+## "It's too expensive"
+**Response**: "I understand budget is a concern. Let's look at the ROI. Our customers typically see 3x return within 6 months through increased productivity and reduced manual work. Can we explore which features would provide the most value for your team?"
+
+## "We're happy with our current solution"
+**Response**: "That's great to hear. What I'm curious about is - are there any areas where you wish your current solution was better? We've helped companies in similar situations improve [specific metric] by [percentage]."
+
+## "We need to think about it"
+**Response**: "Absolutely, this is an important decision. To help with your evaluation, may I ask what specific concerns or questions you'd like to address? I'd be happy to provide additional information or arrange a technical demo."
+
+## "We don't have time to implement"
+**Response**: "I hear you - time is valuable. That's actually why we've designed our onboarding to be completed in 2 weeks with minimal disruption. Most teams are fully productive within the first month. Would it help to see our implementation timeline?"`,
+    tags: ['sales', 'objections', 'responses'],
+    status: 'PUBLISHED',
+    version: 1,
+  },
+  {
+    title: 'API Integration Guide',
+    category: 'TECHNICAL',
+    content: `# API Integration Guide
+
+## Authentication
+All API requests require authentication using JWT tokens.
+
+\`\`\`bash
+curl -H "Authorization: Bearer YOUR_TOKEN" \\
+  https://api.example.com/v1/users
+\`\`\`
+
+## Common Endpoints
+
+### Users
+- GET /v1/users - List all users
+- POST /v1/users - Create user
+- GET /v1/users/:id - Get user details
+- PUT /v1/users/:id - Update user
+- DELETE /v1/users/:id - Delete user
+
+### Knowledge Base
+- GET /v1/documents - List documents
+- POST /v1/documents - Create document
+- GET /v1/documents/:id - Get document
+- PUT /v1/documents/:id - Update document
+
+## Rate Limits
+- 1000 requests per hour per API key
+- 100 requests per minute per IP
+
+## Error Codes
+- 400: Bad Request
+- 401: Unauthorized
+- 403: Forbidden
+- 404: Not Found
+- 429: Rate Limit Exceeded
+- 500: Internal Server Error`,
+    tags: ['api', 'technical', 'integration'],
+    status: 'PUBLISHED',
+    version: 3,
+  },
+  {
+    title: 'Security Best Practices',
+    category: 'TECHNICAL',
+    content: `# Security Best Practices
+
+## Password Policy
+- Minimum 12 characters
+- Mix of uppercase, lowercase, numbers, symbols
+- No common passwords
+- Change every 90 days
+- No password reuse (last 12 passwords)
+
+## Access Control
+- Principle of least privilege
+- Role-based access control (RBAC)
+- Regular access reviews
+- Immediate revocation on termination
+
+## Data Protection
+- Encryption at rest (AES-256)
+- Encryption in transit (TLS 1.3)
+- Regular backups (daily)
+- Backup encryption and testing
+
+## Audit Logging
+- Log all authentication attempts
+- Log all data access
+- Log all configuration changes
+- Retain logs for 1 year
+
+## Compliance
+- SOC 2 Type II certified
+- GDPR compliant
+- HIPAA ready (with BAA)
+- Regular security audits`,
+    tags: ['security', 'compliance', 'best-practices'],
+    status: 'PUBLISHED',
+    version: 2,
+  },
+  {
+    title: 'Product Roadmap Q1 2024',
+    category: 'PRODUCT',
+    content: `# Q1 2024 Product Roadmap
+
+## January
+- Advanced reporting dashboard
+- Email template customization
+- Mobile app improvements
+
+## February
+- AI-powered insights
+- Workflow automation enhancements
+- Integration marketplace launch
+
+## March
+- Multi-language support (5 languages)
+- Advanced permission controls
+- Performance optimizations
+
+## Under Consideration
+- Video conferencing integration
+- Advanced analytics
+- Custom branding options
+
+*Roadmap subject to change based on customer feedback and priorities*`,
+    tags: ['product', 'roadmap', 'planning'],
+    status: 'DRAFT',
+    version: 1,
+  },
+  {
+    title: 'Troubleshooting Common Issues',
+    category: 'SUPPORT',
+    content: `# Troubleshooting Guide
+
+## Login Issues
+
+### Symptom: "Invalid credentials" error
+**Solutions**:
+1. Verify email is correct
+2. Check Caps Lock is off
+3. Use "Forgot Password" if needed
+4. Contact admin for account status
+
+### Symptom: Account locked
+**Solutions**:
+1. Wait 30 minutes (automatic unlock)
+2. Contact support for immediate unlock
+3. Review security policies
+
+## Performance Issues
+
+### Symptom: Slow loading times
+**Solutions**:
+1. Check internet connection
+2. Clear browser cache
+3. Try different browser
+4. Check system status page
+
+### Symptom: Upload failures
+**Solutions**:
+1. Check file size (max 100MB)
+2. Check file type (supported formats)
+3. Try smaller file
+4. Check network connection
+
+## Data Issues
+
+### Symptom: Missing data
+**Solutions**:
+1. Check filters and search
+2. Verify permissions
+3. Check archive/deleted items
+4. Contact support if data loss
+
+### Symptom: Sync not working
+**Solutions**:
+1. Force refresh (Ctrl+F5)
+2. Check sync settings
+3. Verify account status
+4. Clear local cache`,
+    tags: ['support', 'troubleshooting', 'guide'],
+    status: 'PUBLISHED',
+    version: 4,
+  },
+  {
+    title: 'Getting Started - Quick Start Guide',
+    category: 'ONBOARDING',
+    content: `# Quick Start Guide
+
+Welcome to {{PROJECT_NAME}}! This guide will help you get started in 10 minutes.
+
+## Step 1: Create Your Account
+1. Click "Sign Up"
+2. Enter your email and create password
+3. Verify your email
+4. Complete your profile
+
+## Step 2: Invite Your Team
+1. Go to Settings > Team
+2. Click "Invite Members"
+3. Enter email addresses
+4. Assign roles
+
+## Step 3: Create Your First Document
+1. Click "New Document"
+2. Choose template or start blank
+3. Add content
+4. Save and share
+
+## Step 4: Explore Key Features
+- 📊 Dashboard - Overview and metrics
+- 📁 Documents - Knowledge management
+- 🔔 Notifications - Stay updated
+- ⚙️ Settings - Customize your experience
+
+## Need Help?
+- 📚 Documentation: docs.example.com
+- 💬 Support Chat: Available 24/7
+- 📧 Email: support@example.com
+- 🎥 Video Tutorials: tutorials.example.com`,
+    tags: ['onboarding', 'quickstart', 'tutorial'],
+    status: 'PUBLISHED',
+    version: 1,
+  },
+]
+
+/**
+ * Seed knowledge base documents
+ */
+export async function seedKnowledgeBase(userId: string) {
+  console.log('🌱 Seeding knowledge base documents...')
+
+  const createdDocs = []
+
+  for (const docData of sampleDocuments) {
+    const doc = await prisma.knowledgeBaseDocument.create({
+      data: {
+        title: docData.title,
+        content: docData.content,
+        category: docData.category,
+        tags: docData.tags,
+        status: docData.status,
+        version: docData.version,
+        authorId: userId,
+        publishedAt: docData.status === 'PUBLISHED' ? new Date() : null,
+      },
+    })
+
+    createdDocs.push(doc)
+    console.log(`  ✅ Created document: ${doc.title}`)
+  }
+
+  console.log(`✅ Seeded ${createdDocs.length} knowledge base documents\n`)
+  return createdDocs
+}
+
+/**
+ * Clean up knowledge base documents (for testing)
+ */
+export async function cleanupKnowledgeBase() {
+  console.log('🧹 Cleaning up knowledge base...')
+  
+  await prisma.knowledgeBaseDocument.deleteMany({
+    where: {
+      title: {
+        in: sampleDocuments.map(d => d.title),
+      },
+    },
+  })
+  
+  console.log('✅ Knowledge base cleaned up\n')
+}
+

@@ -1,0 +1,375 @@
+/**
+ * ================================================================
+ * Tailwind CSS 配置模板
+ * Tailwind CSS Configuration Template
+ * ================================================================
+ * 
+ * 【功能】
+ * 完整的 Tailwind CSS 配置，包含設計系統、動畫和主題。
+ * 
+ * 【特點】
+ * • 設計令牌（Design Tokens）
+ * • 深色模式支援
+ * • 自定義動畫
+ * • 響應式斷點
+ * • 無障礙支援
+ */
+
+/** @type {import('tailwindcss').Config} */
+module.exports = {
+  // =====================================================
+  // 內容路徑
+  // =====================================================
+  
+  content: [
+    './pages/**/*.{ts,tsx}',
+    './components/**/*.{ts,tsx}',
+    './app/**/*.{ts,tsx}',
+    './lib/**/*.{ts,tsx}',
+  ],
+  
+  // =====================================================
+  // 深色模式
+  // =====================================================
+  
+  darkMode: ['class'],
+  
+  // =====================================================
+  // 主題配置
+  // =====================================================
+  
+  theme: {
+    // 容器配置
+    container: {
+      center: true,
+      padding: '2rem',
+      screens: {
+        '2xl': '1400px',
+      },
+    },
+    
+    extend: {
+      // =================================================
+      // 顏色系統（Design Tokens）
+      // =================================================
+      
+      colors: {
+        // 邊界和背景
+        border: 'hsl(var(--border))',
+        input: 'hsl(var(--input))',
+        ring: 'hsl(var(--ring))',
+        background: 'hsl(var(--background))',
+        foreground: 'hsl(var(--foreground))',
+        
+        // 主要顏色
+        primary: {
+          DEFAULT: 'hsl(var(--primary))',
+          foreground: 'hsl(var(--primary-foreground))',
+        },
+        
+        // 次要顏色
+        secondary: {
+          DEFAULT: 'hsl(var(--secondary))',
+          foreground: 'hsl(var(--secondary-foreground))',
+        },
+        
+        // 破壞性操作
+        destructive: {
+          DEFAULT: 'hsl(var(--destructive))',
+          foreground: 'hsl(var(--destructive-foreground))',
+        },
+        
+        // 靜音/禁用
+        muted: {
+          DEFAULT: 'hsl(var(--muted))',
+          foreground: 'hsl(var(--muted-foreground))',
+        },
+        
+        // 強調
+        accent: {
+          DEFAULT: 'hsl(var(--accent))',
+          foreground: 'hsl(var(--accent-foreground))',
+        },
+        
+        // 彈出層
+        popover: {
+          DEFAULT: 'hsl(var(--popover))',
+          foreground: 'hsl(var(--popover-foreground))',
+        },
+        
+        // 卡片
+        card: {
+          DEFAULT: 'hsl(var(--card))',
+          foreground: 'hsl(var(--card-foreground))',
+        },
+        
+        // 語義顏色
+        success: {
+          DEFAULT: 'hsl(142, 76%, 36%)',
+          foreground: 'hsl(355.7, 100%, 97.3%)',
+        },
+        warning: {
+          DEFAULT: 'hsl(38, 92%, 50%)',
+          foreground: 'hsl(48, 96%, 89%)',
+        },
+        info: {
+          DEFAULT: 'hsl(199, 89%, 48%)',
+          foreground: 'hsl(210, 40%, 98%)',
+        },
+      },
+      
+      // =================================================
+      // 邊框半徑
+      // =================================================
+      
+      borderRadius: {
+        lg: 'var(--radius)',
+        md: 'calc(var(--radius) - 2px)',
+        sm: 'calc(var(--radius) - 4px)',
+      },
+      
+      // =================================================
+      // 字體系統
+      // =================================================
+      
+      fontFamily: {
+        sans: [
+          'var(--font-sans)',
+          'system-ui',
+          '-apple-system',
+          'BlinkMacSystemFont',
+          '"Segoe UI"',
+          'Roboto',
+          '"Helvetica Neue"',
+          'Arial',
+          'sans-serif',
+        ],
+        mono: [
+          'var(--font-mono)',
+          'ui-monospace',
+          'SFMono-Regular',
+          '"SF Mono"',
+          'Menlo',
+          'Monaco',
+          'Consolas',
+          'monospace',
+        ],
+      },
+      
+      fontSize: {
+        xs: ['0.75rem', { lineHeight: '1rem' }],
+        sm: ['0.875rem', { lineHeight: '1.25rem' }],
+        base: ['1rem', { lineHeight: '1.5rem' }],
+        lg: ['1.125rem', { lineHeight: '1.75rem' }],
+        xl: ['1.25rem', { lineHeight: '1.75rem' }],
+        '2xl': ['1.5rem', { lineHeight: '2rem' }],
+        '3xl': ['1.875rem', { lineHeight: '2.25rem' }],
+        '4xl': ['2.25rem', { lineHeight: '2.5rem' }],
+        '5xl': ['3rem', { lineHeight: '1' }],
+      },
+      
+      // =================================================
+      // 間距系統
+      // =================================================
+      
+      spacing: {
+        '18': '4.5rem',
+        '88': '22rem',
+        '100': '25rem',
+        '104': '26rem',
+        '112': '28rem',
+        '128': '32rem',
+      },
+      
+      // =================================================
+      // 動畫系統
+      // =================================================
+      
+      keyframes: {
+        // 淡入淡出
+        'fade-in': {
+          '0%': { opacity: '0' },
+          '100%': { opacity: '1' },
+        },
+        'fade-out': {
+          '0%': { opacity: '1' },
+          '100%': { opacity: '0' },
+        },
+        
+        // 滑入滑出
+        'slide-in-from-top': {
+          '0%': { transform: 'translateY(-100%)' },
+          '100%': { transform: 'translateY(0)' },
+        },
+        'slide-in-from-bottom': {
+          '0%': { transform: 'translateY(100%)' },
+          '100%': { transform: 'translateY(0)' },
+        },
+        'slide-in-from-left': {
+          '0%': { transform: 'translateX(-100%)' },
+          '100%': { transform: 'translateX(0)' },
+        },
+        'slide-in-from-right': {
+          '0%': { transform: 'translateX(100%)' },
+          '100%': { transform: 'translateX(0)' },
+        },
+        
+        // 縮放
+        'scale-in': {
+          '0%': { transform: 'scale(0.95)', opacity: '0' },
+          '100%': { transform: 'scale(1)', opacity: '1' },
+        },
+        'scale-out': {
+          '0%': { transform: 'scale(1)', opacity: '1' },
+          '100%': { transform: 'scale(0.95)', opacity: '0' },
+        },
+        
+        // 旋轉
+        'spin-slow': {
+          '0%': { transform: 'rotate(0deg)' },
+          '100%': { transform: 'rotate(360deg)' },
+        },
+        
+        // 脈衝
+        'pulse-slow': {
+          '0%, 100%': { opacity: '1' },
+          '50%': { opacity: '0.5' },
+        },
+        
+        // 彈跳
+        'bounce-subtle': {
+          '0%, 100%': { transform: 'translateY(0)' },
+          '50%': { transform: 'translateY(-5%)' },
+        },
+        
+        // 搖晃（錯誤提示）
+        'shake': {
+          '0%, 100%': { transform: 'translateX(0)' },
+          '10%, 30%, 50%, 70%, 90%': { transform: 'translateX(-5px)' },
+          '20%, 40%, 60%, 80%': { transform: 'translateX(5px)' },
+        },
+        
+        // 進度條
+        'progress': {
+          '0%': { transform: 'translateX(-100%)' },
+          '100%': { transform: 'translateX(100%)' },
+        },
+        
+        // 骨架屏加載
+        'shimmer': {
+          '0%': { backgroundPosition: '-1000px 0' },
+          '100%': { backgroundPosition: '1000px 0' },
+        },
+        
+        // Accordion 動畫
+        'accordion-down': {
+          from: { height: '0' },
+          to: { height: 'var(--radix-accordion-content-height)' },
+        },
+        'accordion-up': {
+          from: { height: 'var(--radix-accordion-content-height)' },
+          to: { height: '0' },
+        },
+      },
+      
+      animation: {
+        // 淡入淡出
+        'fade-in': 'fade-in 0.2s ease-out',
+        'fade-out': 'fade-out 0.2s ease-out',
+        
+        // 滑入
+        'slide-in-from-top': 'slide-in-from-top 0.3s ease-out',
+        'slide-in-from-bottom': 'slide-in-from-bottom 0.3s ease-out',
+        'slide-in-from-left': 'slide-in-from-left 0.3s ease-out',
+        'slide-in-from-right': 'slide-in-from-right 0.3s ease-out',
+        
+        // 縮放
+        'scale-in': 'scale-in 0.2s ease-out',
+        'scale-out': 'scale-out 0.2s ease-out',
+        
+        // 旋轉和脈衝
+        'spin-slow': 'spin-slow 3s linear infinite',
+        'pulse-slow': 'pulse-slow 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+        
+        // 其他
+        'bounce-subtle': 'bounce-subtle 1s ease-in-out infinite',
+        'shake': 'shake 0.5s ease-in-out',
+        'progress': 'progress 1s ease-in-out infinite',
+        'shimmer': 'shimmer 2s linear infinite',
+        
+        // Accordion
+        'accordion-down': 'accordion-down 0.2s ease-out',
+        'accordion-up': 'accordion-up 0.2s ease-out',
+      },
+      
+      // =================================================
+      // 陰影系統
+      // =================================================
+      
+      boxShadow: {
+        'sm': '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
+        'DEFAULT': '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)',
+        'md': '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+        'lg': '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+        'xl': '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+        '2xl': '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+        'inner': 'inset 0 2px 4px 0 rgba(0, 0, 0, 0.06)',
+        'glow': '0 0 20px rgba(59, 130, 246, 0.5)',
+      },
+      
+      // =================================================
+      // 響應式斷點
+      // =================================================
+      
+      screens: {
+        'xs': '475px',
+        'sm': '640px',
+        'md': '768px',
+        'lg': '1024px',
+        'xl': '1280px',
+        '2xl': '1536px',
+      },
+      
+      // =================================================
+      // Z-Index 層級
+      // =================================================
+      
+      zIndex: {
+        '0': '0',
+        '10': '10',
+        '20': '20',
+        '30': '30',
+        '40': '40',
+        '50': '50',
+        'dropdown': '1000',
+        'sticky': '1020',
+        'fixed': '1030',
+        'modal-backdrop': '1040',
+        'modal': '1050',
+        'popover': '1060',
+        'tooltip': '1070',
+      },
+      
+      // =================================================
+      // 背景圖案
+      // =================================================
+      
+      backgroundImage: {
+        'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
+        'gradient-conic': 'conic-gradient(from 180deg at 50% 50%, var(--tw-gradient-stops))',
+        'shimmer-gradient': 'linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent)',
+      },
+    },
+  },
+  
+  // =====================================================
+  // 插件
+  // =====================================================
+  
+  plugins: [
+    require('tailwindcss-animate'),
+    require('@tailwindcss/forms'),
+    require('@tailwindcss/typography'),
+  ],
+};
+

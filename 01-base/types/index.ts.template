@@ -1,0 +1,360 @@
+/**
+ * ================================================================
+ * 全局類型定義
+ * Global Type Definitions
+ * ================================================================
+ * 
+ * 【功能】
+ * 提供應用程序的全局類型定義和接口。
+ */
+
+// =====================================================
+// 通用類型
+// =====================================================
+
+/**
+ * API 響應類型
+ */
+export interface ApiResponse<T = any> {
+  success: boolean;
+  data?: T;
+  error?: string;
+  message?: string;
+  timestamp: string;
+}
+
+/**
+ * 分頁數據類型
+ */
+export interface PaginatedData<T> {
+  items: T[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+/**
+ * 排序選項
+ */
+export interface SortOption {
+  field: string;
+  order: 'asc' | 'desc';
+}
+
+/**
+ * 過濾選項
+ */
+export interface FilterOption {
+  field: string;
+  operator: 'eq' | 'ne' | 'gt' | 'gte' | 'lt' | 'lte' | 'in' | 'like';
+  value: any;
+}
+
+// =====================================================
+// 用戶相關類型
+// =====================================================
+
+/**
+ * 用戶角色
+ */
+export enum UserRole {
+  ADMIN = 'ADMIN',
+  USER = 'USER',
+  GUEST = 'GUEST',
+}
+
+/**
+ * 用戶狀態
+ */
+export enum UserStatus {
+  ACTIVE = 'ACTIVE',
+  INACTIVE = 'INACTIVE',
+  SUSPENDED = 'SUSPENDED',
+}
+
+/**
+ * 用戶類型
+ */
+export interface User {
+  id: string;
+  email: string;
+  name: string;
+  role: UserRole;
+  status: UserStatus;
+  avatar?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+/**
+ * 會話類型
+ */
+export interface Session {
+  id: string;
+  userId: string;
+  token: string;
+  expiresAt: Date;
+  createdAt: Date;
+}
+
+// =====================================================
+// 表單相關類型
+// =====================================================
+
+/**
+ * 表單字段錯誤
+ */
+export interface FormFieldError {
+  field: string;
+  message: string;
+}
+
+/**
+ * 表單狀態
+ */
+export interface FormState<T = any> {
+  data: T;
+  errors: FormFieldError[];
+  isSubmitting: boolean;
+  isValid: boolean;
+}
+
+// =====================================================
+// 通知相關類型
+// =====================================================
+
+/**
+ * 通知類型
+ */
+export enum NotificationType {
+  INFO = 'INFO',
+  SUCCESS = 'SUCCESS',
+  WARNING = 'WARNING',
+  ERROR = 'ERROR',
+}
+
+/**
+ * 通知接口
+ */
+export interface Notification {
+  id: string;
+  type: NotificationType;
+  title: string;
+  message: string;
+  read: boolean;
+  createdAt: Date;
+}
+
+// =====================================================
+// 文件相關類型
+// =====================================================
+
+/**
+ * 文件類型
+ */
+export interface FileInfo {
+  id: string;
+  name: string;
+  size: number;
+  type: string;
+  url: string;
+  uploadedAt: Date;
+}
+
+/**
+ * 文件上傳狀態
+ */
+export enum UploadStatus {
+  PENDING = 'PENDING',
+  UPLOADING = 'UPLOADING',
+  SUCCESS = 'SUCCESS',
+  ERROR = 'ERROR',
+}
+
+/**
+ * 文件上傳進度
+ */
+export interface UploadProgress {
+  file: File;
+  status: UploadStatus;
+  progress: number;
+  error?: string;
+}
+
+// =====================================================
+// 搜索相關類型
+// =====================================================
+
+/**
+ * 搜索參數
+ */
+export interface SearchParams {
+  query: string;
+  filters?: FilterOption[];
+  sort?: SortOption;
+  page?: number;
+  pageSize?: number;
+}
+
+/**
+ * 搜索結果
+ */
+export interface SearchResult<T> {
+  items: T[];
+  total: number;
+  query: string;
+  took: number; // 搜索耗時（毫秒）
+}
+
+// =====================================================
+// 數據庫相關類型
+// =====================================================
+
+/**
+ * 數據庫操作選項
+ */
+export interface DatabaseOptions {
+  include?: Record<string, boolean>;
+  select?: Record<string, boolean>;
+  orderBy?: Record<string, 'asc' | 'desc'>;
+  take?: number;
+  skip?: number;
+}
+
+/**
+ * 向量搜索選項
+ */
+export interface VectorSearchOptions {
+  vector: number[];
+  topK?: number;
+  threshold?: number;
+}
+
+// =====================================================
+// 錯誤類型
+// =====================================================
+
+/**
+ * 自定義錯誤類
+ */
+export class AppError extends Error {
+  constructor(
+    message: string,
+    public code: string,
+    public statusCode: number = 500,
+    public details?: any
+  ) {
+    super(message);
+    this.name = 'AppError';
+  }
+}
+
+/**
+ * 驗證錯誤類
+ */
+export class ValidationError extends AppError {
+  constructor(message: string, public fields?: FormFieldError[]) {
+    super(message, 'VALIDATION_ERROR', 400, fields);
+    this.name = 'ValidationError';
+  }
+}
+
+/**
+ * 認證錯誤類
+ */
+export class AuthenticationError extends AppError {
+  constructor(message: string = '未授權訪問') {
+    super(message, 'AUTHENTICATION_ERROR', 401);
+    this.name = 'AuthenticationError';
+  }
+}
+
+/**
+ * 權限錯誤類
+ */
+export class AuthorizationError extends AppError {
+  constructor(message: string = '權限不足') {
+    super(message, 'AUTHORIZATION_ERROR', 403);
+    this.name = 'AuthorizationError';
+  }
+}
+
+/**
+ * 資源未找到錯誤類
+ */
+export class NotFoundError extends AppError {
+  constructor(message: string = '資源未找到') {
+    super(message, 'NOT_FOUND_ERROR', 404);
+    this.name = 'NotFoundError';
+  }
+}
+
+// =====================================================
+// 環境變數類型
+// =====================================================
+
+/**
+ * 環境變數接口
+ */
+export interface EnvironmentVariables {
+  // 應用配置
+  NODE_ENV: 'development' | 'production' | 'test';
+  NEXT_PUBLIC_APP_URL: string;
+  
+  // 數據庫
+  DATABASE_URL: string;
+  DATABASE_TYPE: 'postgresql' | 'mysql' | 'mongodb' | 'sqlite';
+  
+  // 認證
+  NEXTAUTH_SECRET: string;
+  NEXTAUTH_URL: string;
+  
+  // Azure AD（可選）
+  AZURE_AD_CLIENT_ID?: string;
+  AZURE_AD_CLIENT_SECRET?: string;
+  AZURE_AD_TENANT_ID?: string;
+  
+  // 監控（可選）
+  ENABLE_MONITORING?: string;
+  MONITORING_BACKEND?: 'prometheus' | 'azure';
+  
+  // Redis（可選）
+  REDIS_URL?: string;
+  
+  // 其他
+  [key: string]: string | undefined;
+}
+
+// =====================================================
+// 工具類型
+// =====================================================
+
+/**
+ * 深度部分類型
+ */
+export type DeepPartial<T> = {
+  [P in keyof T]?: T[P] extends object ? DeepPartial<T[P]> : T[P];
+};
+
+/**
+ * 必需部分類型
+ */
+export type RequireAtLeastOne<T, Keys extends keyof T = keyof T> = Pick<
+  T,
+  Exclude<keyof T, Keys>
+> &
+  {
+    [K in Keys]-?: Required<Pick<T, K>> & Partial<Pick<T, Exclude<Keys, K>>>;
+  }[Keys];
+
+/**
+ * 可為 null 的類型
+ */
+export type Nullable<T> = T | null;
+
+/**
+ * 可選的類型
+ */
+export type Optional<T> = T | undefined;
+

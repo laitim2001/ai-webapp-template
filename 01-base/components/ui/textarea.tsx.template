@@ -1,0 +1,77 @@
+/**
+ * ================================================================
+ * {{PROJECT_NAME}} - Textarea Component
+ * ================================================================
+ *
+ * Multi-line text input component.
+ * Provides resizable text editing area with theming and accessibility.
+ *
+ * @component
+ * @example
+ * ```tsx
+ * // Basic textarea
+ * <div className="space-y-2">
+ *   <Label htmlFor="description">Description</Label>
+ *   <Textarea
+ *     id="description"
+ *     placeholder="Enter detailed description..."
+ *   />
+ * </div>
+ *
+ * // Controlled textarea
+ * <Textarea
+ *   value={content}
+ *   onChange={(e) => setContent(e.target.value)}
+ *   placeholder="Enter content"
+ * />
+ *
+ * // With character count
+ * const [message, setMessage] = useState('')
+ * const maxLength = 280
+ * <div className="space-y-2">
+ *   <Label htmlFor="message">Message</Label>
+ *   <Textarea
+ *     id="message"
+ *     value={message}
+ *     onChange={(e) => setMessage(e.target.value)}
+ *     maxLength={maxLength}
+ *     placeholder="Enter your message..."
+ *   />
+ *   <div className="text-sm text-muted-foreground text-right">
+ *     {message.length}/{maxLength} characters
+ *   </div>
+ * </div>
+ *
+ * // Fixed size (no resize)
+ * <Textarea
+ *   className="resize-none"
+ *   rows={5}
+ *   placeholder="Fixed size textarea"
+ * />
+ * ```
+ */
+
+import * as React from "react"
+import { cn } from "@/lib/utils"
+
+export interface TextareaProps
+  extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {}
+
+const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
+  ({ className, ...props }, ref) => {
+    return (
+      <textarea
+        className={cn(
+          "flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+          className
+        )}
+        ref={ref}
+        {...props}
+      />
+    )
+  }
+)
+Textarea.displayName = "Textarea"
+
+export { Textarea }
+

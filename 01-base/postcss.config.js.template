@@ -1,0 +1,17 @@
+/**
+ * ================================================================
+ * PostCSS 配置模板
+ * PostCSS Configuration Template
+ * ================================================================
+ * 
+ * 【功能】
+ * PostCSS 處理 Tailwind CSS 和其他 CSS 轉換。
+ */
+
+module.exports = {
+  plugins: {
+    'tailwindcss': {},
+    'autoprefixer': {},
+  },
+};
+

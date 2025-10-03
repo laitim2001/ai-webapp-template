@@ -1,0 +1,85 @@
+/**
+ * ================================================================
+ * 錯誤組件
+ * Error Component
+ * ================================================================
+ * 
+ * 【功能】
+ * Next.js 路由錯誤時的全局錯誤處理。
+ */
+
+'use client';
+
+import { useEffect } from 'react';
+import { Button } from '@/components/ui/button';
+
+export default function Error({
+  error,
+  reset,
+}: {
+  error: Error & { digest?: string };
+  reset: () => void;
+}) {
+  useEffect(() => {
+    // 記錄錯誤到監控服務
+    console.error('Application error:', error);
+  }, [error]);
+
+  return (
+    <div className="flex min-h-screen items-center justify-center p-4">
+      <div className="max-w-md w-full text-center space-y-6">
+        {/* 錯誤圖標 */}
+        <div className="flex justify-center">
+          <div className="h-16 w-16 rounded-full bg-destructive/10 flex items-center justify-center">
+            <svg
+              className="h-8 w-8 text-destructive"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+              />
+            </svg>
+          </div>
+        </div>
+
+        {/* 錯誤信息 */}
+        <div className="space-y-2">
+          <h2 className="text-2xl font-bold">發生錯誤</h2>
+          <p className="text-muted-foreground">
+            抱歉，應用程序遇到了一個問題。
+          </p>
+          
+          {/* 開發模式下顯示錯誤詳情 */}
+          {process.env.NODE_ENV === 'development' && (
+            <div className="mt-4 p-4 bg-muted rounded-lg text-left">
+              <p className="text-sm font-mono text-destructive break-all">
+                {error.message}
+              </p>
+              {error.digest && (
+                <p className="text-xs text-muted-foreground mt-2">
+                  錯誤 ID: {error.digest}
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* 操作按鈕 */}
+        <div className="flex flex-col sm:flex-row gap-3 justify-center">
+          <Button onClick={reset} variant="default">
+            重試
+          </Button>
+          <Button onClick={() => window.location.href = '/'} variant="outline">
+            返回首頁
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+

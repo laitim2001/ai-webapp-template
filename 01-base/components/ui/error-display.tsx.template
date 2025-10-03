@@ -1,0 +1,293 @@
+/**
+ * ================================================================
+ * {{PROJECT_NAME}} - Error Display Component
+ * ================================================================
+ *
+ * Unified error display component with friendly error messages and handling mechanisms.
+ * Supports multiple error types, detailed information display, and retry mechanisms.
+ *
+ * @component
+ * @example
+ * ```tsx
+ * // Basic error display
+ * <ErrorDisplay
+ *   error={{
+ *     message: "Failed to fetch data",
+ *     statusCode: 500,
+ *     timestamp: new Date().toISOString()
+ *   }}
+ *   onRetry={() => refetchData()}
+ *   onDismiss={() => setShowError(false)}
+ * />
+ *
+ * // Warning type
+ * <ErrorDisplay
+ *   error={{ message: "Permission expiring soon" }}
+ *   variant="warning"
+ *   title="Notice"
+ * />
+ *
+ * // With details
+ * <ErrorDisplay
+ *   error={{
+ *     type: "NetworkError",
+ *     message: "Connection timeout",
+ *     statusCode: 408,
+ *     requestId: "req_123456"
+ *   }}
+ *   showDetails={true}
+ * />
+ *
+ * // Quick error display
+ * <SimpleError
+ *   message="Loading failed"
+ *   onRetry={() => reload()}
+ * />
+ * ```
+ */
+
+'use client'
+
+import { AlertTriangle, XCircle, AlertCircle, RefreshCw, X } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { cn } from '@/lib/utils'
+
+export interface ErrorDisplayProps {
+  error?: {
+    type?: string
+    message: string
+    statusCode?: number
+    timestamp?: string
+    requestId?: string
+  }
+  title?: string
+  variant?: 'error' | 'warning' | 'destructive'
+  showDetails?: boolean
+  onRetry?: () => void
+  onDismiss?: () => void
+  className?: string
+}
+
+export function ErrorDisplay({
+  error,
+  title,
+  variant = 'error',
+  showDetails = false,
+  onRetry,
+  onDismiss,
+  className
+}: ErrorDisplayProps) {
+  if (!error) return null
+
+  const getIcon = () => {
+    switch (variant) {
+      case 'warning':
+        return <AlertTriangle className="h-4 w-4" />
+      case 'destructive':
+        return <XCircle className="h-4 w-4" />
+      default:
+        return <AlertCircle className="h-4 w-4" />
+    }
+  }
+
+  const getVariantClasses = () => {
+    switch (variant) {
+      case 'warning':
+        return 'border-yellow-200 bg-yellow-50 text-yellow-800'
+      case 'destructive':
+        return 'border-red-200 bg-red-50 text-red-800'
+      default:
+        return 'border-red-200 bg-red-50 text-red-800'
+    }
+  }
+
+  const getDefaultTitle = () => {
+    if (title) return title
+    switch (variant) {
+      case 'warning':
+        return 'Notice'
+      case 'destructive':
+        return 'Critical Error'
+      default:
+        return 'Error Occurred'
+    }
+  }
+
+  const getErrorMessage = () => {
+    const message = error.message?.toLowerCase()
+
+    if (message?.includes('network') || message?.includes('fetch')) {
+      return 'Network connection issue. Please check your connection.'
+    }
+
+    if (message?.includes('unauthorized') || error.statusCode === 401) {
+      return 'Session expired. Please login again.'
+    }
+
+    if (message?.includes('forbidden') || error.statusCode === 403) {
+      return 'Insufficient permissions for this operation.'
+    }
+
+    if (message?.includes('not found') || error.statusCode === 404) {
+      return 'Requested resource not found.'
+    }
+
+    if (message?.includes('rate limit') || error.statusCode === 429) {
+      return 'Too many requests. Please try again later.'
+    }
+
+    if (error.statusCode && error.statusCode >= 500) {
+      return 'Server error. Please try again later.'
+    }
+
+    return error.message || 'Unknown error occurred'
+  }
+
+  return (
+    <Alert className={cn(getVariantClasses(), className)}>
+      <div className="flex items-start justify-between">
+        <div className="flex items-start space-x-3 flex-1">
+          {getIcon()}
+          <div className="flex-1">
+            <AlertTitle className="mb-1">
+              {getDefaultTitle()}
+            </AlertTitle>
+            <AlertDescription className="text-sm">
+              {getErrorMessage()}
+            </AlertDescription>
+
+            {showDetails && (
+              <div className="mt-3 p-3 bg-white bg-opacity-50 rounded-md">
+                <div className="text-xs space-y-1">
+                  {error.type && (
+                    <div>
+                      <span className="font-medium">Type:</span> {error.type}
+                    </div>
+                  )}
+                  {error.statusCode && (
+                    <div>
+                      <span className="font-medium">Status Code:</span> {error.statusCode}
+                    </div>
+                  )}
+                  {error.requestId && (
+                    <div>
+                      <span className="font-medium">Request ID:</span> {error.requestId}
+                    </div>
+                  )}
+                  {error.timestamp && (
+                    <div>
+                      <span className="font-medium">Time:</span>{' '}
+                      {new Date(error.timestamp).toLocaleString()}
+                    </div>
+                  )}
+                  <div className="mt-2">
+                    <span className="font-medium">Original Message:</span>
+                    <pre className="mt-1 text-xs bg-gray-100 p-2 rounded overflow-x-auto">
+                      {error.message}
+                    </pre>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="flex items-center space-x-1 ml-3">
+          {onRetry && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onRetry}
+              className="h-6 px-2 hover:bg-white hover:bg-opacity-50"
+            >
+              <RefreshCw className="h-3 w-3" />
+            </Button>
+          )}
+          {onDismiss && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onDismiss}
+              className="h-6 px-2 hover:bg-white hover:bg-opacity-50"
+            >
+              <X className="h-3 w-3" />
+            </Button>
+          )}
+        </div>
+      </div>
+    </Alert>
+  )
+}
+
+// Simplified version for quick error display
+export function SimpleError({
+  message,
+  onRetry
+}: {
+  message: string
+  onRetry?: () => void
+}) {
+  return (
+    <ErrorDisplay
+      error={{ message }}
+      onRetry={onRetry}
+      className="max-w-md mx-auto"
+    />
+  )
+}
+
+// Loading error version (for data fetch failures)
+export function LoadingError({
+  onRetry,
+  resource = 'data'
+}: {
+  onRetry?: () => void
+  resource?: string
+}) {
+  return (
+    <ErrorDisplay
+      error={{ message: `Failed to load ${resource}` }}
+      onRetry={onRetry}
+      className="text-center py-8"
+    />
+  )
+}
+
+// Form error version
+export function FormError({
+  errors,
+  onDismiss
+}: {
+  errors: string | string[]
+  onDismiss?: () => void
+}) {
+  const errorList = Array.isArray(errors) ? errors : [errors]
+
+  return (
+    <Alert className="border-red-200 bg-red-50">
+      <AlertCircle className="h-4 w-4 text-red-600" />
+      <div className="flex-1">
+        <AlertTitle className="text-red-800">Form Validation Error</AlertTitle>
+        <AlertDescription className="text-red-700 mt-1">
+          <ul className="list-disc list-inside space-y-1">
+            {errorList.map((error, index) => (
+              <li key={index} className="text-sm">{error}</li>
+            ))}
+          </ul>
+        </AlertDescription>
+      </div>
+      {onDismiss && (
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onDismiss}
+          className="ml-2 h-6 px-2 text-red-600 hover:bg-red-100"
+        >
+          <X className="h-3 w-3" />
+        </Button>
+      )}
+    </Alert>
+  )
+}
+

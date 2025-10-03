@@ -1,0 +1,255 @@
+// ================================================================
+// Prisma Schema - SQLite
+// ================================================================
+// 
+// 這是 SQLite 專用的 Prisma Schema。
+// 零配置，適合開發和測試環境。
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// =====================================================
+// 核心模型
+// =====================================================
+
+model User {
+  id            String           @id @default(cuid())
+  email         String           @unique
+  name          String?
+  password      String?
+  role          UserRole         @default(USER)
+  
+  azureAdId     String?          @unique
+  azureAdTenant String?
+  
+  isActive      Boolean          @default(true)
+  emailVerified Boolean          @default(false)
+  lastLoginAt   DateTime?
+  
+  preferences   String?          // SQLite 使用 TEXT 存儲 JSON
+  
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  
+  sessions      Session[]
+  notifications Notification[]
+  
+  @@map("users")
+}
+
+enum UserRole {
+  USER
+  ADMIN
+  SUPER_ADMIN
+}
+
+model Session {
+  id           String           @id @default(cuid())
+  userId       String
+  
+  refreshToken String           @unique
+  accessToken  String?
+  
+  deviceInfo   String?
+  ipAddress    String?
+  
+  expiresAt    DateTime
+  lastUsedAt   DateTime         @default(now())
+  
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  
+  user         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([refreshToken])
+  @@index([expiresAt])
+  @@map("sessions")
+}
+
+model TokenBlacklist {
+  id        String           @id @default(cuid())
+  token     String           @unique
+  expiresAt DateTime
+  reason    String?
+  createdAt DateTime         @default(now())
+  
+  @@index([token])
+  @@index([expiresAt])
+  @@map("token_blacklist")
+}
+
+model Notification {
+  id        String               @id @default(cuid())
+  userId    String
+  
+  type      NotificationType
+  title     String
+  message   String
+  data      String?              // SQLite 使用 TEXT 存儲 JSON
+  
+  isRead    Boolean              @default(false)
+  readAt    DateTime?
+  
+  createdAt DateTime             @default(now())
+  updatedAt DateTime             @updatedAt
+  
+  user      User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([createdAt])
+  @@map("notifications")
+}
+
+enum NotificationType {
+  SYSTEM
+  WORKFLOW
+  KNOWLEDGE
+  APPROVAL
+  COMMENT
+  MENTION
+}
+
+// =====================================================
+// 知識庫模型（SQLite FTS5 搜索）
+// =====================================================
+
+model KnowledgeItem {
+  id          String           @id @default(cuid())
+  
+  title       String
+  content     String
+  category    String?
+  tags        String?          // SQLite 使用逗號分隔的字符串
+  
+  sourceFile  String?
+  fileType    String?
+  
+  // SQLite 不支援向量嵌入
+  
+  version     Int              @default(1)
+  status      KnowledgeStatus  @default(DRAFT)
+  
+  createdBy   String
+  updatedBy   String?
+  approvedBy  String?
+  approvedAt  DateTime?
+  
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  
+  @@index([title])
+  @@index([category])
+  @@index([status])
+  @@map("knowledge_items")
+}
+
+enum KnowledgeStatus {
+  DRAFT
+  PENDING
+  APPROVED
+  ARCHIVED
+}
+
+// =====================================================
+// 工作流程模型
+// =====================================================
+
+model WorkflowInstance {
+  id          String           @id @default(cuid())
+  
+  name        String
+  description String?
+  templateId  String?
+  
+  state       WorkflowState    @default(DRAFT)
+  previousState WorkflowState?
+  
+  data        String           // SQLite 使用 TEXT 存儲 JSON
+  metadata    String?          // SQLite 使用 TEXT 存儲 JSON
+  
+  version     Int              @default(1)
+  
+  submittedAt DateTime?
+  submittedBy String?
+  approvedBy  String?
+  approvedAt  DateTime?
+  rejectedBy  String?
+  rejectedAt  DateTime?
+  rejectionReason String?
+  
+  createdBy   String
+  updatedBy   String?
+  
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  completedAt DateTime?
+  
+  comments    WorkflowComment[]
+  history     WorkflowHistory[]
+  
+  @@index([state])
+  @@index([createdBy])
+  @@index([createdAt])
+  @@map("workflow_instances")
+}
+
+enum WorkflowState {
+  DRAFT
+  IN_PROGRESS
+  PENDING_REVIEW
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+  ON_HOLD
+  CANCELLED
+  COMPLETED
+  ARCHIVED
+  FAILED
+  EXPIRED
+}
+
+model WorkflowComment {
+  id         String           @id @default(cuid())
+  workflowId String
+  
+  content    String
+  
+  createdBy  String
+  
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+  
+  workflow   WorkflowInstance @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  
+  @@index([workflowId])
+  @@map("workflow_comments")
+}
+
+model WorkflowHistory {
+  id         String           @id @default(cuid())
+  workflowId String
+  
+  fromState  WorkflowState?
+  toState    WorkflowState
+  action     String
+  
+  changedBy  String
+  
+  snapshot   String           // SQLite 使用 TEXT 存儲 JSON
+  
+  createdAt  DateTime         @default(now())
+  
+  workflow   WorkflowInstance @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  
+  @@index([workflowId])
+  @@index([createdAt])
+  @@map("workflow_history")
+}
+

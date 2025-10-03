@@ -1,0 +1,382 @@
+// ================================================================
+// Prisma Schema 模板 (Prisma Schema Template)
+// ================================================================
+//
+// 【檔案功能】
+// 定義數據庫模型和配置，支援多種數據庫類型。
+//
+// 【支援的數據庫】
+// • PostgreSQL - 預設選項，功能最完整（支援 pgvector）
+// • MySQL - 廣泛使用的關聯式數據庫
+// • MongoDB - NoSQL 靈活性
+// • SQLite - 零配置，開發測試用
+//
+// 【使用方式】
+// 1. 運行 init-project.js CLI 工具
+// 2. 選擇數據庫類型
+// 3. 自動生成對應的 schema.prisma
+// 4. 運行 npx prisma generate
+// 5. 運行 npx prisma migrate dev（SQL數據庫）
+//
+// 【佔位符說明】
+// • {{DATABASE_URL}} - 數據庫連接字符串
+// • {{PROVIDER}} - 數據庫提供者（postgresql/mysql/mongodb/sqlite）
+// • {{VECTOR_EXTENSION}} - PostgreSQL 向量擴展（僅 PostgreSQL）
+
+// =====================================================
+// 數據源配置
+// =====================================================
+
+datasource db {
+  provider = "{{PROVIDER}}"
+  url      = env("DATABASE_URL")
+  {{VECTOR_EXTENSION}}
+}
+
+// =====================================================
+// Prisma Client 配置
+// =====================================================
+
+generator client {
+  provider = "prisma-client-js"
+  {{PREVIEW_FEATURES}}
+}
+
+// =====================================================
+// 核心模型：用戶系統
+// =====================================================
+
+/// 用戶模型
+/// 
+/// 儲存所有用戶的基本信息和認證信息。
+/// 支援 JWT 雙令牌和 Azure AD SSO 認證。
+model User {
+  id            {{ID_TYPE}}      @id @default({{ID_DEFAULT}})
+  email         String           @unique
+  name          String?
+  password      String?          // 本地認證密碼（加密存儲）
+  role          UserRole         @default(USER)
+  
+  // Azure AD SSO 相關
+  azureAdId     String?          @unique // Azure AD 用戶 ID
+  azureAdTenant String?          // Azure AD 租戶 ID
+  
+  // 用戶狀態
+  isActive      Boolean          @default(true)
+  emailVerified Boolean          @default(false)
+  lastLoginAt   DateTime?
+  
+  // 用戶設定
+  preferences   Json?            // 用戶偏好設定（JSON）
+  
+  // 時間戳
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  
+  // 關聯
+  sessions      Session[]
+  notifications Notification[]
+  
+  {{MONGODB_MAP}}
+}
+
+/// 用戶角色枚舉
+enum UserRole {
+  USER          // 普通用戶
+  ADMIN         // 管理員
+  SUPER_ADMIN   // 超級管理員
+}
+
+// =====================================================
+// 核心模型：會話管理
+// =====================================================
+
+/// 會話模型
+/// 
+/// 管理用戶的登入會話，支援多設備登入。
+/// Refresh Token 用於刷新 Access Token。
+model Session {
+  id           {{ID_TYPE}}      @id @default({{ID_DEFAULT}})
+  userId       {{ID_TYPE}}
+  
+  // Token 信息
+  refreshToken String           @unique
+  accessToken  String?          // 可選存儲當前 Access Token
+  
+  // 會話信息
+  deviceInfo   String?          // 設備信息（User-Agent）
+  ipAddress    String?          // IP 地址
+  
+  // 過期時間
+  expiresAt    DateTime
+  lastUsedAt   DateTime         @default(now())
+  
+  // 時間戳
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  
+  // 關聯
+  user         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  {{MONGODB_MAP}}
+  {{INDEX_USER_ID}}
+  {{INDEX_REFRESH_TOKEN}}
+  {{INDEX_EXPIRES_AT}}
+}
+
+// =====================================================
+// 核心模型：令牌黑名單
+// =====================================================
+
+/// 令牌黑名單模型
+/// 
+/// 用於存儲已撤銷的令牌，實現登出和強制下線功能。
+model TokenBlacklist {
+  id        {{ID_TYPE}}      @id @default({{ID_DEFAULT}})
+  token     String           @unique
+  expiresAt DateTime
+  reason    String?          // 撤銷原因
+  createdAt DateTime         @default(now())
+  
+  {{MONGODB_MAP}}
+  {{INDEX_TOKEN}}
+  {{INDEX_EXPIRES_AT}}
+}
+
+// =====================================================
+// 核心模型：通知系統
+// =====================================================
+
+/// 通知模型
+/// 
+/// 存儲用戶的所有通知消息，支援多種通知類型。
+model Notification {
+  id        {{ID_TYPE}}          @id @default({{ID_DEFAULT}})
+  userId    {{ID_TYPE}}
+  
+  // 通知內容
+  type      NotificationType
+  title     String
+  message   String               @db.{{TEXT_TYPE}}
+  data      Json?                // 額外數據（JSON）
+  
+  // 通知狀態
+  isRead    Boolean              @default(false)
+  readAt    DateTime?
+  
+  // 時間戳
+  createdAt DateTime             @default(now())
+  updatedAt DateTime             @updatedAt
+  
+  // 關聯
+  user      User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  {{MONGODB_MAP}}
+  {{INDEX_USER_ID}}
+  {{INDEX_CREATED_AT}}
+}
+
+/// 通知類型枚舉
+enum NotificationType {
+  SYSTEM        // 系統通知
+  WORKFLOW      // 工作流程通知
+  KNOWLEDGE     // 知識庫通知
+  APPROVAL      // 審批通知
+  COMMENT       // 評論通知
+  MENTION       // 提及通知
+}
+
+// =====================================================
+// 可選模型：知識庫系統（安裝 knowledge 模組時啟用）
+// =====================================================
+
+{{#if MODULES.knowledge}}
+/// 知識庫項目模型
+/// 
+/// 存儲知識庫的文檔和內容，支援向量搜索（PostgreSQL）。
+model KnowledgeItem {
+  id          {{ID_TYPE}}      @id @default({{ID_DEFAULT}})
+  
+  // 基本信息
+  title       String
+  content     String           @db.{{TEXT_TYPE}}
+  category    String?
+  tags        String[]         // 標籤數組
+  
+  // 文件信息
+  sourceFile  String?          // 源文件路徑
+  fileType    String?          // 文件類型（PDF/Word/Excel）
+  
+  // 向量嵌入（僅 PostgreSQL）
+  {{VECTOR_EMBEDDING}}
+  
+  // 版本控制
+  version     Int              @default(1)
+  status      KnowledgeStatus  @default(DRAFT)
+  
+  // 協作
+  createdBy   {{ID_TYPE}}
+  updatedBy   {{ID_TYPE}}?
+  approvedBy  {{ID_TYPE}}?
+  approvedAt  DateTime?
+  
+  // 時間戳
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  
+  {{MONGODB_MAP}}
+  {{INDEX_TITLE}}
+  {{INDEX_CATEGORY}}
+  {{INDEX_STATUS}}
+  {{FULLTEXT_INDEX}}
+}
+
+/// 知識庫狀態枚舉
+enum KnowledgeStatus {
+  DRAFT         // 草稿
+  PENDING       // 待審核
+  APPROVED      // 已批准
+  ARCHIVED      // 已歸檔
+}
+{{/if}}
+
+// =====================================================
+// 可選模型：工作流程引擎（安裝 workflow 模組時啟用）
+// =====================================================
+
+{{#if MODULES.workflow}}
+/// 工作流程實例模型
+/// 
+/// 存儲工作流程的執行實例，包含狀態機和版本控制。
+model WorkflowInstance {
+  id          {{ID_TYPE}}      @id @default({{ID_DEFAULT}})
+  
+  // 基本信息
+  name        String
+  description String?
+  templateId  String?          // 關聯的模板 ID
+  
+  // 狀態機（12個狀態）
+  state       WorkflowState    @default(DRAFT)
+  previousState WorkflowState?
+  
+  // 數據
+  data        Json             // 工作流程數據（JSON）
+  metadata    Json?            // 元數據
+  
+  // 版本控制
+  version     Int              @default(1)
+  
+  // 審批
+  submittedAt DateTime?
+  submittedBy {{ID_TYPE}}?
+  approvedBy  {{ID_TYPE}}?
+  approvedAt  DateTime?
+  rejectedBy  {{ID_TYPE}}?
+  rejectedAt  DateTime?
+  rejectionReason String?
+  
+  // 創建者
+  createdBy   {{ID_TYPE}}
+  updatedBy   {{ID_TYPE}}?
+  
+  // 時間戳
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  completedAt DateTime?
+  
+  // 關聯
+  comments    WorkflowComment[]
+  history     WorkflowHistory[]
+  
+  {{MONGODB_MAP}}
+  {{INDEX_STATE}}
+  {{INDEX_CREATED_BY}}
+  {{INDEX_CREATED_AT}}
+}
+
+/// 工作流程狀態枚舉（12個狀態）
+enum WorkflowState {
+  DRAFT           // 草稿
+  IN_PROGRESS     // 進行中
+  PENDING_REVIEW  // 待審核
+  UNDER_REVIEW    // 審核中
+  APPROVED        // 已批准
+  REJECTED        // 已拒絕
+  ON_HOLD         // 暫停
+  CANCELLED       // 已取消
+  COMPLETED       // 已完成
+  ARCHIVED        // 已歸檔
+  FAILED          // 失敗
+  EXPIRED         // 已過期
+}
+
+/// 工作流程評論模型
+model WorkflowComment {
+  id         {{ID_TYPE}}      @id @default({{ID_DEFAULT}})
+  workflowId {{ID_TYPE}}
+  
+  // 評論內容
+  content    String           @db.{{TEXT_TYPE}}
+  
+  // 創建者
+  createdBy  {{ID_TYPE}}
+  
+  // 時間戳
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+  
+  // 關聯
+  workflow   WorkflowInstance @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  
+  {{MONGODB_MAP}}
+  {{INDEX_WORKFLOW_ID}}
+}
+
+/// 工作流程歷史記錄模型
+model WorkflowHistory {
+  id         {{ID_TYPE}}      @id @default({{ID_DEFAULT}})
+  workflowId {{ID_TYPE}}
+  
+  // 狀態變更
+  fromState  WorkflowState?
+  toState    WorkflowState
+  action     String
+  
+  // 變更者
+  changedBy  {{ID_TYPE}}
+  
+  // 快照數據
+  snapshot   Json             // 狀態快照（Memento模式）
+  
+  // 時間戳
+  createdAt  DateTime         @default(now())
+  
+  // 關聯
+  workflow   WorkflowInstance @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  
+  {{MONGODB_MAP}}
+  {{INDEX_WORKFLOW_ID}}
+  {{INDEX_CREATED_AT}}
+}
+{{/if}}
+
+// =====================================================
+// 備註說明
+// =====================================================
+
+// 【PostgreSQL 特定功能】
+// - 向量嵌入 (embedding): 使用 pgvector 擴展
+// - 全文搜索: 使用 to_tsvector 和 GIN 索引
+//
+// 【MySQL 特定功能】
+// - 全文搜索: 使用 FULLTEXT 索引
+//
+// 【MongoDB 特定功能】
+// - 靈活 Schema: 可以存儲額外字段
+// - 文本搜索: 使用 text 索引
+//
+// 【SQLite 特定功能】
+// - 簡單快速: 適合開發和測試
+// - FTS5 搜索: 需要額外配置
+

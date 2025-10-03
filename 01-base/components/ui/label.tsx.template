@@ -1,0 +1,88 @@
+/**
+ * ================================================================
+ * {{PROJECT_NAME}} - Label Component
+ * ================================================================
+ *
+ * Accessible label component built on Radix UI.
+ * Provides semantic labeling for form controls with automatic association,
+ * keyboard navigation, and screen reader support.
+ *
+ * @component
+ * @example
+ * ```tsx
+ * // Basic label usage
+ * <div className="space-y-2">
+ *   <Label htmlFor="email">Email</Label>
+ *   <Input id="email" type="email" placeholder="Enter your email" />
+ * </div>
+ *
+ * // Wrapped label
+ * <Label>
+ *   Name
+ *   <Input placeholder="Enter your name" className="mt-1" />
+ * </Label>
+ *
+ * // Required field label
+ * <Label htmlFor="username" className="text-destructive">
+ *   Username *
+ * </Label>
+ *
+ * // With checkbox
+ * <div className="flex items-center space-x-2">
+ *   <Checkbox id="terms" />
+ *   <Label htmlFor="terms">I agree to the terms of service</Label>
+ * </div>
+ *
+ * // Disabled state
+ * <Label htmlFor="disabled-input" className="opacity-50">
+ *   Disabled Field
+ * </Label>
+ * <Input id="disabled-input" disabled />
+ * ```
+ */
+
+import * as React from "react"
+import * as LabelPrimitive from "@radix-ui/react-label"
+import { cva, type VariantProps } from "class-variance-authority"
+import { cn } from "@/lib/utils"
+
+/**
+ * Label style variants using CVA
+ * Manages conditional styling for disabled states
+ */
+const labelVariants = cva(
+  "text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+)
+
+/**
+ * Label component with forwardRef support
+ * 
+ * @accessibility
+ * - Semantic markup: Proper <label> element semantics
+ * - Auto-association: Ensures correct label-control association
+ * - Keyboard friendly: Clicking label focuses associated control
+ * - Screen reader support: Provides correct label reading
+ * - State indication: Visual and semantic indication of disabled state
+ * 
+ * @features
+ * - Auto-association via htmlFor or wrapping
+ * - Disabled state support with peer-disabled
+ * - Theme integration with design tokens
+ * - CVA for style variants
+ * - Full Radix UI accessibility features
+ */
+const Label = React.forwardRef<
+  React.ElementRef<typeof LabelPrimitive.Root>,
+  React.ComponentPropsWithoutRef<typeof LabelPrimitive.Root> &
+    VariantProps<typeof labelVariants>
+>(({ className, ...props }, ref) => (
+  <LabelPrimitive.Root
+    ref={ref}
+    className={cn(labelVariants(), className)}
+    {...props}
+  />
+))
+Label.displayName = LabelPrimitive.Root.displayName
+
+export { Label }
+

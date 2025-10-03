@@ -1,0 +1,104 @@
+/**
+ * ================================================================
+ * {{PROJECT_NAME}} - Input Component
+ * ================================================================
+ *
+ * Standardized input component supporting multiple input types and states.
+ * Provides accessibility support, focus management, and form validation.
+ *
+ * @component
+ * @example
+ * ```tsx
+ * // Basic text input
+ * <Input
+ *   type="text"
+ *   placeholder="Enter your name"
+ *   value={name}
+ *   onChange={(e) => setName(e.target.value)}
+ * />
+ *
+ * // Email input with validation
+ * <Input
+ *   type="email"
+ *   placeholder="email@example.com"
+ *   required
+ * />
+ *
+ * // Search box
+ * <Input
+ *   type="search"
+ *   placeholder="Search customers, documents..."
+ *   className="w-full max-w-sm"
+ * />
+ *
+ * // Disabled input
+ * <Input
+ *   type="text"
+ *   placeholder="Disabled input"
+ *   disabled
+ * />
+ *
+ * // File upload
+ * <Input
+ *   type="file"
+ *   accept=".pdf,.doc,.docx"
+ *   onChange={handleFileUpload}
+ * />
+ * ```
+ */
+
+import * as React from "react"
+import { cn } from "@/lib/utils"
+
+export interface InputProps
+  extends React.InputHTMLAttributes<HTMLInputElement> {}
+
+/**
+ * Input component with forwardRef support
+ * 
+ * @param {InputProps} props - Input properties (extends all standard input attributes)
+ * @param {React.Ref<HTMLInputElement>} ref - Forwarded ref to input element
+ * 
+ * @accessibility
+ * - Keyboard navigation: Tab key focus management
+ * - Focus indicator: Clear visual focus state (ring-2)
+ * - Label association: Supports label element association via id/name
+ * - Error state: Can be combined with aria-invalid
+ * - Helper text: Supports aria-describedby
+ * 
+ * @styles
+ * - Base size: h-10 standard height, px-3 py-2 padding
+ * - Border: rounded-md + border-input thin border
+ * - Focus state: Blue focus ring (ring-2 ring-ring)
+ * - Disabled state: cursor-not-allowed + opacity-50
+ * - Placeholder: text-muted-foreground gray text
+ * - File input: Special styling with transparent background
+ */
+const Input = React.forwardRef<HTMLInputElement, InputProps>(
+  ({ className, type, ...props }, ref) => {
+    return (
+      <input
+        type={type}
+        className={cn(
+          // Base styles
+          "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm",
+          // Focus state
+          "ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+          // File input styles
+          "file:border-0 file:bg-transparent file:text-sm file:font-medium",
+          // Placeholder styles
+          "placeholder:text-muted-foreground",
+          // Disabled state
+          "disabled:cursor-not-allowed disabled:opacity-50",
+          className
+        )}
+        ref={ref}
+        {...props}
+      />
+    )
+  }
+)
+Input.displayName = "Input"
+
+export { Input }
+

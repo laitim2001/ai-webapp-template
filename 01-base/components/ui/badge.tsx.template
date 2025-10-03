@@ -1,0 +1,115 @@
+/**
+ * ================================================================
+ * {{PROJECT_NAME}} - Badge Component
+ * ================================================================
+ *
+ * Compact badge component for displaying status, categories, quantities, or important information.
+ * Supports multiple color variants and sizes for different use cases.
+ *
+ * @component
+ * @example
+ * ```tsx
+ * // Basic badge
+ * <Badge>New Feature</Badge>
+ *
+ * // Status indicators
+ * <Badge variant="success">Online</Badge>
+ * <Badge variant="error">Offline</Badge>
+ * <Badge variant="warning">Pending</Badge>
+ *
+ * // Quantity indicators
+ * <Badge variant="destructive">5</Badge>
+ * <Badge className="bg-red-500">99+</Badge>
+ *
+ * // Category labels
+ * <Badge variant="outline">High Priority</Badge>
+ * <Badge variant="secondary">VIP Customer</Badge>
+ *
+ * // Clickable badge
+ * <Badge
+ *   variant="info"
+ *   className="cursor-pointer hover:bg-blue-200"
+ *   onClick={handleClick}
+ * >
+ *   Clickable
+ * </Badge>
+ * ```
+ */
+
+import * as React from "react"
+import { cva, type VariantProps } from "class-variance-authority"
+import { cn } from "@/lib/utils"
+
+/**
+ * Badge style variants using CVA
+ * Manages all color variations and states
+ */
+const badgeVariants = cva(
+  // Base styles for all badges
+  "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
+  {
+    variants: {
+      variant: {
+        // Primary badge - general information
+        default:
+          "border-transparent bg-primary text-primary-foreground hover:bg-primary/80",
+        
+        // Secondary badge - less important information
+        secondary:
+          "border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80",
+        
+        // Destructive badge - dangerous or error states
+        destructive:
+          "border-transparent bg-destructive text-destructive-foreground hover:bg-destructive/80",
+        
+        // Outline badge - neutral information
+        outline: "text-foreground",
+        
+        // Success badge - positive status
+        success:
+          "border-transparent bg-green-100 text-green-800 hover:bg-green-200",
+        
+        // Warning badge - caution information
+        warning:
+          "border-transparent bg-yellow-100 text-yellow-800 hover:bg-yellow-200",
+        
+        // Error badge - error states
+        error:
+          "border-transparent bg-red-100 text-red-800 hover:bg-red-200",
+        
+        // Info badge - general information
+        info:
+          "border-transparent bg-blue-100 text-blue-800 hover:bg-blue-200",
+      },
+    },
+    defaultVariants: {
+      variant: "default",
+    },
+  }
+)
+
+export interface BadgeProps
+  extends React.HTMLAttributes<HTMLDivElement>,
+    VariantProps<typeof badgeVariants> {}
+
+/**
+ * Badge component
+ * 
+ * @param {BadgeProps} props - Badge properties
+ * 
+ * @features
+ * - Compact design with rounded-full shape
+ * - Multiple color variants for different purposes
+ * - Hover and focus states for interaction
+ * - Smooth transitions with transition-colors
+ * - Supports custom className for overrides
+ * - Theme-aware colors using design tokens
+ */
+function Badge({ className, variant, ...props }: BadgeProps) {
+  return (
+    <div className={cn(badgeVariants({ variant }), className)} {...props} />
+  )
+}
+
+export { Badge, badgeVariants }
+

@@ -1,0 +1,341 @@
+/**
+ * ================================================================
+ * MongoDB 數據庫適配器 (MongoDB Database Adapter)
+ * ================================================================
+ * 
+ * 【檔案功能】
+ * MongoDB 數據庫的適配器實現，提供 NoSQL 數據庫操作。
+ * 
+ * 【特點】
+ * • NoSQL 靈活性 - 無需固定 Schema
+ * • 水平擴展 - 優秀的分片支援
+ * • 文檔模型 - 適合複雜的嵌套數據
+ * • 全文搜索 - 內建文本索引
+ * • 地理位置 - 地理空間查詢
+ * 
+ * 【限制】
+ * • 事務支援 - 需要 MongoDB 4.0+ 和副本集
+ * • JOIN 操作 - 需要使用 $lookup 聚合
+ * 
+ * 【使用場景】
+ * • 非結構化數據
+ * • 需要靈活 Schema 的應用
+ * • 需要水平擴展的應用
+ * • 日誌和事件存儲
+ */
+
+import { PrismaClient } from '@prisma/client';
+import {
+  DatabaseAdapter,
+  DatabaseType,
+  QueryOptions,
+  CreateOptions,
+  UpdateOptions,
+  DeleteOptions,
+  CountOptions,
+  BatchOptions,
+  TransactionCallback,
+  DatabaseAdapterError,
+} from './database-adapter';
+
+/**
+ * MongoDB 適配器實現
+ * 
+ * 注意：MongoDB 通過 Prisma 使用時，某些查詢需要特殊處理。
+ */
+export class MongoDBAdapter implements DatabaseAdapter {
+  private prisma: PrismaClient;
+  private readonly databaseType: DatabaseType = 'mongodb';
+
+  constructor(prisma?: PrismaClient) {
+    this.prisma = prisma || new PrismaClient();
+  }
+
+  getDatabaseType(): DatabaseType {
+    return this.databaseType;
+  }
+
+  async findUnique<T = any>(model: string, options: QueryOptions): Promise<T | null> {
+    try {
+      const modelName = this.getModelName(model);
+      // MongoDB 使用 _id 而非 id
+      const adaptedOptions = this.adaptOptionsForMongo(options);
+      return await (this.prisma as any)[modelName].findUnique(adaptedOptions);
+    } catch (error) {
+      throw this.handleError('findUnique', error);
+    }
+  }
+
+  async findMany<T = any>(model: string, options: QueryOptions = {}): Promise<T[]> {
+    try {
+      const modelName = this.getModelName(model);
+      const adaptedOptions = this.adaptOptionsForMongo(options);
+      return await (this.prisma as any)[modelName].findMany(adaptedOptions);
+    } catch (error) {
+      throw this.handleError('findMany', error);
+    }
+  }
+
+  async findFirst<T = any>(model: string, options: QueryOptions = {}): Promise<T | null> {
+    try {
+      const modelName = this.getModelName(model);
+      const adaptedOptions = this.adaptOptionsForMongo(options);
+      return await (this.prisma as any)[modelName].findFirst(adaptedOptions);
+    } catch (error) {
+      throw this.handleError('findFirst', error);
+    }
+  }
+
+  async create<T = any>(model: string, options: CreateOptions): Promise<T> {
+    try {
+      const modelName = this.getModelName(model);
+      return await (this.prisma as any)[modelName].create(options);
+    } catch (error) {
+      throw this.handleError('create', error);
+    }
+  }
+
+  async createMany(model: string, options: BatchOptions): Promise<{ count: number }> {
+    try {
+      const modelName = this.getModelName(model);
+      return await (this.prisma as any)[modelName].createMany(options);
+    } catch (error) {
+      throw this.handleError('createMany', error);
+    }
+  }
+
+  async update<T = any>(model: string, options: UpdateOptions): Promise<T> {
+    try {
+      const modelName = this.getModelName(model);
+      return await (this.prisma as any)[modelName].update(options);
+    } catch (error) {
+      throw this.handleError('update', error);
+    }
+  }
+
+  async updateMany(model: string, options: UpdateOptions): Promise<{ count: number }> {
+    try {
+      const modelName = this.getModelName(model);
+      return await (this.prisma as any)[modelName].updateMany(options);
+    } catch (error) {
+      throw this.handleError('updateMany', error);
+    }
+  }
+
+  async upsert<T = any>(
+    model: string,
+    options: {
+      where: Record<string, any>;
+      create: Record<string, any>;
+      update: Record<string, any>;
+    }
+  ): Promise<T> {
+    try {
+      const modelName = this.getModelName(model);
+      return await (this.prisma as any)[modelName].upsert(options);
+    } catch (error) {
+      throw this.handleError('upsert', error);
+    }
+  }
+
+  async delete<T = any>(model: string, options: DeleteOptions): Promise<T> {
+    try {
+      const modelName = this.getModelName(model);
+      return await (this.prisma as any)[modelName].delete(options);
+    } catch (error) {
+      throw this.handleError('delete', error);
+    }
+  }
+
+  async deleteMany(model: string, options: DeleteOptions): Promise<{ count: number }> {
+    try {
+      const modelName = this.getModelName(model);
+      return await (this.prisma as any)[modelName].deleteMany(options);
+    } catch (error) {
+      throw this.handleError('deleteMany', error);
+    }
+  }
+
+  async count(model: string, options: CountOptions = {}): Promise<number> {
+    try {
+      const modelName = this.getModelName(model);
+      return await (this.prisma as any)[modelName].count(options);
+    } catch (error) {
+      throw this.handleError('count', error);
+    }
+  }
+
+  /**
+   * 執行事務
+   * 
+   * 注意：MongoDB 事務需要：
+   * 1. MongoDB 4.0 或更高版本
+   * 2. 副本集（Replica Set）配置
+   * 3. 不支援單機部署的事務
+   */
+  async transaction<T>(callback: TransactionCallback<T>): Promise<T> {
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        const txAdapter = new MongoDBAdapter(tx as PrismaClient);
+        return await callback(txAdapter);
+      });
+    } catch (error) {
+      // MongoDB 事務可能失敗，提供更友好的錯誤信息
+      if (error instanceof Error && error.message.includes('Transaction')) {
+        throw new DatabaseAdapterError(
+          'MongoDB transactions require a replica set configuration. ' +
+          'For development, consider using PostgreSQL or MySQL, ' +
+          'or set up a MongoDB replica set.',
+          'TRANSACTION_NOT_SUPPORTED',
+          this.databaseType,
+          error
+        );
+      }
+      throw this.handleError('transaction', error);
+    }
+  }
+
+  /**
+   * 執行原始 MongoDB 查詢
+   * 
+   * MongoDB 使用 JSON 格式的查詢，而非 SQL。
+   * 
+   * @param query - MongoDB 查詢對象（序列化為字符串）
+   * @param params - 查詢參數（MongoDB 不使用位置參數）
+   * @returns 查詢結果
+   * 
+   * @example
+   * ```typescript
+   * // MongoDB 聚合查詢
+   * const query = JSON.stringify([
+   *   { $match: { status: 'active' } },
+   *   { $group: { _id: '$category', count: { $sum: 1 } } }
+   * ]);
+   * const result = await db.raw(query);
+   * ```
+   */
+  async raw<T = any>(query: string, params: any[] = []): Promise<T> {
+    try {
+      // MongoDB 的 raw 查詢通常使用 $runCommandRaw
+      const queryObj = JSON.parse(query);
+      return await (this.prisma as any).$runCommandRaw(queryObj);
+    } catch (error) {
+      throw this.handleError('raw', error);
+    }
+  }
+
+  async connect(): Promise<void> {
+    try {
+      await this.prisma.$connect();
+    } catch (error) {
+      throw this.handleError('connect', error);
+    }
+  }
+
+  async disconnect(): Promise<void> {
+    try {
+      await this.prisma.$disconnect();
+    } catch (error) {
+      throw this.handleError('disconnect', error);
+    }
+  }
+
+  async healthCheck(): Promise<boolean> {
+    try {
+      // MongoDB 健康檢查使用 ping 命令
+      await (this.prisma as any).$runCommandRaw({ ping: 1 });
+      return true;
+    } catch (error) {
+      console.error('[MongoDB] Health check failed:', error);
+      return false;
+    }
+  }
+
+  /**
+   * MongoDB 特定功能：文本搜索
+   * 
+   * 使用 MongoDB 的文本索引進行搜索。
+   * 注意：需要事先在字段上創建文本索引。
+   * 
+   * @param collection - 集合名
+   * @param query - 搜索查詢
+   * @param limit - 返回結果數量
+   * @returns 匹配的文檔
+   * 
+   * @example
+   * ```typescript
+   * // 創建文本索引（僅需一次）
+   * // db.knowledge_items.createIndex({ content: "text", title: "text" })
+   * 
+   * const results = await adapter.textSearch(
+   *   'knowledge_items',
+   *   'artificial intelligence',
+   *   20
+   * );
+   * ```
+   */
+  async textSearch<T = any>(
+    collection: string,
+    query: string,
+    limit: number = 20
+  ): Promise<T[]> {
+    try {
+      const command = {
+        find: collection,
+        filter: { $text: { $search: query } },
+        projection: { score: { $meta: 'textScore' } },
+        sort: { score: { $meta: 'textScore' } },
+        limit: limit,
+      };
+      const result = await (this.prisma as any).$runCommandRaw(command);
+      return result.cursor.firstBatch;
+    } catch (error) {
+      throw this.handleError('textSearch', error);
+    }
+  }
+
+  // =====================================================
+  // 私有輔助方法
+  // =====================================================
+
+  private getModelName(model: string): string {
+    return model.charAt(0).toLowerCase() + model.slice(1);
+  }
+
+  /**
+   * 適配查詢選項以支援 MongoDB
+   * 
+   * MongoDB 使用 _id 而非 id，需要進行轉換。
+   */
+  private adaptOptionsForMongo(options: QueryOptions): QueryOptions {
+    const adapted = { ...options };
+
+    // 將 id 查詢轉換為 _id
+    if (adapted.where && 'id' in adapted.where) {
+      adapted.where = {
+        ...adapted.where,
+        _id: adapted.where.id,
+      };
+      delete adapted.where.id;
+    }
+
+    return adapted;
+  }
+
+  private handleError(operation: string, error: any): DatabaseAdapterError {
+    const message = error.message || `MongoDB ${operation} operation failed`;
+    const code = error.code || 'UNKNOWN_ERROR';
+
+    return new DatabaseAdapterError(
+      message,
+      code,
+      this.databaseType,
+      error
+    );
+  }
+}
+
+export function createMongoDBAdapter(prisma?: PrismaClient): MongoDBAdapter {
+  return new MongoDBAdapter(prisma);
+}
+

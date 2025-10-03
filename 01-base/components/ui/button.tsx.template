@@ -1,0 +1,120 @@
+/**
+ * ================================================================
+ * {{PROJECT_NAME}} - Button Component
+ * ================================================================
+ *
+ * Flexible button component built with Radix UI and CVA (Class Variance Authority).
+ * Provides multiple style variants, sizes, and full accessibility support.
+ *
+ * @component
+ * @example
+ * ```tsx
+ * // Primary action button
+ * <Button>Submit</Button>
+ *
+ * // Destructive action
+ * <Button variant="destructive">Delete</Button>
+ *
+ * // Large secondary button
+ * <Button variant="secondary" size="lg">Cancel</Button>
+ *
+ * // Icon button
+ * <Button variant="ghost" size="icon">
+ *   <Search className="h-4 w-4" />
+ * </Button>
+ *
+ * // As link
+ * <Button asChild>
+ *   <Link href="/dashboard">Go to Dashboard</Link>
+ * </Button>
+ * ```
+ */
+
+import * as React from "react"
+import { Slot } from "@radix-ui/react-slot"
+import { cva, type VariantProps } from "class-variance-authority"
+
+import { cn } from "@/lib/utils"
+
+/**
+ * Button style variants using CVA
+ * Manages all conditional styling variations
+ */
+const buttonVariants = cva(
+  // Base styles applied to all buttons
+  "inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
+  {
+    variants: {
+      variant: {
+        // Primary button - main actions
+        default: "bg-primary text-primary-foreground hover:bg-primary/90",
+        
+        // Destructive button - dangerous actions (delete, remove)
+        destructive:
+          "bg-destructive text-destructive-foreground hover:bg-destructive/90",
+        
+        // Outline button - secondary actions
+        outline:
+          "border border-input bg-background hover:bg-accent hover:text-accent-foreground",
+        
+        // Secondary button - alternative actions
+        secondary:
+          "bg-secondary text-secondary-foreground hover:bg-secondary/80",
+        
+        // Ghost button - subtle actions
+        ghost: "hover:bg-accent hover:text-accent-foreground",
+        
+        // Link button - navigation links
+        link: "text-primary underline-offset-4 hover:underline",
+      },
+      size: {
+        default: "h-10 px-4 py-2",
+        sm: "h-9 rounded-md px-3",
+        lg: "h-11 rounded-md px-8",
+        icon: "h-10 w-10",
+      },
+    },
+    defaultVariants: {
+      variant: "default",
+      size: "default",
+    },
+  }
+)
+
+export interface ButtonProps
+  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
+    VariantProps<typeof buttonVariants> {
+  /**
+   * If true, renders as child element (useful for wrapping links)
+   */
+  asChild?: boolean
+}
+
+/**
+ * Button component with forwardRef support
+ * 
+ * @param {ButtonProps} props - Button properties
+ * @param {React.Ref<HTMLButtonElement>} ref - Forwarded ref
+ * 
+ * @accessibility
+ * - Keyboard navigation: Tab focus, Enter/Space to activate
+ * - Focus ring: Clear focus indicator (ring-2 ring-offset-2)
+ * - Disabled state: Automatically handles pointer-events and opacity
+ * - Semantic markup: Proper role and ARIA attributes
+ */
+const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
+  ({ className, variant, size, asChild = false, ...props }, ref) => {
+    const Comp = asChild ? Slot : "button"
+    return (
+      <Comp
+        className={cn(buttonVariants({ variant, size, className }))}
+        ref={ref}
+        {...props}
+      />
+    )
+  }
+)
+Button.displayName = "Button"
+
+export { Button, buttonVariants }
+

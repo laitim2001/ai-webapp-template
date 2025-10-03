@@ -1,0 +1,260 @@
+/**
+ * ================================================================
+ * {{PROJECT_NAME}} - Notification Seed Data
+ * ================================================================
+ *
+ * Sample notifications for development and testing.
+ * Creates 20+ notifications of different types.
+ *
+ * @module seed-data/notifications
+ */
+
+import { PrismaClient } from '@prisma/client'
+
+const prisma = new PrismaClient()
+
+/**
+ * Sample notification templates
+ */
+export const sampleNotifications = [
+  // System notifications
+  {
+    type: 'SYSTEM',
+    title: 'Welcome to {{PROJECT_NAME}}!',
+    message: 'Your account has been successfully created. Start by exploring the dashboard and creating your first document.',
+    priority: 'LOW',
+    read: false,
+    actionUrl: '/dashboard',
+  },
+  {
+    type: 'SYSTEM',
+    title: 'System Maintenance Scheduled',
+    message: 'Scheduled maintenance will occur on Sunday, 2:00 AM - 4:00 AM UTC. The system will be temporarily unavailable.',
+    priority: 'MEDIUM',
+    read: false,
+    actionUrl: '/system-status',
+  },
+  {
+    type: 'SYSTEM',
+    title: 'New Feature: Advanced Analytics',
+    message: 'We\'ve launched advanced analytics! Get deeper insights into your data with customizable dashboards and reports.',
+    priority: 'LOW',
+    read: true,
+    actionUrl: '/features/analytics',
+  },
+  
+  // Workflow notifications
+  {
+    type: 'WORKFLOW',
+    title: 'Workflow Assigned: Lead Qualification',
+    message: 'You have been assigned to the Lead Qualification workflow for "Acme Corp". Please review within 24 hours.',
+    priority: 'HIGH',
+    read: false,
+    actionUrl: '/workflows/lead-123',
+  },
+  {
+    type: 'WORKFLOW',
+    title: 'Workflow Status Update',
+    message: 'The Quote Approval workflow for "TechStart Inc" has moved to stage 2: VP Approval.',
+    priority: 'MEDIUM',
+    read: false,
+    actionUrl: '/workflows/quote-456',
+  },
+  {
+    type: 'WORKFLOW',
+    title: 'Workflow Completed',
+    message: 'The Customer Onboarding workflow for "Global Enterprises" has been successfully completed.',
+    priority: 'LOW',
+    read: true,
+    actionUrl: '/workflows/onboarding-789',
+  },
+  {
+    type: 'WORKFLOW',
+    title: 'Workflow Overdue',
+    message: 'URGENT: The Contract Review workflow for "Finance Corp" is 12 hours overdue. Please take action immediately.',
+    priority: 'CRITICAL',
+    read: false,
+    actionUrl: '/workflows/contract-321',
+  },
+  
+  // Approval notifications
+  {
+    type: 'APPROVAL',
+    title: 'Approval Required: Quote #12345',
+    message: 'A quote for $75,000 requires your approval. Customer: Acme Corp, Expected close date: Next Friday.',
+    priority: 'HIGH',
+    read: false,
+    actionUrl: '/approvals/quote-12345',
+  },
+  {
+    type: 'APPROVAL',
+    title: 'Approval Granted',
+    message: 'Your quote #12340 has been approved by Sarah Johnson (Sales Manager). You may proceed with the contract.',
+    priority: 'MEDIUM',
+    read: false,
+    actionUrl: '/quotes/12340',
+  },
+  {
+    type: 'APPROVAL',
+    title: 'Approval Rejected',
+    message: 'Your quote #12338 was rejected. Reason: Pricing needs adjustment. Please revise and resubmit.',
+    priority: 'HIGH',
+    read: false,
+    actionUrl: '/quotes/12338',
+  },
+  
+  // Assignment notifications
+  {
+    type: 'ASSIGNMENT',
+    title: 'New Lead Assigned',
+    message: 'You have been assigned a new lead: "Enterprise Solutions Co" - Contact: Jane Doe, Budget: $50k+',
+    priority: 'HIGH',
+    read: false,
+    actionUrl: '/leads/789',
+  },
+  {
+    type: 'ASSIGNMENT',
+    title: 'Customer Assigned',
+    message: 'You are now the account manager for "Global Tech Inc". Review their profile and schedule an introductory call.',
+    priority: 'MEDIUM',
+    read: false,
+    actionUrl: '/customers/456',
+  },
+  {
+    type: 'ASSIGNMENT',
+    title: 'Support Ticket Assigned',
+    message: 'Support ticket #ST-1234 has been assigned to you. Priority: High, Category: Technical Issue.',
+    priority: 'HIGH',
+    read: false,
+    actionUrl: '/support/ST-1234',
+  },
+  
+  // Deadline notifications
+  {
+    type: 'DEADLINE',
+    title: 'Deadline Approaching: Proposal Due',
+    message: 'Reminder: The proposal for "Startup Ventures" is due in 2 days. Current status: Draft.',
+    priority: 'MEDIUM',
+    read: false,
+    actionUrl: '/proposals/567',
+  },
+  {
+    type: 'DEADLINE',
+    title: 'Deadline Today: Contract Renewal',
+    message: 'URGENT: The contract for "Finance Solutions Ltd" expires today. Please complete renewal process.',
+    priority: 'CRITICAL',
+    read: false,
+    actionUrl: '/contracts/890',
+  },
+  {
+    type: 'DEADLINE',
+    title: 'Upcoming Meeting',
+    message: 'You have a meeting with "Acme Corp" scheduled for tomorrow at 2:00 PM. Topic: Product Demo.',
+    priority: 'MEDIUM',
+    read: false,
+    actionUrl: '/calendar/event-123',
+  },
+  
+  // Collaboration notifications
+  {
+    type: 'MENTION',
+    title: 'You were mentioned in a comment',
+    message: '@JohnSmith mentioned you in "Q4 Sales Strategy" document: "Can you review the pricing section?"',
+    priority: 'MEDIUM',
+    read: false,
+    actionUrl: '/documents/doc-456#comment-789',
+  },
+  {
+    type: 'MENTION',
+    title: 'New Comment on Your Document',
+    message: 'Sarah Johnson commented on your document "Product Roadmap 2024": "Great work! Can we discuss timeline?"',
+    priority: 'LOW',
+    read: false,
+    actionUrl: '/documents/doc-123#comment-456',
+  },
+  
+  // Achievement notifications
+  {
+    type: 'ACHIEVEMENT',
+    title: 'Milestone Achieved: 100 Documents',
+    message: 'Congratulations! Your team has created 100 knowledge base documents. Keep up the great work!',
+    priority: 'LOW',
+    read: true,
+    actionUrl: '/achievements',
+  },
+  {
+    type: 'ACHIEVEMENT',
+    title: 'Monthly Goal Met',
+    message: 'Excellent! You\'ve met your monthly sales target of $250k. Total closed: $275k (+10%)',
+    priority: 'LOW',
+    read: false,
+    actionUrl: '/goals/monthly',
+  },
+  
+  // Security notifications
+  {
+    type: 'SECURITY',
+    title: 'New Login from Unknown Device',
+    message: 'A new login was detected from Chrome on Windows in New York. If this wasn\'t you, please secure your account immediately.',
+    priority: 'HIGH',
+    read: false,
+    actionUrl: '/security/sessions',
+  },
+  {
+    type: 'SECURITY',
+    title: 'Password Changed Successfully',
+    message: 'Your password was changed on Jan 15, 2024 at 3:30 PM. If you didn\'t make this change, contact support immediately.',
+    priority: 'MEDIUM',
+    read: true,
+    actionUrl: '/security/activity',
+  },
+]
+
+/**
+ * Seed notifications for users
+ */
+export async function seedNotifications(userIds: string[]) {
+  console.log('🌱 Seeding notifications...')
+
+  const createdNotifications = []
+
+  // Create notifications for each user
+  for (const userId of userIds) {
+    // Each user gets a subset of notifications (5-8 random notifications)
+    const userNotificationCount = Math.floor(Math.random() * 4) + 5
+    const shuffled = [...sampleNotifications].sort(() => 0.5 - Math.random())
+    const selectedNotifications = shuffled.slice(0, userNotificationCount)
+
+    for (const notifData of selectedNotifications) {
+      const notification = await prisma.notification.create({
+        data: {
+          userId: userId,
+          type: notifData.type,
+          title: notifData.title,
+          message: notifData.message,
+          priority: notifData.priority,
+          read: notifData.read,
+          actionUrl: notifData.actionUrl,
+          createdAt: new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000), // Random within last 7 days
+        },
+      })
+
+      createdNotifications.push(notification)
+    }
+  }
+
+  console.log(`✅ Seeded ${createdNotifications.length} notifications across ${userIds.length} users\n`)
+  return createdNotifications
+}
+
+/**
+ * Clean up notifications (for testing)
+ */
+export async function cleanupNotifications() {
+  console.log('🧹 Cleaning up notifications...')
+  
+  await prisma.notification.deleteMany({})
+  
+  console.log('✅ Notifications cleaned up\n')
+}
+

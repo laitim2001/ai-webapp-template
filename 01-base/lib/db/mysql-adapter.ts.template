@@ -1,0 +1,287 @@
+/**
+ * ================================================================
+ * MySQL 數據庫適配器 (MySQL Database Adapter)
+ * ================================================================
+ * 
+ * 【檔案功能】
+ * MySQL 數據庫的適配器實現，提供完整的 CRUD 操作和事務支援。
+ * 
+ * 【特點】
+ * • 廣泛使用 - 大量生產環境驗證
+ * • 高性能 - 優秀的查詢性能
+ * • 全文搜索 - 內建 FULLTEXT 索引
+ * • JSON 支援 - JSON 數據類型
+ * • 兼容性好 - 與多數工具兼容
+ * 
+ * 【限制】
+ * • 不支援向量搜索（pgvector）
+ * • JSON 功能相對 PostgreSQL 較弱
+ * 
+ * 【使用場景】
+ * • 生產環境（不需要向量搜索）
+ * • 傳統 Web 應用
+ * • 需要高並發讀寫的應用
+ */
+
+import { PrismaClient } from '@prisma/client';
+import {
+  DatabaseAdapter,
+  DatabaseType,
+  QueryOptions,
+  CreateOptions,
+  UpdateOptions,
+  DeleteOptions,
+  CountOptions,
+  BatchOptions,
+  TransactionCallback,
+  DatabaseAdapterError,
+} from './database-adapter';
+
+/**
+ * MySQL 適配器實現
+ */
+export class MySQLAdapter implements DatabaseAdapter {
+  private prisma: PrismaClient;
+  private readonly databaseType: DatabaseType = 'mysql';
+
+  constructor(prisma?: PrismaClient) {
+    this.prisma = prisma || new PrismaClient();
+  }
+
+  getDatabaseType(): DatabaseType {
+    return this.databaseType;
+  }
+
+  async findUnique<T = any>(model: string, options: QueryOptions): Promise<T | null> {
+    try {
+      const modelName = this.getModelName(model);
+      return await (this.prisma as any)[modelName].findUnique(options);
+    } catch (error) {
+      throw this.handleError('findUnique', error);
+    }
+  }
+
+  async findMany<T = any>(model: string, options: QueryOptions = {}): Promise<T[]> {
+    try {
+      const modelName = this.getModelName(model);
+      return await (this.prisma as any)[modelName].findMany(options);
+    } catch (error) {
+      throw this.handleError('findMany', error);
+    }
+  }
+
+  async findFirst<T = any>(model: string, options: QueryOptions = {}): Promise<T | null> {
+    try {
+      const modelName = this.getModelName(model);
+      return await (this.prisma as any)[modelName].findFirst(options);
+    } catch (error) {
+      throw this.handleError('findFirst', error);
+    }
+  }
+
+  async create<T = any>(model: string, options: CreateOptions): Promise<T> {
+    try {
+      const modelName = this.getModelName(model);
+      return await (this.prisma as any)[modelName].create(options);
+    } catch (error) {
+      throw this.handleError('create', error);
+    }
+  }
+
+  async createMany(model: string, options: BatchOptions): Promise<{ count: number }> {
+    try {
+      const modelName = this.getModelName(model);
+      return await (this.prisma as any)[modelName].createMany(options);
+    } catch (error) {
+      throw this.handleError('createMany', error);
+    }
+  }
+
+  async update<T = any>(model: string, options: UpdateOptions): Promise<T> {
+    try {
+      const modelName = this.getModelName(model);
+      return await (this.prisma as any)[modelName].update(options);
+    } catch (error) {
+      throw this.handleError('update', error);
+    }
+  }
+
+  async updateMany(model: string, options: UpdateOptions): Promise<{ count: number }> {
+    try {
+      const modelName = this.getModelName(model);
+      return await (this.prisma as any)[modelName].updateMany(options);
+    } catch (error) {
+      throw this.handleError('updateMany', error);
+    }
+  }
+
+  async upsert<T = any>(
+    model: string,
+    options: {
+      where: Record<string, any>;
+      create: Record<string, any>;
+      update: Record<string, any>;
+    }
+  ): Promise<T> {
+    try {
+      const modelName = this.getModelName(model);
+      return await (this.prisma as any)[modelName].upsert(options);
+    } catch (error) {
+      throw this.handleError('upsert', error);
+    }
+  }
+
+  async delete<T = any>(model: string, options: DeleteOptions): Promise<T> {
+    try {
+      const modelName = this.getModelName(model);
+      return await (this.prisma as any)[modelName].delete(options);
+    } catch (error) {
+      throw this.handleError('delete', error);
+    }
+  }
+
+  async deleteMany(model: string, options: DeleteOptions): Promise<{ count: number }> {
+    try {
+      const modelName = this.getModelName(model);
+      return await (this.prisma as any)[modelName].deleteMany(options);
+    } catch (error) {
+      throw this.handleError('deleteMany', error);
+    }
+  }
+
+  async count(model: string, options: CountOptions = {}): Promise<number> {
+    try {
+      const modelName = this.getModelName(model);
+      return await (this.prisma as any)[modelName].count(options);
+    } catch (error) {
+      throw this.handleError('count', error);
+    }
+  }
+
+  async transaction<T>(callback: TransactionCallback<T>): Promise<T> {
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        const txAdapter = new MySQLAdapter(tx as PrismaClient);
+        return await callback(txAdapter);
+      });
+    } catch (error) {
+      throw this.handleError('transaction', error);
+    }
+  }
+
+  async raw<T = any>(query: string, params: any[] = []): Promise<T> {
+    try {
+      return await this.prisma.$queryRawUnsafe(query, ...params);
+    } catch (error) {
+      throw this.handleError('raw', error);
+    }
+  }
+
+  async connect(): Promise<void> {
+    try {
+      await this.prisma.$connect();
+    } catch (error) {
+      throw this.handleError('connect', error);
+    }
+  }
+
+  async disconnect(): Promise<void> {
+    try {
+      await this.prisma.$disconnect();
+    } catch (error) {
+      throw this.handleError('disconnect', error);
+    }
+  }
+
+  async healthCheck(): Promise<boolean> {
+    try {
+      await this.prisma.$queryRaw`SELECT 1`;
+      return true;
+    } catch (error) {
+      console.error('[MySQL] Health check failed:', error);
+      return false;
+    }
+  }
+
+  /**
+   * MySQL 特定功能：全文搜索
+   * 
+   * 使用 MySQL 的 FULLTEXT 索引進行搜索。
+   * 注意：需要事先在列上創建 FULLTEXT 索引。
+   * 
+   * @param table - 表名
+   * @param columns - 搜索的列名（可以是多列）
+   * @param query - 搜索查詢
+   * @param mode - 搜索模式（NATURAL LANGUAGE / BOOLEAN）
+   * @param limit - 返回結果數量
+   * @returns 匹配的記錄
+   * 
+   * @example
+   * ```typescript
+   * // 自然語言模式
+   * const results = await adapter.fullTextSearch(
+   *   'knowledge_items',
+   *   ['title', 'content'],
+   *   'artificial intelligence',
+   *   'NATURAL LANGUAGE',
+   *   20
+   * );
+   * 
+   * // 布爾模式（支持 +、-、* 等操作符）
+   * const results = await adapter.fullTextSearch(
+   *   'knowledge_items',
+   *   ['content'],
+   *   '+AI -robot',
+   *   'BOOLEAN',
+   *   20
+   * );
+   * ```
+   */
+  async fullTextSearch<T = any>(
+    table: string,
+    columns: string[],
+    query: string,
+    mode: 'NATURAL LANGUAGE' | 'BOOLEAN' = 'NATURAL LANGUAGE',
+    limit: number = 20
+  ): Promise<T[]> {
+    try {
+      const columnList = columns.join(', ');
+      const sqlQuery = `
+        SELECT *,
+               MATCH(${columnList}) AGAINST(? IN ${mode} MODE) AS relevance
+        FROM ${table}
+        WHERE MATCH(${columnList}) AGAINST(? IN ${mode} MODE)
+        ORDER BY relevance DESC
+        LIMIT ?
+      `;
+      return await this.raw<T[]>(sqlQuery, [query, query, limit]);
+    } catch (error) {
+      throw this.handleError('fullTextSearch', error);
+    }
+  }
+
+  // =====================================================
+  // 私有輔助方法
+  // =====================================================
+
+  private getModelName(model: string): string {
+    return model.charAt(0).toLowerCase() + model.slice(1);
+  }
+
+  private handleError(operation: string, error: any): DatabaseAdapterError {
+    const message = error.message || `MySQL ${operation} operation failed`;
+    const code = error.code || 'UNKNOWN_ERROR';
+
+    return new DatabaseAdapterError(
+      message,
+      code,
+      this.databaseType,
+      error
+    );
+  }
+}
+
+export function createMySQLAdapter(prisma?: PrismaClient): MySQLAdapter {
+  return new MySQLAdapter(prisma);
+}
+

@@ -1,0 +1,127 @@
+/**
+ * ================================================================
+ * {{PROJECT_NAME}} - User Seed Data
+ * ================================================================
+ *
+ * Sample user data for development and testing.
+ * Creates 5 users with different roles and permissions.
+ *
+ * @module seed-data/users
+ */
+
+import { PrismaClient } from '@prisma/client'
+import * as bcrypt from 'bcryptjs'
+
+const prisma = new PrismaClient()
+
+/**
+ * Sample users with different roles
+ */
+export const sampleUsers = [
+  {
+    email: 'admin@example.com',
+    name: 'Admin User',
+    role: 'ADMIN',
+    password: 'admin123', // Will be hashed
+    department: 'IT',
+    title: 'System Administrator',
+    phone: '+1-555-0100',
+    avatar: '/avatars/admin.jpg',
+  },
+  {
+    email: 'sales.manager@example.com',
+    name: 'Sarah Johnson',
+    role: 'SALES_MANAGER',
+    password: 'manager123',
+    department: 'Sales',
+    title: 'Sales Manager',
+    phone: '+1-555-0101',
+    avatar: '/avatars/sarah.jpg',
+  },
+  {
+    email: 'sales.rep@example.com',
+    name: 'John Smith',
+    role: 'SALES_REP',
+    password: 'rep123',
+    department: 'Sales',
+    title: 'Sales Representative',
+    phone: '+1-555-0102',
+    avatar: '/avatars/john.jpg',
+  },
+  {
+    email: 'marketing@example.com',
+    name: 'Emily Chen',
+    role: 'MARKETING',
+    password: 'marketing123',
+    department: 'Marketing',
+    title: 'Marketing Manager',
+    phone: '+1-555-0103',
+    avatar: '/avatars/emily.jpg',
+  },
+  {
+    email: 'support@example.com',
+    name: 'Michael Brown',
+    role: 'SUPPORT',
+    password: 'support123',
+    department: 'Customer Support',
+    title: 'Support Specialist',
+    phone: '+1-555-0104',
+    avatar: '/avatars/michael.jpg',
+  },
+]
+
+/**
+ * Seed users into database
+ */
+export async function seedUsers() {
+  console.log('🌱 Seeding users...')
+
+  const createdUsers = []
+
+  for (const userData of sampleUsers) {
+    // Hash password
+    const hashedPassword = await bcrypt.hash(userData.password, 10)
+
+    // Create user
+    const user = await prisma.user.upsert({
+      where: { email: userData.email },
+      update: {},
+      create: {
+        email: userData.email,
+        name: userData.name,
+        password: hashedPassword,
+        role: userData.role,
+        department: userData.department,
+        title: userData.title,
+        phone: userData.phone,
+        avatar: userData.avatar,
+        emailVerified: new Date(),
+        active: true,
+      },
+    })
+
+    createdUsers.push(user)
+    console.log(`  ✅ Created user: ${user.email} (${user.role})`)
+  }
+
+  console.log(`✅ Seeded ${createdUsers.length} users\n`)
+  return createdUsers
+}
+
+/**
+ * Clean up users (for testing)
+ */
+export async function cleanupUsers() {
+  console.log('🧹 Cleaning up users...')
+  
+  await prisma.user.deleteMany({
+    where: {
+      email: {
+        in: sampleUsers.map(u => u.email),
+      },
+    },
+  })
+  
+  console.log('✅ Users cleaned up\n')
+}
+

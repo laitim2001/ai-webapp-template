@@ -1,0 +1,398 @@
+/**
+ * ================================================================
+ * PostgreSQL 數據庫適配器 (PostgreSQL Database Adapter)
+ * ================================================================
+ * 
+ * 【檔案功能】
+ * PostgreSQL 數據庫的適配器實現，提供完整的 CRUD 操作和事務支援。
+ * 
+ * 【特點】
+ * • 功能最完整 - 支援所有 Prisma 功能
+ * • 向量搜索 - 支援 pgvector 擴展
+ * • 全文搜索 - 內建全文搜索支援
+ * • JSON 支援 - JSONB 類型支援
+ * • 高級功能 - CTE、窗口函數等
+ * 
+ * 【使用場景】
+ * • 生產環境（推薦）
+ * • 需要向量搜索的 AI 應用
+ * • 需要複雜查詢的應用
+ * • 需要強事務保證的應用
+ */
+
+import { PrismaClient } from '@prisma/client';
+import {
+  DatabaseAdapter,
+  DatabaseType,
+  QueryOptions,
+  CreateOptions,
+  UpdateOptions,
+  DeleteOptions,
+  CountOptions,
+  BatchOptions,
+  TransactionCallback,
+  DatabaseAdapterError,
+} from './database-adapter';
+
+/**
+ * PostgreSQL 適配器實現
+ */
+export class PostgreSQLAdapter implements DatabaseAdapter {
+  private prisma: PrismaClient;
+  private readonly databaseType: DatabaseType = 'postgresql';
+
+  constructor(prisma?: PrismaClient) {
+    this.prisma = prisma || new PrismaClient();
+  }
+
+  /**
+   * 獲取數據庫類型
+   */
+  getDatabaseType(): DatabaseType {
+    return this.databaseType;
+  }
+
+  /**
+   * 查詢單條記錄
+   */
+  async findUnique<T = any>(model: string, options: QueryOptions): Promise<T | null> {
+    try {
+      const modelName = this.getModelName(model);
+      return await (this.prisma as any)[modelName].findUnique(options);
+    } catch (error) {
+      throw this.handleError('findUnique', error);
+    }
+  }
+
+  /**
+   * 查詢多條記錄
+   */
+  async findMany<T = any>(model: string, options: QueryOptions = {}): Promise<T[]> {
+    try {
+      const modelName = this.getModelName(model);
+      return await (this.prisma as any)[modelName].findMany(options);
+    } catch (error) {
+      throw this.handleError('findMany', error);
+    }
+  }
+
+  /**
+   * 查詢第一條記錄
+   */
+  async findFirst<T = any>(model: string, options: QueryOptions = {}): Promise<T | null> {
+    try {
+      const modelName = this.getModelName(model);
+      return await (this.prisma as any)[modelName].findFirst(options);
+    } catch (error) {
+      throw this.handleError('findFirst', error);
+    }
+  }
+
+  /**
+   * 創建記錄
+   */
+  async create<T = any>(model: string, options: CreateOptions): Promise<T> {
+    try {
+      const modelName = this.getModelName(model);
+      return await (this.prisma as any)[modelName].create(options);
+    } catch (error) {
+      throw this.handleError('create', error);
+    }
+  }
+
+  /**
+   * 創建多條記錄
+   */
+  async createMany(model: string, options: BatchOptions): Promise<{ count: number }> {
+    try {
+      const modelName = this.getModelName(model);
+      return await (this.prisma as any)[modelName].createMany(options);
+    } catch (error) {
+      throw this.handleError('createMany', error);
+    }
+  }
+
+  /**
+   * 更新記錄
+   */
+  async update<T = any>(model: string, options: UpdateOptions): Promise<T> {
+    try {
+      const modelName = this.getModelName(model);
+      return await (this.prisma as any)[modelName].update(options);
+    } catch (error) {
+      throw this.handleError('update', error);
+    }
+  }
+
+  /**
+   * 更新多條記錄
+   */
+  async updateMany(model: string, options: UpdateOptions): Promise<{ count: number }> {
+    try {
+      const modelName = this.getModelName(model);
+      return await (this.prisma as any)[modelName].updateMany(options);
+    } catch (error) {
+      throw this.handleError('updateMany', error);
+    }
+  }
+
+  /**
+   * 創建或更新記錄
+   */
+  async upsert<T = any>(
+    model: string,
+    options: {
+      where: Record<string, any>;
+      create: Record<string, any>;
+      update: Record<string, any>;
+    }
+  ): Promise<T> {
+    try {
+      const modelName = this.getModelName(model);
+      return await (this.prisma as any)[modelName].upsert(options);
+    } catch (error) {
+      throw this.handleError('upsert', error);
+    }
+  }
+
+  /**
+   * 刪除記錄
+   */
+  async delete<T = any>(model: string, options: DeleteOptions): Promise<T> {
+    try {
+      const modelName = this.getModelName(model);
+      return await (this.prisma as any)[modelName].delete(options);
+    } catch (error) {
+      throw this.handleError('delete', error);
+    }
+  }
+
+  /**
+   * 刪除多條記錄
+   */
+  async deleteMany(model: string, options: DeleteOptions): Promise<{ count: number }> {
+    try {
+      const modelName = this.getModelName(model);
+      return await (this.prisma as any)[modelName].deleteMany(options);
+    } catch (error) {
+      throw this.handleError('deleteMany', error);
+    }
+  }
+
+  /**
+   * 計數
+   */
+  async count(model: string, options: CountOptions = {}): Promise<number> {
+    try {
+      const modelName = this.getModelName(model);
+      return await (this.prisma as any)[modelName].count(options);
+    } catch (error) {
+      throw this.handleError('count', error);
+    }
+  }
+
+  /**
+   * 執行事務
+   * 
+   * PostgreSQL 提供完整的 ACID 事務支援。
+   */
+  async transaction<T>(callback: TransactionCallback<T>): Promise<T> {
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        // 創建一個使用事務 client 的適配器
+        const txAdapter = new PostgreSQLAdapter(tx as PrismaClient);
+        return await callback(txAdapter);
+      });
+    } catch (error) {
+      throw this.handleError('transaction', error);
+    }
+  }
+
+  /**
+   * 執行原始 SQL 查詢
+   * 
+   * PostgreSQL 支援完整的 SQL 標準和擴展功能。
+   * 
+   * @example
+   * ```typescript
+   * // 原始查詢
+   * const result = await db.raw(
+   *   'SELECT * FROM users WHERE email = $1',
+   *   ['user@example.com']
+   * );
+   * 
+   * // 向量搜索（需要 pgvector 擴展）
+   * const similar = await db.raw(
+   *   'SELECT * FROM documents ORDER BY embedding <-> $1 LIMIT 10',
+   *   [queryEmbedding]
+   * );
+   * ```
+   */
+  async raw<T = any>(query: string, params: any[] = []): Promise<T> {
+    try {
+      return await this.prisma.$queryRawUnsafe(query, ...params);
+    } catch (error) {
+      throw this.handleError('raw', error);
+    }
+  }
+
+  /**
+   * 連接數據庫
+   */
+  async connect(): Promise<void> {
+    try {
+      await this.prisma.$connect();
+    } catch (error) {
+      throw this.handleError('connect', error);
+    }
+  }
+
+  /**
+   * 斷開數據庫連接
+   */
+  async disconnect(): Promise<void> {
+    try {
+      await this.prisma.$disconnect();
+    } catch (error) {
+      throw this.handleError('disconnect', error);
+    }
+  }
+
+  /**
+   * 健康檢查
+   * 
+   * 執行簡單查詢以驗證數據庫連接。
+   */
+  async healthCheck(): Promise<boolean> {
+    try {
+      await this.prisma.$queryRaw`SELECT 1`;
+      return true;
+    } catch (error) {
+      console.error('[PostgreSQL] Health check failed:', error);
+      return false;
+    }
+  }
+
+  /**
+   * PostgreSQL 特定功能：向量搜索
+   * 
+   * 使用 pgvector 擴展進行相似度搜索。
+   * 
+   * @param table - 表名
+   * @param embedding - 查詢向量
+   * @param limit - 返回結果數量
+   * @returns 相似的記錄
+   * 
+   * @example
+   * ```typescript
+   * const similar = await adapter.vectorSearch(
+   *   'knowledge_items',
+   *   queryEmbedding,
+   *   10
+   * );
+   * ```
+   */
+  async vectorSearch<T = any>(
+    table: string,
+    embedding: number[],
+    limit: number = 10
+  ): Promise<T[]> {
+    try {
+      const embeddingString = `[${embedding.join(',')}]`;
+      const query = `
+        SELECT *, 
+               embedding <-> '${embeddingString}'::vector AS distance
+        FROM ${table}
+        ORDER BY distance
+        LIMIT ${limit}
+      `;
+      return await this.raw<T[]>(query);
+    } catch (error) {
+      throw this.handleError('vectorSearch', error);
+    }
+  }
+
+  /**
+   * PostgreSQL 特定功能：全文搜索
+   * 
+   * 使用 PostgreSQL 內建的全文搜索功能。
+   * 
+   * @param table - 表名
+   * @param column - 搜索的列名
+   * @param query - 搜索查詢
+   * @param limit - 返回結果數量
+   * @returns 匹配的記錄
+   * 
+   * @example
+   * ```typescript
+   * const results = await adapter.fullTextSearch(
+   *   'knowledge_items',
+   *   'content',
+   *   'artificial intelligence',
+   *   20
+   * );
+   * ```
+   */
+  async fullTextSearch<T = any>(
+    table: string,
+    column: string,
+    query: string,
+    limit: number = 20
+  ): Promise<T[]> {
+    try {
+      const sqlQuery = `
+        SELECT *,
+               ts_rank(to_tsvector('english', ${column}), plainto_tsquery('english', $1)) AS rank
+        FROM ${table}
+        WHERE to_tsvector('english', ${column}) @@ plainto_tsquery('english', $1)
+        ORDER BY rank DESC
+        LIMIT ${limit}
+      `;
+      return await this.raw<T[]>(sqlQuery, [query]);
+    } catch (error) {
+      throw this.handleError('fullTextSearch', error);
+    }
+  }
+
+  // =====================================================
+  // 私有輔助方法
+  // =====================================================
+
+  /**
+   * 獲取 Prisma 模型名稱
+   * 
+   * 將模型名轉換為 Prisma 使用的 camelCase 格式。
+   */
+  private getModelName(model: string): string {
+    // 將首字母轉為小寫（Prisma 模型訪問格式）
+    return model.charAt(0).toLowerCase() + model.slice(1);
+  }
+
+  /**
+   * 錯誤處理
+   * 
+   * 將 Prisma 錯誤轉換為統一的適配器錯誤。
+   */
+  private handleError(operation: string, error: any): DatabaseAdapterError {
+    const message = error.message || `PostgreSQL ${operation} operation failed`;
+    const code = error.code || 'UNKNOWN_ERROR';
+
+    return new DatabaseAdapterError(
+      message,
+      code,
+      this.databaseType,
+      error
+    );
+  }
+}
+
+/**
+ * 創建 PostgreSQL 適配器的便捷函數
+ * 
+ * @param prisma - Prisma Client 實例（可選）
+ * @returns PostgreSQL 適配器實例
+ */
+export function createPostgreSQLAdapter(prisma?: PrismaClient): PostgreSQLAdapter {
+  return new PostgreSQLAdapter(prisma);
+}
+

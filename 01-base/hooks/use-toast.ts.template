@@ -1,0 +1,78 @@
+/**
+ * ================================================================
+ * {{PROJECT_NAME}} - Toast Hook
+ * ================================================================
+ *
+ * Simple toast notification system using React hooks.
+ * Provides programmatic toast notifications with auto-dismiss.
+ *
+ * @hook
+ * @example
+ * ```tsx
+ * function MyComponent() {
+ *   const { toast } = useToast()
+ *
+ *   return (
+ *     <Button
+ *       onClick={() => {
+ *         toast({
+ *           title: "Success!",
+ *           description: "Your changes have been saved.",
+ *         })
+ *       }}
+ *     >
+ *       Save
+ *     </Button>
+ *   )
+ * }
+ *
+ * // Error toast
+ * toast({
+ *   title: "Error",
+ *   description: "Something went wrong.",
+ *   variant: "destructive",
+ * })
+ *
+ * // Manual dismiss
+ * const { id, dismiss } = toast({ title: "Processing..." })
+ * // Later...
+ * dismiss()
+ * ```
+ */
+
+import { useState, useCallback } from 'react'
+
+export interface Toast {
+  id: string
+  title?: string
+  description?: string
+  variant?: 'default' | 'destructive'
+}
+
+export function useToast() {
+  const [toasts, setToasts] = useState<Toast[]>([])
+
+  const toast = useCallback(({ title, description, variant = 'default' }: Omit<Toast, 'id'>) => {
+    const id = Math.random().toString(36).substring(7)
+    const newToast: Toast = { id, title, description, variant }
+
+    setToasts((prev) => [...prev, newToast])
+
+    // Auto-dismiss after 3 seconds
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id))
+    }, 3000)
+
+    return {
+      id,
+      dismiss: () => setToasts((prev) => prev.filter((t) => t.id !== id)),
+    }
+  }, [])
+
+  return {
+    toast,
+    toasts,
+    dismiss: (id: string) => setToasts((prev) => prev.filter((t) => t.id !== id)),
+  }
+}
+

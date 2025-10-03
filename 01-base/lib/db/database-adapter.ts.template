@@ -1,0 +1,428 @@
+/**
+ * ================================================================
+ * 數據庫適配器接口 (Database Adapter Interface)
+ * ================================================================
+ * 
+ * 【檔案功能】
+ * 提供統一的數據庫操作接口，支援多種數據庫後端（PostgreSQL/MySQL/MongoDB/SQLite）。
+ * 讓應用代碼保持數據庫無關性，可以輕鬆切換數據庫類型。
+ * 
+ * 【主要職責】
+ * • 統一CRUD接口 - 提供一致的增刪改查操作
+ * • 事務支援 - 跨數據庫的事務處理
+ * • 查詢構建 - 統一的查詢構建器
+ * • 原始查詢 - 支援特定數據庫的原始查詢
+ * • 錯誤處理 - 統一的錯誤格式
+ * 
+ * 【設計模式】
+ * • 適配器模式 (Adapter Pattern)
+ * • 工廠模式 (Factory Pattern)
+ * • 策略模式 (Strategy Pattern)
+ * 
+ * 【使用示例】
+ * ```typescript
+ * // 創建適配器
+ * const db = createDatabaseAdapter('postgresql');
+ * 
+ * // 使用統一接口
+ * const user = await db.findUnique('User', { where: { id: 1 } });
+ * const users = await db.findMany('User', { where: { role: 'ADMIN' } });
+ * await db.create('User', { data: { email: 'test@example.com' } });
+ * ```
+ * 
+ * 【支援的數據庫】
+ * • PostgreSQL - 預設選項，功能最完整（支援 pgvector）
+ * • MySQL - 廣泛使用的關聯式數據庫
+ * • MongoDB - NoSQL 靈活性
+ * • SQLite - 零配置，開發測試用
+ */
+
+import { PrismaClient } from '@prisma/client';
+
+// =====================================================
+// 類型定義
+// =====================================================
+
+/**
+ * 支援的數據庫類型
+ */
+export type DatabaseType = 'postgresql' | 'mysql' | 'mongodb' | 'sqlite';
+
+/**
+ * 查詢選項
+ */
+export interface QueryOptions {
+  where?: Record<string, any>;
+  select?: Record<string, boolean>;
+  include?: Record<string, boolean | object>;
+  orderBy?: Record<string, 'asc' | 'desc'> | Record<string, 'asc' | 'desc'>[];
+  skip?: number;
+  take?: number;
+}
+
+/**
+ * 創建選項
+ */
+export interface CreateOptions {
+  data: Record<string, any>;
+  select?: Record<string, boolean>;
+  include?: Record<string, boolean | object>;
+}
+
+/**
+ * 更新選項
+ */
+export interface UpdateOptions {
+  where: Record<string, any>;
+  data: Record<string, any>;
+  select?: Record<string, boolean>;
+  include?: Record<string, boolean | object>;
+}
+
+/**
+ * 刪除選項
+ */
+export interface DeleteOptions {
+  where: Record<string, any>;
+  select?: Record<string, boolean>;
+}
+
+/**
+ * 計數選項
+ */
+export interface CountOptions {
+  where?: Record<string, any>;
+}
+
+/**
+ * 批量操作選項
+ */
+export interface BatchOptions {
+  data: Record<string, any>[];
+  skipDuplicates?: boolean;
+}
+
+/**
+ * 事務回調函數
+ */
+export type TransactionCallback<T> = (tx: DatabaseAdapter) => Promise<T>;
+
+// =====================================================
+// 數據庫適配器接口
+// =====================================================
+
+/**
+ * 數據庫適配器接口
+ * 
+ * 所有數據庫適配器必須實現此接口，確保統一的操作方式。
+ */
+export interface DatabaseAdapter {
+  /**
+   * 查詢單條記錄
+   * 
+   * @param model - 模型名稱（如 'User', 'Post'）
+   * @param options - 查詢選項
+   * @returns 找到的記錄，不存在則返回 null
+   */
+  findUnique<T = any>(model: string, options: QueryOptions): Promise<T | null>;
+
+  /**
+   * 查詢多條記錄
+   * 
+   * @param model - 模型名稱
+   * @param options - 查詢選項
+   * @returns 記錄數組
+   */
+  findMany<T = any>(model: string, options?: QueryOptions): Promise<T[]>;
+
+  /**
+   * 查詢第一條記錄
+   * 
+   * @param model - 模型名稱
+   * @param options - 查詢選項
+   * @returns 找到的記錄，不存在則返回 null
+   */
+  findFirst<T = any>(model: string, options?: QueryOptions): Promise<T | null>;
+
+  /**
+   * 創建記錄
+   * 
+   * @param model - 模型名稱
+   * @param options - 創建選項
+   * @returns 創建的記錄
+   */
+  create<T = any>(model: string, options: CreateOptions): Promise<T>;
+
+  /**
+   * 創建多條記錄
+   * 
+   * @param model - 模型名稱
+   * @param options - 批量創建選項
+   * @returns 創建的記錄數量
+   */
+  createMany(model: string, options: BatchOptions): Promise<{ count: number }>;
+
+  /**
+   * 更新記錄
+   * 
+   * @param model - 模型名稱
+   * @param options - 更新選項
+   * @returns 更新後的記錄
+   */
+  update<T = any>(model: string, options: UpdateOptions): Promise<T>;
+
+  /**
+   * 更新多條記錄
+   * 
+   * @param model - 模型名稱
+   * @param options - 更新選項
+   * @returns 更新的記錄數量
+   */
+  updateMany(model: string, options: UpdateOptions): Promise<{ count: number }>;
+
+  /**
+   * 創建或更新記錄（Upsert）
+   * 
+   * @param model - 模型名稱
+   * @param options - Upsert 選項
+   * @returns 創建或更新後的記錄
+   */
+  upsert<T = any>(
+    model: string,
+    options: {
+      where: Record<string, any>;
+      create: Record<string, any>;
+      update: Record<string, any>;
+    }
+  ): Promise<T>;
+
+  /**
+   * 刪除記錄
+   * 
+   * @param model - 模型名稱
+   * @param options - 刪除選項
+   * @returns 刪除的記錄
+   */
+  delete<T = any>(model: string, options: DeleteOptions): Promise<T>;
+
+  /**
+   * 刪除多條記錄
+   * 
+   * @param model - 模型名稱
+   * @param options - 刪除選項
+   * @returns 刪除的記錄數量
+   */
+  deleteMany(model: string, options: DeleteOptions): Promise<{ count: number }>;
+
+  /**
+   * 計數
+   * 
+   * @param model - 模型名稱
+   * @param options - 計數選項
+   * @returns 記錄數量
+   */
+  count(model: string, options?: CountOptions): Promise<number>;
+
+  /**
+   * 執行事務
+   * 
+   * @param callback - 事務回調函數
+   * @returns 事務結果
+   */
+  transaction<T>(callback: TransactionCallback<T>): Promise<T>;
+
+  /**
+   * 執行原始查詢
+   * 
+   * 用於特定數據庫的高級查詢，不保證跨數據庫兼容性。
+   * 
+   * @param query - SQL 查詢字符串或 MongoDB 查詢
+   * @param params - 查詢參數
+   * @returns 查詢結果
+   */
+  raw<T = any>(query: string, params?: any[]): Promise<T>;
+
+  /**
+   * 連接數據庫
+   */
+  connect(): Promise<void>;
+
+  /**
+   * 斷開數據庫連接
+   */
+  disconnect(): Promise<void>;
+
+  /**
+   * 健康檢查
+   * 
+   * @returns 數據庫是否健康
+   */
+  healthCheck(): Promise<boolean>;
+
+  /**
+   * 獲取數據庫類型
+   */
+  getDatabaseType(): DatabaseType;
+}
+
+// =====================================================
+// 適配器錯誤類
+// =====================================================
+
+/**
+ * 數據庫適配器錯誤
+ */
+export class DatabaseAdapterError extends Error {
+  constructor(
+    message: string,
+    public readonly code: string,
+    public readonly databaseType: DatabaseType,
+    public readonly originalError?: Error
+  ) {
+    super(message);
+    this.name = 'DatabaseAdapterError';
+  }
+}
+
+// =====================================================
+// 工廠函數
+// =====================================================
+
+/**
+ * 創建數據庫適配器
+ * 
+ * 根據指定的數據庫類型創建相應的適配器實例。
+ * 
+ * @param type - 數據庫類型
+ * @param prisma - Prisma Client 實例（可選）
+ * @returns 數據庫適配器實例
+ * 
+ * @example
+ * ```typescript
+ * // 使用環境變數中的數據庫類型
+ * const db = createDatabaseAdapter(process.env.DATABASE_TYPE as DatabaseType);
+ * 
+ * // 指定數據庫類型
+ * const db = createDatabaseAdapter('postgresql');
+ * ```
+ */
+export function createDatabaseAdapter(
+  type: DatabaseType,
+  prisma?: PrismaClient
+): DatabaseAdapter {
+  switch (type) {
+    case 'postgresql':
+      // 延遲導入以避免不必要的依賴
+      const { PostgreSQLAdapter } = require('./postgresql-adapter');
+      return new PostgreSQLAdapter(prisma);
+
+    case 'mysql':
+      const { MySQLAdapter } = require('./mysql-adapter');
+      return new MySQLAdapter(prisma);
+
+    case 'mongodb':
+      const { MongoDBAdapter } = require('./mongodb-adapter');
+      return new MongoDBAdapter(prisma);
+
+    case 'sqlite':
+      const { SQLiteAdapter } = require('./sqlite-adapter');
+      return new SQLiteAdapter(prisma);
+
+    default:
+      throw new DatabaseAdapterError(
+        `Unsupported database type: ${type}`,
+        'UNSUPPORTED_DATABASE',
+        type
+      );
+  }
+}
+
+/**
+ * 從環境變數創建數據庫適配器
+ * 
+ * 自動從 DATABASE_TYPE 環境變數讀取數據庫類型。
+ * 
+ * @param prisma - Prisma Client 實例（可選）
+ * @returns 數據庫適配器實例
+ * 
+ * @example
+ * ```typescript
+ * // .env.local
+ * // DATABASE_TYPE=postgresql
+ * 
+ * const db = createDatabaseAdapterFromEnv();
+ * ```
+ */
+export function createDatabaseAdapterFromEnv(
+  prisma?: PrismaClient
+): DatabaseAdapter {
+  const type = (process.env.DATABASE_TYPE || 'postgresql') as DatabaseType;
+  return createDatabaseAdapter(type, prisma);
+}
+
+// =====================================================
+// 工具函數
+// =====================================================
+
+/**
+ * 檢查數據庫類型是否支援向量搜索
+ * 
+ * @param type - 數據庫類型
+ * @returns 是否支援向量搜索
+ */
+export function supportsVectorSearch(type: DatabaseType): boolean {
+  return type === 'postgresql';
+}
+
+/**
+ * 檢查數據庫類型是否支援全文搜索
+ * 
+ * @param type - 數據庫類型
+ * @returns 是否支援全文搜索
+ */
+export function supportsFullTextSearch(type: DatabaseType): boolean {
+  return ['postgresql', 'mysql', 'mongodb'].includes(type);
+}
+
+/**
+ * 檢查數據庫類型是否支援事務
+ * 
+ * @param type - 數據庫類型
+ * @returns 是否支援事務
+ */
+export function supportsTransactions(type: DatabaseType): boolean {
+  // SQLite 在某些情況下事務支援有限
+  return ['postgresql', 'mysql', 'mongodb'].includes(type);
+}
+
+/**
+ * 獲取數據庫類型的推薦用途
+ * 
+ * @param type - 數據庫類型
+ * @returns 推薦用途描述
+ */
+export function getDatabaseRecommendation(type: DatabaseType): string {
+  const recommendations: Record<DatabaseType, string> = {
+    postgresql: '生產環境推薦，功能最完整，支援 pgvector 向量搜索',
+    mysql: '生產環境可用，廣泛使用，高性能',
+    mongodb: 'NoSQL 場景，適合非結構化數據',
+    sqlite: '開發和測試環境，零配置',
+  };
+
+  return recommendations[type];
+}
+
+// =====================================================
+// 導出類型
+// =====================================================
+
+export type {
+  QueryOptions,
+  CreateOptions,
+  UpdateOptions,
+  DeleteOptions,
+  CountOptions,
+  BatchOptions,
+  TransactionCallback,
+};
+

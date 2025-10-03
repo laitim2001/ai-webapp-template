@@ -1,0 +1,316 @@
+/**
+ * ================================================================
+ * Next.js 配置模板
+ * Next.js Configuration Template
+ * ================================================================
+ * 
+ * 【功能】
+ * Next.js 14 App Router 配置，包含性能優化、安全性和生產環境設置。
+ * 
+ * 【佔位符】
+ * • {{PROJECT_NAME}} - 項目名稱
+ * • {{DATABASE_TYPE}} - 數據庫類型（用於條件配置）
+ */
+
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  // =====================================================
+  // 基本配置
+  // =====================================================
+  
+  reactStrictMode: true,
+  swcMinify: true,
+  
+  // =====================================================
+  // 性能優化
+  // =====================================================
+  
+  // 實驗性功能
+  experimental: {
+    // 服務器組件
+    serverActions: {
+      bodySizeLimit: '10mb',
+      allowedOrigins: ['localhost:3000'],
+    },
+    
+    // 優化包導入
+    optimizePackageImports: [
+      'lucide-react',
+      '@radix-ui/react-icons',
+      '@radix-ui/react-dialog',
+      '@radix-ui/react-dropdown-menu',
+      '@radix-ui/react-popover',
+      '@radix-ui/react-select',
+      '@radix-ui/react-tabs',
+      '@radix-ui/react-tooltip',
+    ],
+    
+    // Turbopack (開發模式加速)
+    turbo: {
+      rules: {
+        '*.svg': {
+          loaders: ['@svgr/webpack'],
+          as: '*.js',
+        },
+      },
+    },
+  },
+  
+  // =====================================================
+  // 圖片優化
+  // =====================================================
+  
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: '**.blob.core.windows.net',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: '**.amazonaws.com',
+        pathname: '/**',
+      },
+    ],
+    formats: ['image/avif', 'image/webp'],
+    deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
+    imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
+    minimumCacheTTL: 60,
+  },
+  
+  // =====================================================
+  // Webpack 配置
+  // =====================================================
+  
+  webpack: (config, { isServer, dev }) => {
+    // 處理 canvas（用於 PDF 生成）
+    if (isServer) {
+      config.externals.push({
+        canvas: 'commonjs canvas',
+      });
+    }
+    
+    // 優化 bundle
+    if (!dev) {
+      config.optimization = {
+        ...config.optimization,
+        moduleIds: 'deterministic',
+        splitChunks: {
+          chunks: 'all',
+          cacheGroups: {
+            default: false,
+            vendors: false,
+            // 框架核心
+            framework: {
+              name: 'framework',
+              chunks: 'all',
+              test: /[\\/]node_modules[\\/](react|react-dom|scheduler|prop-types|use-subscription)[\\/]/,
+              priority: 40,
+              enforce: true,
+            },
+            // UI 組件庫
+            lib: {
+              test: /[\\/]node_modules[\\/](@radix-ui|lucide-react)[\\/]/,
+              name: 'lib',
+              priority: 30,
+            },
+            // 共用組件
+            commons: {
+              name: 'commons',
+              minChunks: 2,
+              priority: 20,
+            },
+            // 其他依賴
+            vendor: {
+              test: /[\\/]node_modules[\\/]/,
+              name: 'vendor',
+              priority: 10,
+            },
+          },
+        },
+      };
+    }
+    
+    return config;
+  },
+  
+  // =====================================================
+  // 編譯配置
+  // =====================================================
+  
+  // 轉譯特定的 npm 包
+  transpilePackages: [
+    '@opentelemetry/api',
+    '@opentelemetry/sdk-node',
+  ],
+  
+  // =====================================================
+  // 安全性配置
+  // =====================================================
+  
+  // HTTP 安全標頭
+  async headers() {
+    return [
+      {
+        source: '/(.*)',
+        headers: [
+          {
+            key: 'X-DNS-Prefetch-Control',
+            value: 'on',
+          },
+          {
+            key: 'Strict-Transport-Security',
+            value: 'max-age=63072000; includeSubDomains; preload',
+          },
+          {
+            key: 'X-Frame-Options',
+            value: 'SAMEORIGIN',
+          },
+          {
+            key: 'X-Content-Type-Options',
+            value: 'nosniff',
+          },
+          {
+            key: 'X-XSS-Protection',
+            value: '1; mode=block',
+          },
+          {
+            key: 'Referrer-Policy',
+            value: 'strict-origin-when-cross-origin',
+          },
+          {
+            key: 'Permissions-Policy',
+            value: 'camera=(), microphone=(), geolocation=()',
+          },
+        ],
+      },
+      // API 路由的 CORS 設置
+      {
+        source: '/api/:path*',
+        headers: [
+          {
+            key: 'Access-Control-Allow-Credentials',
+            value: 'true',
+          },
+          {
+            key: 'Access-Control-Allow-Origin',
+            value: process.env.CORS_ORIGIN || 'http://localhost:3000',
+          },
+          {
+            key: 'Access-Control-Allow-Methods',
+            value: 'GET,DELETE,PATCH,POST,PUT,OPTIONS',
+          },
+          {
+            key: 'Access-Control-Allow-Headers',
+            value: 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization',
+          },
+        ],
+      },
+    ];
+  },
+  
+  // =====================================================
+  // 重定向配置
+  // =====================================================
+  
+  async redirects() {
+    return [
+      // 根路徑重定向到登入頁
+      {
+        source: '/',
+        destination: '/dashboard',
+        permanent: false,
+      },
+    ];
+  },
+  
+  // =====================================================
+  // 環境變數
+  // =====================================================
+  
+  env: {
+    NEXT_PUBLIC_APP_NAME: '{{PROJECT_NAME}}',
+    NEXT_PUBLIC_APP_VERSION: '1.0.0',
+  },
+  
+  // =====================================================
+  // 輸出配置
+  // =====================================================
+  
+  // 生產環境輸出優化
+  output: process.env.BUILD_STANDALONE === 'true' ? 'standalone' : undefined,
+  
+  // 壓縮
+  compress: true,
+  
+  // 生成 ETag
+  generateEtags: true,
+  
+  // =====================================================
+  // 開發體驗
+  // =====================================================
+  
+  // 開發模式下的 TypeScript 錯誤檢查
+  typescript: {
+    ignoreBuildErrors: false,
+  },
+  
+  // ESLint 檢查
+  eslint: {
+    ignoreDuringBuilds: false,
+    dirs: ['app', 'components', 'lib', 'hooks'],
+  },
+  
+  // =====================================================
+  // 日誌配置
+  // =====================================================
+  
+  // 減少構建日誌
+  logging: {
+    fetches: {
+      fullUrl: process.env.NODE_ENV === 'development',
+    },
+  },
+  
+  // =====================================================
+  // 其他配置
+  // =====================================================
+  
+  // PoweredByHeader
+  poweredByHeader: false,
+  
+  // 頁面擴展名
+  pageExtensions: ['ts', 'tsx', 'js', 'jsx', 'md', 'mdx'],
+};
+
+// =====================================================
+// 條件配置（根據數據庫類型）
+// =====================================================
+
+// 如果使用 MongoDB，添加特殊配置
+if (process.env.DATABASE_TYPE === 'mongodb') {
+  nextConfig.webpack = (config, options) => {
+    // MongoDB 特定配置
+    if (options.isServer) {
+      config.externals.push({
+        mongodb: 'commonjs mongodb',
+      });
+    }
+    return nextConfig.webpack(config, options);
+  };
+}
+
+// =====================================================
+// 監控配置（如果啟用）
+// =====================================================
+
+if (process.env.ENABLE_MONITORING === 'true') {
+  nextConfig.experimental = {
+    ...nextConfig.experimental,
+    instrumentationHook: true,
+  };
+}
+
+module.exports = nextConfig;
+
