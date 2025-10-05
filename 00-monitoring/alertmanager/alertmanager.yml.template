@@ -1,0 +1,162 @@
+# Alertmanager Configuration for {{PROJECT_NAME}}
+# Multi-channel notification with priority-based routing
+
+global:
+  resolve_timeout: 5m
+  # SMTP Configuration (configure based on your environment)
+  smtp_smarthost: '{{SMTP_HOST:-smtp.gmail.com:587}}'
+  smtp_from: '{{ALERT_EMAIL_FROM:-alerts@example.com}}'
+  smtp_auth_username: '{{SMTP_USERNAME:-your-email@gmail.com}}'
+  smtp_auth_password: '{{SMTP_PASSWORD:-your-app-password}}'
+
+# Notification routing rules
+route:
+  group_by: ['alertname', 'severity', 'component']
+  group_wait: 10s
+  group_interval: 5m
+  repeat_interval: 4h
+  receiver: 'default-receiver'
+
+  routes:
+    # P1 - Critical: Immediate notification via all channels
+    - match:
+        severity: P1
+      receiver: 'critical-alerts'
+      continue: false
+      group_wait: 10s
+      repeat_interval: 30m
+
+    # P2 - High: Email + Slack
+    - match:
+        severity: P2
+      receiver: 'high-priority-alerts'
+      continue: false
+      group_wait: 30s
+      repeat_interval: 2h
+
+    # P3 - Medium: Email only
+    - match:
+        severity: P3
+      receiver: 'medium-priority-alerts'
+      continue: false
+      group_wait: 5m
+      repeat_interval: 6h
+
+    # P4 - Low: Daily digest
+    - match:
+        severity: P4
+      receiver: 'low-priority-alerts'
+      continue: false
+      group_wait: 1h
+      repeat_interval: 24h
+
+# Inhibition rules (prevent alert storms)
+inhibit_rules:
+  # If API is completely down, suppress other API-related alerts
+  - source_match:
+      alertname: APICompletelyDown
+    target_match:
+      component: api
+    equal: ['service']
+
+  # If memory is critically high, suppress high memory alerts
+  - source_match:
+      alertname: CriticalMemoryUsage
+    target_match:
+      alertname: HighMemoryUsage
+    equal: ['instance']
+
+# Receiver configurations
+receivers:
+  # Default receiver
+  - name: 'default-receiver'
+    email_configs:
+      - to: '{{ALERT_EMAIL_TO:-dev-team@example.com}}'
+        headers:
+          subject: '[Monitor] {{ .GroupLabels.alertname }}'
+
+  # P1 - Critical: All channels + phone (optional)
+  - name: 'critical-alerts'
+    email_configs:
+      - to: '{{ALERT_EMAIL_ONCALL:-oncall@example.com}}'
+        headers:
+          subject: '🚨 [P1-CRITICAL] {{ .GroupLabels.alertname }}'
+        html: |
+          {{ range .Alerts }}
+          <h2>🚨 CRITICAL ALERT</h2>
+          <p><strong>Alert:</strong> {{ .Labels.alertname }}</p>
+          <p><strong>Severity:</strong> {{ .Labels.severity }}</p>
+          <p><strong>Component:</strong> {{ .Labels.component }}</p>
+          <p><strong>Summary:</strong> {{ .Annotations.summary }}</p>
+          <p><strong>Description:</strong> {{ .Annotations.description }}</p>
+          <p><strong>Action Required:</strong> {{ .Annotations.action }}</p>
+          <p><strong>Started At:</strong> {{ .StartsAt }}</p>
+          {{ end }}
+
+    # Slack configuration (requires Incoming Webhook creation)
+    # Uncomment and configure to enable
+    # slack_configs:
+    #   - api_url: '{{SLACK_WEBHOOK_URL}}'
+    #     channel: '#alerts-critical'
+    #     title: '🚨 P1-CRITICAL: {{ .GroupLabels.alertname }}'
+    #     text: |
+    #       {{ range .Alerts }}
+    #       *Summary:* {{ .Annotations.summary }}
+    #       *Description:* {{ .Annotations.description }}
+    #       *Action:* {{ .Annotations.action }}
+    #       {{ end }}
+    #     color: 'danger'
+
+    # Microsoft Teams configuration (requires Incoming Webhook)
+    # Uncomment and configure to enable
+    # webhook_configs:
+    #   - url: '{{TEAMS_WEBHOOK_URL}}'
+    #     send_resolved: true
+
+  # P2 - High: Email + Slack
+  - name: 'high-priority-alerts'
+    email_configs:
+      - to: '{{ALERT_EMAIL_TO:-dev-team@example.com}}'
+        headers:
+          subject: '⚠️ [P2-HIGH] {{ .GroupLabels.alertname }}'
+        html: |
+          {{ range .Alerts }}
+          <h2>⚠️ HIGH PRIORITY ALERT</h2>
+          <p><strong>Alert:</strong> {{ .Labels.alertname }}</p>
+          <p><strong>Component:</strong> {{ .Labels.component }}</p>
+          <p><strong>Summary:</strong> {{ .Annotations.summary }}</p>
+          <p><strong>Description:</strong> {{ .Annotations.description }}</p>
+          <p><strong>Action:</strong> {{ .Annotations.action }}</p>
+          {{ end }}
+
+    # slack_configs:
+    #   - api_url: '{{SLACK_WEBHOOK_URL}}'
+    #     channel: '#alerts-high'
+    #     title: '⚠️ P2-HIGH: {{ .GroupLabels.alertname }}'
+    #     color: 'warning'
+
+  # P3 - Medium: Email only
+  - name: 'medium-priority-alerts'
+    email_configs:
+      - to: '{{ALERT_EMAIL_TO:-dev-team@example.com}}'
+        headers:
+          subject: 'ℹ️ [P3-MEDIUM] {{ .GroupLabels.alertname }}'
+        html: |
+          {{ range .Alerts }}
+          <h3>ℹ️ MEDIUM PRIORITY ALERT</h3>
+          <p><strong>Alert:</strong> {{ .Labels.alertname }}</p>
+          <p><strong>Summary:</strong> {{ .Annotations.summary }}</p>
+          <p><strong>Action:</strong> {{ .Annotations.action }}</p>
+          {{ end }}
+
+  # P4 - Low: Daily digest
+  - name: 'low-priority-alerts'
+    email_configs:
+      - to: '{{ALERT_EMAIL_TO:-dev-team@example.com}}'
+        headers:
+          subject: '📊 [P4-LOW] Daily Alert Summary'
+        html: |
+          <h3>📊 Daily Low Priority Alerts Summary</h3>
+          {{ range .Alerts }}
+          <p><strong>{{ .Labels.alertname }}:</strong> {{ .Annotations.summary }}</p>
+          {{ end }}

@@ -1,0 +1,201 @@
+# Prometheus Alert Rules for {{PROJECT_NAME}}
+# Four-level alert system: P1-Critical, P2-High, P3-Medium, P4-Low
+#
+# Alert Severity Guidelines:
+# - P1 (Critical): Immediate response required, service is down or severely degraded
+# - P2 (High): Handle within 1 hour, significant performance degradation
+# - P3 (Medium): Handle within same day, minor issues affecting user experience
+# - P4 (Low): Handle within the week, monitoring and optimization opportunities
+
+groups:
+  # ========================================
+  # P1 - CRITICAL Alerts (Immediate Response)
+  # ========================================
+  - name: critical_alerts
+    interval: 30s
+    rules:
+      # API completely unavailable
+      - alert: APICompletelyDown
+        expr: up{job="{{SERVICE_NAME}}"} == 0
+        for: 1m
+        labels:
+          severity: P1
+          component: api
+        annotations:
+          summary: "API service completely unavailable"
+          description: "{{ $labels.service }} has stopped responding for over 1 minute"
+          action: "Immediately check application status and logs"
+
+      # Error rate exceeds 10%
+      - alert: HighErrorRate
+        expr: (sum(rate(http_requests_total{status=~"5.."}[5m])) / sum(rate(http_requests_total[5m]))) > 0.1
+        for: 2m
+        labels:
+          severity: P1
+          component: api
+        annotations:
+          summary: "API error rate too high (>10%)"
+          description: "5xx error rate: {{ $value | humanizePercentage }}"
+          action: "Check error logs and service health status"
+
+      # Database connection failures
+      - alert: DatabaseConnectionFailure
+        expr: database_connection_errors_total > 10
+        for: 2m
+        labels:
+          severity: P1
+          component: database
+        annotations:
+          summary: "Database connection failures detected"
+          description: "Database connection errors: {{ $value }}"
+          action: "Check database connection configuration and network connectivity"
+
+      # Memory usage exceeds 95%
+      - alert: CriticalMemoryUsage
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) > 0.95
+        for: 5m
+        labels:
+          severity: P1
+          component: infrastructure
+        annotations:
+          summary: "Memory usage critically high (>95%)"
+          description: "Memory usage: {{ $value | humanizePercentage }}"
+          action: "Check for memory leaks and optimize application"
+
+  # ========================================
+  # P2 - HIGH Priority Alerts (Handle within 1 hour)
+  # ========================================
+  - name: high_priority_alerts
+    interval: 1m
+    rules:
+      # API response time too long
+      - alert: SlowAPIResponse
+        expr: histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le, route)) > 2
+        for: 5m
+        labels:
+          severity: P2
+          component: api
+        annotations:
+          summary: "API P95 response time too long (>2s)"
+          description: "Route {{ $labels.route }} P95 response time: {{ $value }}s"
+          action: "Analyze slow queries and optimize performance"
+
+      # Error rate exceeds 5%
+      - alert: ElevatedErrorRate
+        expr: (sum(rate(http_requests_total{status=~"5.."}[5m])) / sum(rate(http_requests_total[5m]))) > 0.05
+        for: 5m
+        labels:
+          severity: P2
+          component: api
+        annotations:
+          summary: "API error rate elevated (>5%)"
+          description: "5xx error rate: {{ $value | humanizePercentage }}"
+          action: "Check error logs to find root cause"
+
+      # Database query latency
+      - alert: SlowDatabaseQueries
+        expr: histogram_quantile(0.95, sum(rate(database_query_duration_seconds_bucket[5m])) by (le)) > 1
+        for: 5m
+        labels:
+          severity: P2
+          component: database
+        annotations:
+          summary: "Database query P95 latency too high (>1s)"
+          description: "P95 query time: {{ $value }}s"
+          action: "Analyze slow queries and optimize indexes"
+
+      # CPU usage consistently high
+      - alert: HighCPUUsage
+        expr: (1 - avg(rate(node_cpu_seconds_total{mode="idle"}[5m]))) > 0.85
+        for: 10m
+        labels:
+          severity: P2
+          component: infrastructure
+        annotations:
+          summary: "CPU usage consistently high (>85%)"
+          description: "CPU usage: {{ $value | humanizePercentage }}"
+          action: "Check resource consumption and consider scaling"
+
+  # ========================================
+  # P3 - MEDIUM Priority Alerts (Handle within same day)
+  # ========================================
+  - name: medium_priority_alerts
+    interval: 2m
+    rules:
+      # 4xx error rate elevated
+      - alert: Elevated4xxErrorRate
+        expr: (sum(rate(http_requests_total{status=~"4.."}[10m])) / sum(rate(http_requests_total[10m]))) > 0.1
+        for: 10m
+        labels:
+          severity: P3
+          component: api
+        annotations:
+          summary: "Client error rate elevated (>10%)"
+          description: "4xx error rate: {{ $value | humanizePercentage }}"
+          action: "Check API usage patterns and validation logic"
+
+      # Memory usage high
+      - alert: HighMemoryUsage
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) > 0.80
+        for: 15m
+        labels:
+          severity: P3
+          component: infrastructure
+        annotations:
+          summary: "Memory usage high (>80%)"
+          description: "Memory usage: {{ $value | humanizePercentage }}"
+          action: "Monitor memory usage trends"
+
+      # Disk space usage high
+      - alert: HighDiskUsage
+        expr: (1 - (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"})) > 0.80
+        for: 15m
+        labels:
+          severity: P3
+          component: infrastructure
+        annotations:
+          summary: "Disk space usage high (>80%)"
+          description: "Disk usage: {{ $value | humanizePercentage }}"
+          action: "Clean up temporary files and logs"
+
+  # ========================================
+  # P4 - LOW Priority Alerts (Handle within the week)
+  # ========================================
+  - name: low_priority_alerts
+    interval: 5m
+    rules:
+      # API traffic abnormally low
+      - alert: LowAPITraffic
+        expr: sum(rate(http_requests_total[10m])) < 1
+        for: 30m
+        labels:
+          severity: P4
+          component: api
+        annotations:
+          summary: "API traffic abnormally low (<1 req/s)"
+          description: "Current request rate: {{ $value }} req/s"
+          action: "Confirm if this is normal business fluctuation"
+
+      # Cache hit rate low
+      - alert: LowCacheHitRate
+        expr: (sum(rate(cache_hits_total[10m])) / sum(rate(cache_requests_total[10m]))) < 0.7
+        for: 30m
+        labels:
+          severity: P4
+          component: cache
+        annotations:
+          summary: "Cache hit rate low (<70%)"
+          description: "Cache hit rate: {{ $value | humanizePercentage }}"
+          action: "Check cache strategy and TTL configuration"
+
+      # No deployment for extended period
+      - alert: NoRecentDeployment
+        expr: (time() - deployment_timestamp_seconds) > 604800
+        for: 1h
+        labels:
+          severity: P4
+          component: deployment
+        annotations:
+          summary: "No deployment for over 7 days"
+          description: "Last deployment: {{ $value | humanizeDuration }} ago"
+          action: "Confirm if updates or fixes are needed"
