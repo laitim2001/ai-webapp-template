@@ -1,0 +1,62 @@
+[
+  {
+    "id": "user-001",
+    "email": "admin@example.com",
+    "name": "系統管理員",
+    "role": "ADMIN",
+    "password": "$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5GyYIr9O.u5wS",
+    "emailVerified": true,
+    "avatar": null,
+    "bio": "系統管理員，負責整體系統維護和用戶管理",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "updatedAt": "2025-01-01T00:00:00.000Z"
+  },
+  {
+    "id": "user-002",
+    "email": "manager@example.com",
+    "name": "管理人員",
+    "role": "MANAGER",
+    "password": "$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5GyYIr9O.u5wS",
+    "emailVerified": true,
+    "avatar": null,
+    "bio": "管理人員，負責項目管理和團隊協調",
+    "createdAt": "2025-01-02T00:00:00.000Z",
+    "updatedAt": "2025-01-02T00:00:00.000Z"
+  },
+  {
+    "id": "user-003",
+    "email": "editor@example.com",
+    "name": "編輯人員",
+    "role": "EDITOR",
+    "password": "$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5GyYIr9O.u5wS",
+    "emailVerified": true,
+    "avatar": null,
+    "bio": "編輯人員，負責內容創建和審核",
+    "createdAt": "2025-01-03T00:00:00.000Z",
+    "updatedAt": "2025-01-03T00:00:00.000Z"
+  },
+  {
+    "id": "user-004",
+    "email": "user1@example.com",
+    "name": "一般用戶1",
+    "role": "USER",
+    "password": "$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5GyYIr9O.u5wS",
+    "emailVerified": true,
+    "avatar": null,
+    "bio": "一般用戶，可以查看和創建基本內容",
+    "createdAt": "2025-01-04T00:00:00.000Z",
+    "updatedAt": "2025-01-04T00:00:00.000Z"
+  },
+  {
+    "id": "user-005",
+    "email": "user2@example.com",
+    "name": "一般用戶2",
+    "role": "USER",
+    "password": "$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5GyYIr9O.u5wS",
+    "emailVerified": false,
+    "avatar": null,
+    "bio": "新註冊用戶，尚未驗證郵箱",
+    "createdAt": "2025-01-05T00:00:00.000Z",
+    "updatedAt": "2025-01-05T00:00:00.000Z"
+  }
+]

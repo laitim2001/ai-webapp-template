@@ -1,0 +1,556 @@
+/**
+ * Knowledge Base Version Control System
+ *
+ * Features:
+ * - Track all modification history of knowledge base documents
+ * - Support version comparison and rollback
+ * - Record change details and differences
+ * - Provide version tags and classification
+ *
+ * Database Adapter: Supports PostgreSQL, MySQL, MongoDB, SQLite
+ * Reference: Original version-control.ts from Sprint 6
+ * Author: AI Web App Template
+ * Version: 5.0
+ */
+
+import { databaseAdapter } from '@/lib/db/database-adapter';
+
+/**
+ * Version Creation Options
+ */
+export interface CreateVersionOptions {
+  changeSummary?: string;      // Change summary
+  isMajor?: boolean;             // Is major version
+  tags?: string[];               // Version tags
+  autoGenerate?: boolean;        // Auto-generated marker
+}
+
+/**
+ * Version Comparison Result
+ */
+export interface VersionDiff {
+  field: string;                           // Field name
+  oldValue: any;                           // Old value
+  newValue: any;                           // New value
+  changeType: 'added' | 'removed' | 'modified'; // Change type
+}
+
+/**
+ * Version Detail (with creator information)
+ */
+export interface VersionDetail {
+  id: string;
+  knowledge_base_id: number;
+  version: number;
+  title: string;
+  content: string | null;
+  file_path: string | null;
+  file_size: number | null;
+  mime_type: string | null;
+  metadata: any;
+  change_summary: string | null;
+  changed_fields: any;
+  parent_version: number | null;
+  created_by: number;
+  created_at: Date;
+  is_major: boolean;
+  tags: string[];
+  creatorName?: string;          // Creator name
+  diffFromParent?: VersionDiff[]; // Diff from parent version
+  creator?: {
+    id: number;
+    first_name: string;
+    last_name: string;
+    email: string;
+  };
+  comments?: any[];
+}
+
+/**
+ * Version Statistics
+ */
+export interface VersionStats {
+  totalVersions: number;         // Total versions
+  majorVersions: number;         // Major versions
+  minorVersions: number;         // Minor versions
+  lastModified: Date;            // Last modified time
+  contributors: number;          // Number of contributors
+}
+
+/**
+ * Knowledge Base Version Control System Class
+ */
+export class KnowledgeVersionControl {
+  /**
+   * Create a new version (snapshot)
+   *
+   * @param knowledgeBaseId - Knowledge base document ID
+   * @param userId - Creator ID
+   * @param changeSummary - Change summary
+   * @param options - Creation options
+   * @returns Created version
+   */
+  async createVersion(
+    knowledgeBaseId: number,
+    userId: number,
+    changeSummary?: string,
+    options: CreateVersionOptions = {}
+  ): Promise<any> {
+    // 1. Get current knowledge base document data
+    const knowledgeBase = await databaseAdapter.findUnique('knowledgeBase', {
+      where: { id: knowledgeBaseId },
+    });
+
+    if (!knowledgeBase) {
+      throw new Error(`Knowledge base ${knowledgeBaseId} not found`);
+    }
+
+    // 2. Get latest version number
+    const latestVersion = await databaseAdapter.findFirst('knowledgeVersion', {
+      where: { knowledge_base_id: knowledgeBaseId },
+      orderBy: { version: 'desc' },
+    });
+
+    const newVersionNumber = latestVersion ? latestVersion.version + 1 : 1;
+
+    // 3. Calculate changed fields (if parent version exists)
+    let changedFields: any = null;
+    if (latestVersion) {
+      changedFields = this.calculateChangedFields(latestVersion, knowledgeBase);
+    }
+
+    // 4. Create version snapshot
+    const version = await databaseAdapter.create('knowledgeVersion', {
+      data: {
+        knowledge_base_id: knowledgeBaseId,
+        version: newVersionNumber,
+        title: knowledgeBase.title,
+        content: knowledgeBase.content,
+        file_path: knowledgeBase.file_path,
+        file_size: knowledgeBase.file_size,
+        mime_type: knowledgeBase.mime_type,
+        metadata: knowledgeBase.metadata,
+        change_summary: changeSummary || options.changeSummary,
+        changed_fields: changedFields,
+        parent_version: latestVersion?.version,
+        created_by: userId,
+        is_major: options.isMajor || false,
+        tags: options.tags || [],
+      },
+    });
+
+    return version;
+  }
+
+  /**
+   * Compare two versions
+   *
+   * @param versionId1 - Version 1 ID
+   * @param versionId2 - Version 2 ID
+   * @returns Difference list
+   */
+  async compareVersions(
+    versionId1: string,
+    versionId2: string
+  ): Promise<VersionDiff[]> {
+    const [version1, version2] = await Promise.all([
+      databaseAdapter.findUnique('knowledgeVersion', { where: { id: versionId1 } }),
+      databaseAdapter.findUnique('knowledgeVersion', { where: { id: versionId2 } }),
+    ]);
+
+    if (!version1 || !version2) {
+      throw new Error('One or both versions not found');
+    }
+
+    return this.generateDiff(version1, version2);
+  }
+
+  /**
+   * Revert to a specific version
+   *
+   * @param knowledgeBaseId - Knowledge base document ID
+   * @param versionId - Target version ID
+   * @param userId - User ID performing the revert
+   * @returns Reverted knowledge base document
+   */
+  async revertToVersion(
+    knowledgeBaseId: number,
+    versionId: string,
+    userId: number
+  ): Promise<any> {
+    // 1. Get target version
+    const targetVersion = await databaseAdapter.findUnique('knowledgeVersion', {
+      where: { id: versionId },
+    });
+
+    if (!targetVersion || targetVersion.knowledge_base_id !== knowledgeBaseId) {
+      throw new Error('Version not found or does not belong to this knowledge base');
+    }
+
+    // 2. Create a version of current state first (pre-revert snapshot)
+    await this.createVersion(knowledgeBaseId, userId, 'Pre-revert snapshot', {
+      tags: ['pre-revert'],
+      autoGenerate: true,
+    });
+
+    // 3. Restore knowledge base document to target version state
+    const restoredKnowledgeBase = await databaseAdapter.update('knowledgeBase', {
+      where: { id: knowledgeBaseId },
+      data: {
+        title: targetVersion.title,
+        content: targetVersion.content,
+        file_path: targetVersion.file_path,
+        file_size: targetVersion.file_size,
+        mime_type: targetVersion.mime_type,
+        metadata: targetVersion.metadata,
+        updated_at: new Date(),
+        updated_by: userId,
+      },
+    });
+
+    // 4. Create new version after revert
+    await this.createVersion(
+      knowledgeBaseId,
+      userId,
+      `Reverted to version ${targetVersion.version}`,
+      {
+        tags: ['reverted', `from-v${targetVersion.version}`],
+      }
+    );
+
+    return restoredKnowledgeBase;
+  }
+
+  /**
+   * Get version history of a knowledge base document
+   *
+   * @param knowledgeBaseId - Knowledge base document ID
+   * @param limit - Limit number
+   * @param offset - Offset
+   * @returns Version history list
+   */
+  async getVersionHistory(
+    knowledgeBaseId: number,
+    limit: number = 50,
+    offset: number = 0
+  ): Promise<VersionDetail[]> {
+    const versions = await databaseAdapter.findMany('knowledgeVersion', {
+      where: { knowledge_base_id: knowledgeBaseId },
+      include: {
+        creator: {
+          select: {
+            id: true,
+            first_name: true,
+            last_name: true,
+            email: true,
+          },
+        },
+      },
+      orderBy: { version: 'desc' },
+      take: limit,
+      skip: offset,
+    });
+
+    // Add diff from parent version for each version
+    const versionsWithDiff = await Promise.all(
+      versions.map(async (version: any) => {
+        let diffFromParent: VersionDiff[] | undefined;
+
+        if (version.parent_version) {
+          const parentVersion = await databaseAdapter.findFirst('knowledgeVersion', {
+            where: {
+              knowledge_base_id: knowledgeBaseId,
+              version: version.parent_version,
+            },
+          });
+
+          if (parentVersion) {
+            diffFromParent = this.generateDiff(parentVersion, version);
+          }
+        }
+
+        return {
+          ...version,
+          creatorName: `${version.creator.first_name} ${version.creator.last_name}`,
+          diffFromParent,
+        };
+      })
+    );
+
+    return versionsWithDiff;
+  }
+
+  /**
+   * Get version detail
+   *
+   * @param versionId - Version ID
+   * @returns Version detail
+   */
+  async getVersionDetail(versionId: string): Promise<VersionDetail | null> {
+    const version = await databaseAdapter.findUnique('knowledgeVersion', {
+      where: { id: versionId },
+      include: {
+        creator: {
+          select: {
+            id: true,
+            first_name: true,
+            last_name: true,
+            email: true,
+          },
+        },
+        comments: {
+          include: {
+            creator: {
+              select: {
+                id: true,
+                first_name: true,
+                last_name: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!version) {
+      return null;
+    }
+
+    // Get diff from parent version
+    let diffFromParent: VersionDiff[] | undefined;
+    if (version.parent_version) {
+      const parentVersion = await databaseAdapter.findFirst('knowledgeVersion', {
+        where: {
+          knowledge_base_id: version.knowledge_base_id,
+          version: version.parent_version,
+        },
+      });
+
+      if (parentVersion) {
+        diffFromParent = this.generateDiff(parentVersion, version);
+      }
+    }
+
+    return {
+      ...version,
+      creatorName: `${version.creator.first_name} ${version.creator.last_name}`,
+      diffFromParent,
+    };
+  }
+
+  /**
+   * Get version statistics
+   *
+   * @param knowledgeBaseId - Knowledge base document ID
+   * @returns Statistics
+   */
+  async getVersionStats(knowledgeBaseId: number): Promise<VersionStats> {
+    const versions = await databaseAdapter.findMany('knowledgeVersion', {
+      where: { knowledge_base_id: knowledgeBaseId },
+      select: {
+        is_major: true,
+        created_at: true,
+        created_by: true,
+      },
+    });
+
+    const majorVersions = versions.filter((v: any) => v.is_major).length;
+    const uniqueContributors = new Set(versions.map((v: any) => v.created_by)).size;
+    const lastModified =
+      versions.length > 0
+        ? versions.reduce((latest: Date, v: any) =>
+            v.created_at > latest ? v.created_at : latest
+          , versions[0].created_at)
+        : new Date();
+
+    return {
+      totalVersions: versions.length,
+      majorVersions,
+      minorVersions: versions.length - majorVersions,
+      lastModified,
+      contributors: uniqueContributors,
+    };
+  }
+
+  /**
+   * Add tags to a version
+   *
+   * @param versionId - Version ID
+   * @param tags - Tag array
+   * @returns Updated version
+   */
+  async addVersionTags(
+    versionId: string,
+    tags: string[]
+  ): Promise<any> {
+    const version = await databaseAdapter.findUnique('knowledgeVersion', {
+      where: { id: versionId },
+    });
+
+    if (!version) {
+      throw new Error('Version not found');
+    }
+
+    const existingTags = version.tags || [];
+    const newTags = [...new Set([...existingTags, ...tags])];
+
+    return databaseAdapter.update('knowledgeVersion', {
+      where: { id: versionId },
+      data: { tags: newTags },
+    });
+  }
+
+  /**
+   * Find versions by tag
+   *
+   * @param knowledgeBaseId - Knowledge base document ID
+   * @param tag - Tag
+   * @returns Version list
+   */
+  async findVersionsByTag(
+    knowledgeBaseId: number,
+    tag: string
+  ): Promise<any[]> {
+    const versions = await databaseAdapter.findMany('knowledgeVersion', {
+      where: {
+        knowledge_base_id: knowledgeBaseId,
+        tags: {
+          has: tag,
+        },
+      },
+      orderBy: { version: 'desc' },
+    });
+
+    return versions;
+  }
+
+  /**
+   * Calculate changed fields
+   *
+   * @param oldVersion - Old version
+   * @param newKnowledgeBase - New knowledge base data
+   * @returns Changed fields object
+   * @private
+   */
+  private calculateChangedFields(
+    oldVersion: any,
+    newKnowledgeBase: any
+  ): Record<string, { old: any; new: any }> {
+    const changes: Record<string, { old: any; new: any }> = {};
+
+    // Compare title
+    if (oldVersion.title !== newKnowledgeBase.title) {
+      changes.title = { old: oldVersion.title, new: newKnowledgeBase.title };
+    }
+
+    // Compare content
+    if (oldVersion.content !== newKnowledgeBase.content) {
+      changes.content = {
+        old: oldVersion.content,
+        new: newKnowledgeBase.content,
+      };
+    }
+
+    // Compare file path
+    if (oldVersion.file_path !== newKnowledgeBase.file_path) {
+      changes.file_path = {
+        old: oldVersion.file_path,
+        new: newKnowledgeBase.file_path,
+      };
+    }
+
+    // Compare file size
+    if (oldVersion.file_size !== newKnowledgeBase.file_size) {
+      changes.file_size = {
+        old: oldVersion.file_size,
+        new: newKnowledgeBase.file_size,
+      };
+    }
+
+    // Compare MIME type
+    if (oldVersion.mime_type !== newKnowledgeBase.mime_type) {
+      changes.mime_type = {
+        old: oldVersion.mime_type,
+        new: newKnowledgeBase.mime_type,
+      };
+    }
+
+    return changes;
+  }
+
+  /**
+   * Generate diff between two versions
+   *
+   * @param version1 - Version 1
+   * @param version2 - Version 2
+   * @returns Difference list
+   * @private
+   */
+  private generateDiff(
+    version1: any,
+    version2: any
+  ): VersionDiff[] {
+    const diffs: VersionDiff[] = [];
+
+    // Compare title
+    if (version1.title !== version2.title) {
+      diffs.push({
+        field: 'title',
+        oldValue: version1.title,
+        newValue: version2.title,
+        changeType: 'modified',
+      });
+    }
+
+    // Compare content
+    if (version1.content !== version2.content) {
+      diffs.push({
+        field: 'content',
+        oldValue: version1.content,
+        newValue: version2.content,
+        changeType: version1.content ? 'modified' : 'added',
+      });
+    }
+
+    // Compare file path
+    if (version1.file_path !== version2.file_path) {
+      diffs.push({
+        field: 'file_path',
+        oldValue: version1.file_path,
+        newValue: version2.file_path,
+        changeType: version1.file_path ? 'modified' : 'added',
+      });
+    }
+
+    // Compare file size
+    if (version1.file_size !== version2.file_size) {
+      diffs.push({
+        field: 'file_size',
+        oldValue: version1.file_size,
+        newValue: version2.file_size,
+        changeType: 'modified',
+      });
+    }
+
+    // Compare MIME type
+    if (version1.mime_type !== version2.mime_type) {
+      diffs.push({
+        field: 'mime_type',
+        oldValue: version1.mime_type,
+        newValue: version2.mime_type,
+        changeType: version1.mime_type ? 'modified' : 'added',
+      });
+    }
+
+    return diffs;
+  }
+}
+
+/**
+ * Factory function: Create knowledge base version control instance
+ *
+ * @returns KnowledgeVersionControl instance
+ */
+export function createKnowledgeVersionControl(): KnowledgeVersionControl {
+  return new KnowledgeVersionControl();
+}
