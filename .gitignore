@@ -46,3 +46,6 @@ Thumbs.db
 # Temporary documentation files
 Docs/*.backup
 Docs/*-insert.txt
+
+# Test projects (integration tests)
+test-projects/
