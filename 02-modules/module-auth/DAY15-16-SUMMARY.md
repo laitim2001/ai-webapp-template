@@ -228,16 +228,15 @@ DATABASE_URL=postgresql://user:password@localhost:5432/dbname
 │   └── auth/
 │       ├── token-service.ts.template       # ✅ 雙令牌系統
 │       └── azure-ad-service.ts.template    # ✅ Azure AD SSO
-├── api/
-│   └── auth/
-│       ├── login/route.ts.template         # ✅ 登入端點
-│       ├── logout/route.ts.template        # ✅ 登出端點
-│       ├── register/route.ts.template      # ✅ 註冊端點
-│       ├── refresh/route.ts.template       # ✅ Token刷新
-│       ├── me/route.ts.template            # ✅ 用戶資訊
-│       └── azure-ad/
-│           ├── login/route.ts.template     # ✅ Azure AD登入
-│           └── callback/route.ts.template  # ✅ Azure AD回調
+├── api/auth/                                # 📁 Next.js API 路由
+│   ├── login/route.ts.template             # ✅ 登入端點
+│   ├── logout/route.ts.template            # ✅ 登出端點
+│   ├── register/route.ts.template          # ✅ 註冊端點
+│   ├── refresh/route.ts.template           # ✅ Token刷新
+│   ├── me/route.ts.template                # ✅ 用戶資訊
+│   └── azure-ad/
+│       ├── login/route.ts.template         # ✅ Azure AD登入
+│       └── callback/route.ts.template      # ✅ Azure AD回調
 ├── hooks/
 │   └── use-auth.tsx.template               # ✅ React認證Hook
 ├── types/
@@ -252,6 +251,8 @@ DATABASE_URL=postgresql://user:password@localhost:5432/dbname
 ├── DAY15-16-SUMMARY.md                      # ✅ 本文檔
 └── README.md                                # ✅ 完整文檔
 ```
+
+**注意**: API 路由檔案放在 `api/auth/` 目錄中。使用此模組時，init-project.js 會將這些檔案複製到項目的 `app/api/auth/` 目錄（符合 Next.js 14 App Router 標準）。
 
 ## 🎯 整體進度
 

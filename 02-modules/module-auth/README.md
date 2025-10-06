@@ -43,10 +43,11 @@ Complete JWT-based authentication system with Azure AD SSO support for the AI We
 ├── lib/
 │   ├── auth.ts.template              # Client-side validation (password, email)
 │   ├── auth-server.ts.template       # Server-side auth (JWT, bcrypt, user creation)
-│   ├── token-service.ts.template     # Token management (access, refresh, blacklist)
-│   └── azure-ad-service.ts.template  # Azure AD SSO integration
+│   └── auth/
+│       ├── token-service.ts.template # Token management (access, refresh, blacklist)
+│       └── azure-ad-service.ts.template  # Azure AD SSO integration
 │
-├── app/api/auth/
+├── api/auth/                          # API routes (copied to app/api/auth/ during init)
 │   ├── login/route.ts.template       # POST /api/auth/login
 │   ├── register/route.ts.template    # POST /api/auth/register
 │   ├── logout/route.ts.template      # POST /api/auth/logout
@@ -56,8 +57,25 @@ Complete JWT-based authentication system with Azure AD SSO support for the AI We
 │       ├── login/route.ts.template   # GET /api/auth/azure-ad/login
 │       └── callback/route.ts.template # GET /api/auth/azure-ad/callback
 │
-└── README.md                         # This file
+├── hooks/
+│   └── use-auth.tsx.template         # React authentication hook & context
+│
+├── types/
+│   └── auth.ts.template              # TypeScript type definitions
+│
+├── __tests__/
+│   ├── auth/
+│   │   └── login.test.tsx.template   # Component tests
+│   └── api/auth/
+│       ├── login.test.ts.template    # API endpoint tests
+│       └── register.test.ts.template # API endpoint tests
+│
+├── README.md                          # This file
+├── DAY15-16-SUMMARY.md               # Extraction summary
+└── EXTRACTION-STATUS.md              # Extraction status tracking
 ```
+
+**Note**: The `api/auth/` directory contains template files that will be copied to `app/api/auth/` in your project during initialization (Next.js 14 App Router standard).
 
 ## 🔧 Installation
 
