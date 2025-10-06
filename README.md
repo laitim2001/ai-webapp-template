@@ -1,9 +1,10 @@
 # 🚀 AI Web App 初始化模板
 # AI Web App Initialization Template
 
-**版本**: 5.0  
-**最後更新**: 2025-01-10  
-**源項目**: AI Sales Enablement Platform  
+**版本**: 5.0
+**最後更新**: 2025-10-06
+**完成進度**: 77.8% (21/27天)
+**源項目**: AI Sales Enablement Platform
 **GitHub**: https://github.com/laitim2001/ai-webapp-template
 
 一個完整的、生產就緒的 Next.js 14 全棧應用模板，包含企業級監控、多數據庫支持、完整的 UI 設計系統和智能 CLI 工具。
@@ -17,18 +18,23 @@
 - ✅ **TypeScript** - 嚴格模式
 - ✅ **多數據庫支持** - PostgreSQL / MySQL / MongoDB / SQLite
 - ✅ **企業級監控** - OpenTelemetry + Prometheus + Grafana + Jaeger
-- ✅ **完整 UI 系統** - 20+ 組件 + 完整設計系統
+- ✅ **完整 UI 系統** - 23 組件 + 完整設計系統 + 暗色模式
 - ✅ **智能 CLI** - 互動式項目初始化
 
 ### 📦 功能模組（可選安裝）
-- 🔐 **認證系統** - JWT 雙令牌 + Azure AD SSO
+- 🔐 **認證系統** - JWT 雙令牌 + Azure AD SSO + 25測試
 - 🌐 **API Gateway** - 10 個企業級中間件
-- 📚 **知識庫系統** - 向量搜索 + 版本控制
+- 📚 **知識庫系統** - 向量搜索 + 版本控制 + pgvector
 - 🔍 **智能搜索** - 多算法向量搜索
-- 🤖 **AI 整合** - Azure OpenAI 封裝
-- ⚙️ **工作流程引擎** - 12 狀態 + 6 種設計模式
-- 🔔 **通知系統** - 多渠道通知
+- 🤖 **AI 整合** - Azure OpenAI 封裝 + 嵌入服務
+- ⚙️ **工作流程引擎** - 12 狀態 + 批准系統
+- 🔔 **通知系統** - Email + In-App + Webhook
 - 💾 **緩存系統** - Redis 雙層緩存
+- 📄 **模板引擎** - Handlebars + 20 Helpers
+- 📑 **PDF 生成** - Puppeteer HTML→PDF
+- 📂 **文件解析** - PDF/Word/Excel/OCR
+- 🔗 **Dynamics 365** - OAuth + API + 雙向同步
+- 👥 **Customer 360** - 多源聚合 + AI洞察
 
 ### 🛠️ 開發工具鏈
 - 📖 **文檔系統** - AI 助手指南 + 項目索引

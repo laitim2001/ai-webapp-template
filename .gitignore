@@ -43,3 +43,6 @@ next-env.d.ts
 # OS
 Thumbs.db
 
+# Temporary documentation files
+Docs/*.backup
+Docs/*-insert.txt
