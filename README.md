@@ -194,21 +194,18 @@ examples/
 ## 📖 文檔
 
 ### 快速指南
-- [安裝指南](docs/INSTALLATION.md)
-- [數據庫配置](docs/DATABASE-GUIDE.md)
-- [模組使用指南](docs/MODULE-GUIDE.md)
-- [UI 一致性指南](docs/UI-CONSISTENCY-GUIDE.md)
+- [數據庫切換指南](Docs/DATABASE-SWITCHING-GUIDE.md) - 如何在 4 種數據庫間切換
+- [UI 設計系統](01-base/UI-DESIGN-SYSTEM.md) - 完整的 UI 組件和設計規範
+- [模組整合指南](02-modules/MODULE-INTEGRATION-GUIDE.md) - 14 個功能模組使用指南
 
 ### 深入指南
-- [架構設計](docs/ARCHITECTURE.md)
-- [監控系統](docs/MONITORING.md)
-- [設計模式](docs/DESIGN-PATTERNS.md)
-- [API 文檔](docs/API-SPECIFICATION.md)
+- [監控系統文檔](00-monitoring/README.md) - 企業級監控配置
+- [動畫指南](01-base/docs/ANIMATION-GUIDE.md) - 20+ 動畫效果使用
+- [響應式設計指南](01-base/docs/RESPONSIVE-DESIGN-GUIDE.md) - 移動優先設計
 
 ### 開發指南
-- [AI 助手指南](03-toolchain/toolchain-docs/AI-ASSISTANT-GUIDE.md)
-- [貢獻指南](CONTRIBUTING.md)
-- [測試指南](docs/TESTING.md)
+- [AI 助手指南](CLAUDE.md) - AI 助手項目指南
+- [測試框架指南](03-toolchain/toolchain-testing/README.md) - Jest + Playwright 測試
 
 ---
 
