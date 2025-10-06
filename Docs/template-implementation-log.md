@@ -16,9 +16,10 @@
 | Week 2: P0核心模組 | ✅ 已完成 | 100% (7/7天) | 2025-10-05 |
 | Week 3: P1模組與UI | ✅ 已完成 | 100% (5/5天) | 2025-10-06 |
 | Week 4: 輔助模組 | ✅ 已完成 | 100% (5/5天) | 2025-10-06 |
-| Week 5: 工具鏈 | 🔄 進行中 | 33.3% (1/3天) | 2025-10-06 |
+| Week 5: 工具鏈 | 🔄 進行中 | 66.7% (2/3天) | 2025-10-06 |
 
 **總體進度**: 92.6% (25/27 天完成)
+**最新提交**: 8691f3a (Day 27: 整合測試與 .gitignore 優化)
 
 **Week 1 成果摘要**:
 - ✅ Day 1-2: 數據庫適配器 (4 種) + Prisma Schema + UI 設計系統 + 20 個組件
@@ -197,7 +198,34 @@
     - SQLite 最小配置 (36 文件)
   - **驗證**: 所有數據庫組合都能正常工作
 
-**Week 5 進度**: 33.3% (1/3 天完成)
+**Week 5 成果摘要** (Day 25-27, 66.7%完成):
+- ✅ Day 25: **種子數據與範例** (已完成於 Week 1)
+- ✅ Day 26: **CLI 工具增強** (3 個腳本 + 1 個分析文檔, ~1,500 行)
+  - **增強版 CLI** (init-project-enhanced.js, ~920 行):
+    - InitializationError 自定義錯誤類
+    - 狀態追蹤 (createdFiles, createdDirs, projectPath)
+    - 日誌系統 (INFO/WARN/ERROR/SUCCESS/DEBUG)
+    - 進度指示器 (10 步驟進度條)
+    - 回滾機制 (rollbackChanges 函數)
+    - 安全文件操作 (safeEnsureDir, safeCopyFile, safeWriteFile)
+  - **測試腳本** (2 個文件):
+    - test-cli-workflow.js - 自動化工作流測試
+    - test-cli-simple.js - 快速驗證測試 (~200 行)
+  - **分析文檔** (DAY26-CLI-ANALYSIS.md, ~350 行)
+  - **測試結果**: ✅ 21/21 全部通過 (100% 通過率)
+- ✅ Day 27: **整合測試** (1 個腳本 + 1 個報告, ~700 行)
+  - **整合測試腳本** (scripts/integration-tests.js, ~630 行):
+    - 5 個測試場景 (PostgreSQL/MySQL/MongoDB/SQLite)
+    - 8 步驟驗證 (結構/Schema/環境/配置/模組/package.json)
+    - 自動生成測試報告
+  - **測試報告** (DAY27-INTEGRATION-TEST-REPORT.md, ~105 行):
+    - 詳細測試結果記錄
+    - 所有場景配置信息
+  - **.gitignore 優化**:
+    - 新增 test-projects/ 排除規則
+  - **測試結果**: ✅ 5/5 全部通過 (100% 通過率)
+
+**Week 5 進度**: 66.7% (2/3 天完成)
 
 
 ---

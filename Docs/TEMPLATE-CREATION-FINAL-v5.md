@@ -5,7 +5,7 @@
 **日期**: 2025-01-10 (計劃) / 2025-10-05 (實施開始) / 2025-10-06 (持續中)
 **狀態**: 🔄 實施中 (92.6%, 25/27天完成)
 **GitHub**: https://github.com/laitim2001/ai-webapp-template.git
-**最新提交**: pending (Day 27: 整合測試)
+**最新提交**: 8691f3a (Day 27: 整合測試與 .gitignore 優化)
 
 ### 🔖 重要文檔參考
 
@@ -1403,7 +1403,9 @@ function displayProjectSummary(projectInfo, database, modules, monitoring, seedD
 - [x] SQLite - 最小配置 (36 文件) ✅
 - [x] 創建整合測試腳本 (scripts/integration-tests.js, 630行)
 - [x] 生成測試報告 (DAY27-INTEGRATION-TEST-REPORT.md)
+- [x] 優化 .gitignore (新增 test-projects/ 排除規則)
 - [x] **驗證**: 5/5 測試場景全部通過 (100% 通過率)
+- [x] **提交**: 8691f3a - feat: Day 27 完成 - 整合測試與 .gitignore 優化
 
 **Day 28: UI驗證與文檔** (待執行)
 - [ ] 驗證UI組件一致性
