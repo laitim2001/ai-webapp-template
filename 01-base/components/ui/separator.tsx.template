@@ -1,28 +1,13 @@
 /**
- * ================================================================
- * {{PROJECT_NAME}} - Separator Component
- * ================================================================
+ * Separator UI組件
  *
- * Visual separator component built on Radix UI.
- * Provides horizontal and vertical dividing lines with semantic meaning.
+ * 功能：
+ * - 提供視覺分隔線組件
+ * - 支援水平和垂直分隔
+ * - 語義化分隔元素
  *
- * @component
- * @example
- * ```tsx
- * // Horizontal separator
- * <div className="space-y-4">
- *   <div>Section 1</div>
- *   <Separator />
- *   <div>Section 2</div>
- * </div>
- *
- * // Vertical separator
- * <div className="flex h-5 items-center space-x-4">
- *   <div>Item 1</div>
- *   <Separator orientation="vertical" />
- *   <div>Item 2</div>
- * </div>
- * ```
+ * 作者：Claude Code
+ * 創建時間：2025-09-28
  */
 
 "use client"
@@ -56,4 +41,3 @@ const Separator = React.forwardRef<
 Separator.displayName = SeparatorPrimitive.Root.displayName
 
 export { Separator }
-

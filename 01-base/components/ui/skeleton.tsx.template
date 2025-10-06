@@ -1,65 +1,20 @@
 /**
- * ================================================================
- * {{PROJECT_NAME}} - Skeleton Component
- * ================================================================
- *
- * Loading skeleton component for placeholder content while data is fetching.
- * Provides animated pulse effect for better user experience.
- *
- * @component
- * @example
- * ```tsx
- * // Basic skeleton
- * <Skeleton className="h-4 w-[250px]" />
- *
- * // Card skeleton
- * <div className="space-y-4">
- *   <Skeleton className="h-12 w-12 rounded-full" />
- *   <div className="space-y-2">
- *     <Skeleton className="h-4 w-[250px]" />
- *     <Skeleton className="h-4 w-[200px]" />
- *   </div>
- * </div>
- *
- * // Table skeleton
- * <div className="space-y-2">
- *   <Skeleton className="h-8 w-full" />
- *   <Skeleton className="h-8 w-full" />
- *   <Skeleton className="h-8 w-full" />
- * </div>
- * ```
+ * Skeleton Loading Component
+ * Sprint 6 Week 11 Day 2 快速修復
  */
 
 import { cn } from '@/lib/utils'
 
-/**
- * Skeleton component for loading states
- * 
- * @param {React.HTMLAttributes<HTMLDivElement>} props - Standard div attributes
- * 
- * @features
- * - Animated pulse effect using Tailwind animation
- * - Flexible sizing with className
- * - Rounded corners with rounded-md
- * - Gray background for neutral appearance
- * - Supports custom shapes (circle, rectangle, etc.)
- * 
- * @accessibility
- * - Consider adding aria-busy="true" to parent
- * - Add sr-only text for screen readers
- * - Use with loading states appropriately
- */
 function Skeleton({
   className,
   ...props
 }: React.HTMLAttributes<HTMLDivElement>) {
   return (
     <div
-      className={cn('animate-pulse rounded-md bg-muted', className)}
+      className={cn('animate-pulse rounded-md bg-gray-200', className)}
       {...props}
     />
   )
 }
 
 export { Skeleton }
-

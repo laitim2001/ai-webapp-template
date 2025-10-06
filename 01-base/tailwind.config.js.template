@@ -1,375 +1,145 @@
 /**
  * ================================================================
- * Tailwind CSS 配置模板
- * Tailwind CSS Configuration Template
+ * 檔案名稱: Tailwind CSS 配置檔案
+ * 檔案用途: AI銷售賦能平台的樣式框架配置與設計系統
+ * 開發階段: 生產環境
  * ================================================================
- * 
- * 【功能】
- * 完整的 Tailwind CSS 配置，包含設計系統、動畫和主題。
- * 
- * 【特點】
- * • 設計令牌（Design Tokens）
- * • 深色模式支援
- * • 自定義動畫
- * • 響應式斷點
- * • 無障礙支援
+ *
+ * 功能索引:
+ * 1. 內容掃描配置 - 自動偵測需要樣式的檔案路徑
+ * 2. 暗色模式支援 - class-based 暗色主題切換
+ * 3. 容器佈局系統 - 響應式容器與斷點設定
+ * 4. 色彩設計系統 - HSL色彩變數與語義化色彩
+ * 5. 元件動畫系統 - 手風琴展開/收合動畫
+ *
+ * 設計特色:
+ * - CSS變數驅動的動態主題系統
+ * - 語義化色彩命名（primary、secondary、destructive等）
+ * - 響應式設計支援（2xl: 1400px最大寬度）
+ * - 無障礙友善的對比色搭配
+ *
+ * 依賴套件:
+ * - tailwindcss-animate: 提供動畫工具類
+ *
+ * 注意事項:
+ * - 色彩值需在CSS變數中定義（:root, [data-theme]）
+ * - 暗色模式透過 'dark' class 觸發
+ * - 動畫需配合 Radix UI 元件使用
+ *
+ * 更新記錄:
+ * - Week 1: 建立設計系統基礎配置
+ * - Week 3: 新增動畫與互動元件支援
+ * ================================================================
  */
 
 /** @type {import('tailwindcss').Config} */
 module.exports = {
-  // =====================================================
-  // 內容路徑
-  // =====================================================
-  
+  // 暗色模式：透過class控制，配合主題切換元件
+  darkMode: ["class"],
+
+  // 內容掃描：自動偵測使用Tailwind類別的檔案
   content: [
-    './pages/**/*.{ts,tsx}',
-    './components/**/*.{ts,tsx}',
-    './app/**/*.{ts,tsx}',
-    './lib/**/*.{ts,tsx}',
+    './pages/**/*.{ts,tsx}',      // Pages Router 頁面
+    './components/**/*.{ts,tsx}',  // 共用元件
+    './app/**/*.{ts,tsx}',        // App Router 頁面與佈局
+    './src/**/*.{ts,tsx}',        // 額外源碼目錄
   ],
-  
-  // =====================================================
-  // 深色模式
-  // =====================================================
-  
-  darkMode: ['class'],
-  
-  // =====================================================
-  // 主題配置
-  // =====================================================
-  
+  // 主題設定：自訂設計系統的核心配置
   theme: {
-    // 容器配置
+    // 容器佈局：統一的頁面寬度與響應式設定
     container: {
-      center: true,
-      padding: '2rem',
+      center: true,           // 自動置中
+      padding: "2rem",        // 左右內距
       screens: {
-        '2xl': '1400px',
+        "2xl": "1400px",      // 最大寬度限制
       },
     },
-    
+
+    // 擴展預設主題：新增自訂樣式而不覆蓋預設值
     extend: {
-      // =================================================
-      // 顏色系統（Design Tokens）
-      // =================================================
-      
+      // 色彩系統：基於CSS變數的動態主題色彩
       colors: {
-        // 邊界和背景
-        border: 'hsl(var(--border))',
-        input: 'hsl(var(--input))',
-        ring: 'hsl(var(--ring))',
-        background: 'hsl(var(--background))',
-        foreground: 'hsl(var(--foreground))',
-        
-        // 主要顏色
+        // 基礎色彩：佈局與互動元素
+        border: "hsl(var(--border))",           // 邊框色
+        input: "hsl(var(--input))",             // 輸入框背景
+        ring: "hsl(var(--ring))",               // 焦點環顏色
+        background: "hsl(var(--background))",   // 頁面背景
+        foreground: "hsl(var(--foreground))",   // 主要文字色
+
+        // 主要色彩：品牌色與重要按鈕
         primary: {
-          DEFAULT: 'hsl(var(--primary))',
-          foreground: 'hsl(var(--primary-foreground))',
+          DEFAULT: "hsl(var(--primary))",               // 主要品牌色
+          foreground: "hsl(var(--primary-foreground))", // 主要色上的文字
         },
-        
-        // 次要顏色
+
+        // 次要色彩：輔助按鈕與區塊
         secondary: {
-          DEFAULT: 'hsl(var(--secondary))',
-          foreground: 'hsl(var(--secondary-foreground))',
+          DEFAULT: "hsl(var(--secondary))",               // 次要色
+          foreground: "hsl(var(--secondary-foreground))", // 次要色上的文字
         },
-        
-        // 破壞性操作
+
+        // 警告色彩：危險操作與錯誤狀態
         destructive: {
-          DEFAULT: 'hsl(var(--destructive))',
-          foreground: 'hsl(var(--destructive-foreground))',
+          DEFAULT: "hsl(var(--destructive))",               // 危險/錯誤色
+          foreground: "hsl(var(--destructive-foreground))", // 危險色上的文字
         },
-        
-        // 靜音/禁用
+
+        // 靜音色彩：低對比的次要內容
         muted: {
-          DEFAULT: 'hsl(var(--muted))',
-          foreground: 'hsl(var(--muted-foreground))',
+          DEFAULT: "hsl(var(--muted))",               // 靜音背景色
+          foreground: "hsl(var(--muted-foreground))", // 靜音文字色
         },
-        
-        // 強調
+
+        // 強調色彩：突出顯示與提示
         accent: {
-          DEFAULT: 'hsl(var(--accent))',
-          foreground: 'hsl(var(--accent-foreground))',
+          DEFAULT: "hsl(var(--accent))",               // 強調背景色
+          foreground: "hsl(var(--accent-foreground))", // 強調文字色
         },
-        
-        // 彈出層
+
+        // 彈出視窗：下拉選單與對話框
         popover: {
-          DEFAULT: 'hsl(var(--popover))',
-          foreground: 'hsl(var(--popover-foreground))',
+          DEFAULT: "hsl(var(--popover))",               // 彈窗背景
+          foreground: "hsl(var(--popover-foreground))", // 彈窗文字
         },
-        
-        // 卡片
+
+        // 卡片元件：內容容器與面板
         card: {
-          DEFAULT: 'hsl(var(--card))',
-          foreground: 'hsl(var(--card-foreground))',
-        },
-        
-        // 語義顏色
-        success: {
-          DEFAULT: 'hsl(142, 76%, 36%)',
-          foreground: 'hsl(355.7, 100%, 97.3%)',
-        },
-        warning: {
-          DEFAULT: 'hsl(38, 92%, 50%)',
-          foreground: 'hsl(48, 96%, 89%)',
-        },
-        info: {
-          DEFAULT: 'hsl(199, 89%, 48%)',
-          foreground: 'hsl(210, 40%, 98%)',
+          DEFAULT: "hsl(var(--card))",               // 卡片背景
+          foreground: "hsl(var(--card-foreground))", // 卡片文字
         },
       },
-      
-      // =================================================
-      // 邊框半徑
-      // =================================================
-      
+
+      // 圓角半徑：基於CSS變數的動態圓角系統
       borderRadius: {
-        lg: 'var(--radius)',
-        md: 'calc(var(--radius) - 2px)',
-        sm: 'calc(var(--radius) - 4px)',
+        lg: "var(--radius)",                    // 大圓角
+        md: "calc(var(--radius) - 2px)",       // 中圓角
+        sm: "calc(var(--radius) - 4px)",       // 小圓角
       },
-      
-      // =================================================
-      // 字體系統
-      // =================================================
-      
-      fontFamily: {
-        sans: [
-          'var(--font-sans)',
-          'system-ui',
-          '-apple-system',
-          'BlinkMacSystemFont',
-          '"Segoe UI"',
-          'Roboto',
-          '"Helvetica Neue"',
-          'Arial',
-          'sans-serif',
-        ],
-        mono: [
-          'var(--font-mono)',
-          'ui-monospace',
-          'SFMono-Regular',
-          '"SF Mono"',
-          'Menlo',
-          'Monaco',
-          'Consolas',
-          'monospace',
-        ],
-      },
-      
-      fontSize: {
-        xs: ['0.75rem', { lineHeight: '1rem' }],
-        sm: ['0.875rem', { lineHeight: '1.25rem' }],
-        base: ['1rem', { lineHeight: '1.5rem' }],
-        lg: ['1.125rem', { lineHeight: '1.75rem' }],
-        xl: ['1.25rem', { lineHeight: '1.75rem' }],
-        '2xl': ['1.5rem', { lineHeight: '2rem' }],
-        '3xl': ['1.875rem', { lineHeight: '2.25rem' }],
-        '4xl': ['2.25rem', { lineHeight: '2.5rem' }],
-        '5xl': ['3rem', { lineHeight: '1' }],
-      },
-      
-      // =================================================
-      // 間距系統
-      // =================================================
-      
-      spacing: {
-        '18': '4.5rem',
-        '88': '22rem',
-        '100': '25rem',
-        '104': '26rem',
-        '112': '28rem',
-        '128': '32rem',
-      },
-      
-      // =================================================
-      // 動畫系統
-      // =================================================
-      
+
+      // 關鍵影格：自訂動畫效果定義
       keyframes: {
-        // 淡入淡出
-        'fade-in': {
-          '0%': { opacity: '0' },
-          '100%': { opacity: '1' },
+        // 手風琴展開動畫
+        "accordion-down": {
+          from: { height: 0 },
+          to: { height: "var(--radix-accordion-content-height)" },
         },
-        'fade-out': {
-          '0%': { opacity: '1' },
-          '100%': { opacity: '0' },
-        },
-        
-        // 滑入滑出
-        'slide-in-from-top': {
-          '0%': { transform: 'translateY(-100%)' },
-          '100%': { transform: 'translateY(0)' },
-        },
-        'slide-in-from-bottom': {
-          '0%': { transform: 'translateY(100%)' },
-          '100%': { transform: 'translateY(0)' },
-        },
-        'slide-in-from-left': {
-          '0%': { transform: 'translateX(-100%)' },
-          '100%': { transform: 'translateX(0)' },
-        },
-        'slide-in-from-right': {
-          '0%': { transform: 'translateX(100%)' },
-          '100%': { transform: 'translateX(0)' },
-        },
-        
-        // 縮放
-        'scale-in': {
-          '0%': { transform: 'scale(0.95)', opacity: '0' },
-          '100%': { transform: 'scale(1)', opacity: '1' },
-        },
-        'scale-out': {
-          '0%': { transform: 'scale(1)', opacity: '1' },
-          '100%': { transform: 'scale(0.95)', opacity: '0' },
-        },
-        
-        // 旋轉
-        'spin-slow': {
-          '0%': { transform: 'rotate(0deg)' },
-          '100%': { transform: 'rotate(360deg)' },
-        },
-        
-        // 脈衝
-        'pulse-slow': {
-          '0%, 100%': { opacity: '1' },
-          '50%': { opacity: '0.5' },
-        },
-        
-        // 彈跳
-        'bounce-subtle': {
-          '0%, 100%': { transform: 'translateY(0)' },
-          '50%': { transform: 'translateY(-5%)' },
-        },
-        
-        // 搖晃（錯誤提示）
-        'shake': {
-          '0%, 100%': { transform: 'translateX(0)' },
-          '10%, 30%, 50%, 70%, 90%': { transform: 'translateX(-5px)' },
-          '20%, 40%, 60%, 80%': { transform: 'translateX(5px)' },
-        },
-        
-        // 進度條
-        'progress': {
-          '0%': { transform: 'translateX(-100%)' },
-          '100%': { transform: 'translateX(100%)' },
-        },
-        
-        // 骨架屏加載
-        'shimmer': {
-          '0%': { backgroundPosition: '-1000px 0' },
-          '100%': { backgroundPosition: '1000px 0' },
-        },
-        
-        // Accordion 動畫
-        'accordion-down': {
-          from: { height: '0' },
-          to: { height: 'var(--radix-accordion-content-height)' },
-        },
-        'accordion-up': {
-          from: { height: 'var(--radix-accordion-content-height)' },
-          to: { height: '0' },
+        // 手風琴收合動畫
+        "accordion-up": {
+          from: { height: "var(--radix-accordion-content-height)" },
+          to: { height: 0 },
         },
       },
-      
+
+      // 動畫工具類：可直接在HTML中使用的動畫效果
       animation: {
-        // 淡入淡出
-        'fade-in': 'fade-in 0.2s ease-out',
-        'fade-out': 'fade-out 0.2s ease-out',
-        
-        // 滑入
-        'slide-in-from-top': 'slide-in-from-top 0.3s ease-out',
-        'slide-in-from-bottom': 'slide-in-from-bottom 0.3s ease-out',
-        'slide-in-from-left': 'slide-in-from-left 0.3s ease-out',
-        'slide-in-from-right': 'slide-in-from-right 0.3s ease-out',
-        
-        // 縮放
-        'scale-in': 'scale-in 0.2s ease-out',
-        'scale-out': 'scale-out 0.2s ease-out',
-        
-        // 旋轉和脈衝
-        'spin-slow': 'spin-slow 3s linear infinite',
-        'pulse-slow': 'pulse-slow 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
-        
-        // 其他
-        'bounce-subtle': 'bounce-subtle 1s ease-in-out infinite',
-        'shake': 'shake 0.5s ease-in-out',
-        'progress': 'progress 1s ease-in-out infinite',
-        'shimmer': 'shimmer 2s linear infinite',
-        
-        // Accordion
-        'accordion-down': 'accordion-down 0.2s ease-out',
-        'accordion-up': 'accordion-up 0.2s ease-out',
-      },
-      
-      // =================================================
-      // 陰影系統
-      // =================================================
-      
-      boxShadow: {
-        'sm': '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
-        'DEFAULT': '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)',
-        'md': '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
-        'lg': '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
-        'xl': '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
-        '2xl': '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
-        'inner': 'inset 0 2px 4px 0 rgba(0, 0, 0, 0.06)',
-        'glow': '0 0 20px rgba(59, 130, 246, 0.5)',
-      },
-      
-      // =================================================
-      // 響應式斷點
-      // =================================================
-      
-      screens: {
-        'xs': '475px',
-        'sm': '640px',
-        'md': '768px',
-        'lg': '1024px',
-        'xl': '1280px',
-        '2xl': '1536px',
-      },
-      
-      // =================================================
-      // Z-Index 層級
-      // =================================================
-      
-      zIndex: {
-        '0': '0',
-        '10': '10',
-        '20': '20',
-        '30': '30',
-        '40': '40',
-        '50': '50',
-        'dropdown': '1000',
-        'sticky': '1020',
-        'fixed': '1030',
-        'modal-backdrop': '1040',
-        'modal': '1050',
-        'popover': '1060',
-        'tooltip': '1070',
-      },
-      
-      // =================================================
-      // 背景圖案
-      // =================================================
-      
-      backgroundImage: {
-        'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
-        'gradient-conic': 'conic-gradient(from 180deg at 50% 50%, var(--tw-gradient-stops))',
-        'shimmer-gradient': 'linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent)',
+        "accordion-down": "accordion-down 0.2s ease-out",  // 展開動畫
+        "accordion-up": "accordion-up 0.2s ease-out",      // 收合動畫
       },
     },
   },
-  
-  // =====================================================
-  // 插件
-  // =====================================================
-  
-  plugins: [
-    require('tailwindcss-animate'),
-    require('@tailwindcss/forms'),
-    require('@tailwindcss/typography'),
-  ],
-};
 
+  // 外掛程式：擴展Tailwind功能的第三方套件
+  plugins: [
+    require("tailwindcss-animate"),  // 動畫工具類，提供預設動畫效果
+  ],
+}

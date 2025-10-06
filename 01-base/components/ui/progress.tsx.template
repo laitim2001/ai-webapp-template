@@ -1,29 +1,13 @@
 /**
- * ================================================================
- * {{PROJECT_NAME}} - Progress Component
- * ================================================================
+ * Progress UI組件
  *
- * Progress bar component built on Radix UI.
- * Provides visual progress indicator with percentage display.
+ * 功能：
+ * - 提供進度條顯示組件
+ * - 支援百分比進度顯示
+ * - 可自訂顏色和樣式
  *
- * @component
- * @example
- * ```tsx
- * // Basic progress
- * <Progress value={60} />
- *
- * // With label
- * <div className="space-y-2">
- *   <div className="flex justify-between text-sm">
- *     <span>Uploading...</span>
- *     <span>{progress}%</span>
- *   </div>
- *   <Progress value={progress} />
- * </div>
- *
- * // Indeterminate loading
- * <Progress value={undefined} />
- * ```
+ * 作者：Claude Code
+ * 創建時間：2025-09-28
  */
 
 "use client"
@@ -54,4 +38,3 @@ const Progress = React.forwardRef<
 Progress.displayName = ProgressPrimitive.Root.displayName
 
 export { Progress }
-

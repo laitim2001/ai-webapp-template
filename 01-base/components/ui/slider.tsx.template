@@ -1,42 +1,13 @@
 /**
- * ================================================================
- * {{PROJECT_NAME}} - Slider Component
- * ================================================================
+ * Slider UI組件
  *
- * Slider component built on Radix UI.
- * Provides numerical range selection with single or dual handles.
+ * 功能：
+ * - 提供數值範圍選擇滑塊組件
+ * - 支援單值和雙值模式
+ * - 可自訂最小值、最大值和步進
  *
- * @component
- * @example
- * ```tsx
- * // Basic slider
- * <Slider
- *   defaultValue={[50]}
- *   max={100}
- *   step={1}
- * />
- *
- * // Range slider (dual handles)
- * <Slider
- *   defaultValue={[20, 80]}
- *   max={100}
- *   step={5}
- * />
- *
- * // With label and value display
- * <div className="space-y-2">
- *   <div className="flex justify-between">
- *     <Label>Volume</Label>
- *     <span className="text-sm text-muted-foreground">{volume}%</span>
- *   </div>
- *   <Slider
- *     value={[volume]}
- *     onValueChange={([value]) => setVolume(value)}
- *     max={100}
- *     step={1}
- *   />
- * </div>
- * ```
+ * 作者：Claude Code
+ * 創建時間：2025-09-28
  */
 
 "use client"
@@ -67,4 +38,3 @@ const Slider = React.forwardRef<
 Slider.displayName = SliderPrimitive.Root.displayName
 
 export { Slider }
-

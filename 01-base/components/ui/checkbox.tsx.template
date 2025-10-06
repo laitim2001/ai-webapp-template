@@ -1,35 +1,13 @@
 /**
- * ================================================================
- * {{PROJECT_NAME}} - Checkbox Component
- * ================================================================
+ * Checkbox UI組件
  *
- * Checkbox component built on Radix UI.
- * Provides accessible checkbox with checked, unchecked, and indeterminate states.
+ * 功能：
+ * - 提供可勾選的複選框組件
+ * - 支援不同狀態和樣式
+ * - 整合表單驗證
  *
- * @component
- * @example
- * ```tsx
- * // Basic checkbox
- * <div className="flex items-center space-x-2">
- *   <Checkbox id="terms" />
- *   <label htmlFor="terms">Accept terms and conditions</label>
- * </div>
- *
- * // Controlled checkbox
- * <Checkbox
- *   checked={isChecked}
- *   onCheckedChange={setIsChecked}
- * />
- *
- * // Disabled checkbox
- * <Checkbox disabled />
- *
- * // With label component
- * <div className="flex items-center space-x-2">
- *   <Checkbox id="notifications" checked={notificationsEnabled} />
- *   <Label htmlFor="notifications">Enable notifications</Label>
- * </div>
- * ```
+ * 作者：Claude Code
+ * 創建時間：2025-09-28
  */
 
 "use client"
@@ -62,4 +40,3 @@ const Checkbox = React.forwardRef<
 Checkbox.displayName = CheckboxPrimitive.Root.displayName
 
 export { Checkbox }
-
