@@ -51,9 +51,10 @@ ai-webapp-template/
 │
 ├── 📄 核心文件
 │   ├── README.md                          # 項目介紹
-│   ├── AI-ASSISTANT-GUIDE.md              # AI助手統一入口 ⭐
+│   ├── TEMPLATE-DEVELOPMENT-GUIDE.md      # 模板開發指南（模板維護者用）⭐
 │   ├── PROJECT-INDEX.md                   # 項目完整索引（本文件）⭐
 │   ├── CLAUDE.md                          # Claude Code 開發指導
+│   ├── CHANGELOG.md                       # 版本變更記錄
 │   ├── package.json                       # 項目依賴
 │   ├── next.config.js                     # Next.js 配置
 │   ├── tsconfig.json                      # TypeScript 配置
@@ -61,6 +62,7 @@ ai-webapp-template/
 │   └── init-project.js                    # 初始化 CLI 工具 ⭐⭐⭐
 │
 ├── 📂 01-base/                            # 基礎模板層 ⭐⭐⭐
+│   ├── AI-ASSISTANT-GUIDE.md.template     # AI助手指南模板（初始化時複製到新項目）⭐
 │   ├── app/                               # Next.js App Router
 │   ├── components/                        # React 組件（部分提取）
 │   ├── lib/                               # 核心工具庫（部分提取）
@@ -121,12 +123,17 @@ ai-webapp-template/
 
 ### 📚 核心文檔（必讀）
 
-| 文檔 | 大小 | 用途 | 優先級 |
-|------|------|------|--------|
-| [AI-ASSISTANT-GUIDE.md](AI-ASSISTANT-GUIDE.md) | ~900行 | AI助手統一入口，快速了解項目 | ⭐⭐⭐ |
-| [PROJECT-INDEX.md](PROJECT-INDEX.md) | 本文件 | 完整項目索引和導航 | ⭐⭐⭐ |
-| [CLAUDE.md](CLAUDE.md) | ~400行 | Claude Code 開發指導 | ⭐⭐⭐ |
-| [README.md](README.md) | ~200行 | 項目介紹和快速開始 | ⭐⭐⭐ |
+| 文檔 | 大小 | 用途 | 讀者 | 優先級 |
+|------|------|------|------|--------|
+| [TEMPLATE-DEVELOPMENT-GUIDE.md](TEMPLATE-DEVELOPMENT-GUIDE.md) | ~342行 | 模板開發維護指南 | 模板開發者 | ⭐⭐⭐ |
+| [PROJECT-INDEX.md](PROJECT-INDEX.md) | 本文件 | 完整項目索引和導航 | 所有人 | ⭐⭐⭐ |
+| [CLAUDE.md](CLAUDE.md) | ~400行 | Claude Code 開發指導 | AI助手/開發者 | ⭐⭐⭐ |
+| [README.md](README.md) | ~200行 | 項目介紹和快速開始 | 所有人 | ⭐⭐⭐ |
+| [01-base/AI-ASSISTANT-GUIDE.md.template](01-base/AI-ASSISTANT-GUIDE.md.template) | ~300行 | 新項目AI助手指南模板 | 使用模板的開發者 | ⭐⭐⭐ |
+
+**說明**:
+- `TEMPLATE-DEVELOPMENT-GUIDE.md` - 給開發/維護此模板項目的人使用
+- `01-base/AI-ASSISTANT-GUIDE.md.template` - 執行 `init-project.js` 後會複製到新項目，給使用模板的開發者使用
 
 ### 📖 技術文檔（詳細參考）
 

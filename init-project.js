@@ -467,27 +467,30 @@ async function initializeProject(config) {
   
   // 4. 複製模組文件
   await copyModules(config.selectedModules);
-  
-  // 5. 生成 package.json
+
+  // 5. 生成 AI 助手指南
+  await generateAIAssistantGuide(config);
+
+  // 6. 生成 package.json
   await generatePackageJson(config);
-  
-  // 6. 安裝依賴
+
+  // 7. 安裝依賴
   await installDependencies();
-  
-  // 7. 初始化數據庫
+
+  // 8. 初始化數據庫
   await initializeDatabase(config.databaseConfig.type);
-  
-  // 8. 生成示例數據
+
+  // 9. 生成示例數據
   if (config.dataOptions.seedData) {
     await generateSeedData(config.databaseConfig.type);
   }
-  
-  // 9. 生成示例日誌
+
+  // 10. 生成示例日誌
   if (config.dataOptions.sampleLogs) {
     await generateSampleLogs();
   }
-  
-  // 10. 清理模板文件
+
+  // 11. 清理模板文件
   await cleanupTemplateFiles();
 }
 
@@ -563,22 +566,141 @@ async function generateEnvFile(envConfig) {
 
 async function copyModules(selectedModules) {
   const spinner = ora('正在複製功能模組...').start();
-  
+
   try {
     for (const module of selectedModules) {
       const source = path.join(__dirname, '02-modules', module);
       const dest = process.cwd();
-      
+
       if (await fs.pathExists(source)) {
         await fs.copy(source, dest, { overwrite: true });
       }
     }
-    
+
     spinner.succeed(`已複製 ${selectedModules.length} 個功能模組`);
   } catch (error) {
     spinner.fail('功能模組複製失敗');
     throw error;
   }
+}
+
+async function generateAIAssistantGuide(config) {
+  const spinner = ora('正在生成 AI 助手指南...').start();
+
+  try {
+    const templatePath = path.join(__dirname, '01-base', 'AI-ASSISTANT-GUIDE.md.template');
+    let content = await fs.readFile(templatePath, 'utf-8');
+
+    // 生成已安裝模組清單
+    const modulesList = generateModulesList(config.selectedModules);
+
+    // 生成監控命令（如果啟用）
+    const monitoringCommands = config.monitoringConfig.enabled
+      ? generateMonitoringCommands(config.monitoringConfig.backend)
+      : '';
+
+    // 生成監控技術棧說明（如果啟用）
+    const monitoringStack = config.monitoringConfig.enabled
+      ? generateMonitoringStack(config.monitoringConfig.backend)
+      : '';
+
+    // 獲取當前日期
+    const creationDate = new Date().toISOString().split('T')[0];
+
+    // 替換所有佔位符
+    content = replacePlaceholders(content, {
+      PROJECT_NAME: config.projectInfo.name,
+      CREATION_DATE: creationDate,
+      DATABASE_TYPE: config.databaseConfig.type.toUpperCase(),
+      INSTALLED_MODULES: modulesList,
+      MONITORING_COMMANDS: monitoringCommands,
+      MONITORING_STACK: monitoringStack,
+      PROJECT_REPOSITORY: config.projectInfo.repository || 'https://github.com/your-username/' + config.projectInfo.name,
+    });
+
+    // 寫入文件
+    const destPath = path.join(process.cwd(), 'AI-ASSISTANT-GUIDE.md');
+    await fs.writeFile(destPath, content);
+
+    spinner.succeed('AI 助手指南已生成');
+  } catch (error) {
+    spinner.fail('AI 助手指南生成失敗');
+    throw error;
+  }
+}
+
+function generateModulesList(selectedModules) {
+  const moduleDescriptions = {
+    'auth': '✅ **認證系統** (`module-auth/`)\n   - JWT 雙令牌認證\n   - Azure AD SSO 整合\n   - 使用: `import { ... } from "@/lib/auth"`',
+    'api-gateway': '✅ **API Gateway** (`module-api-gateway/`)\n   - 10個企業級中間件\n   - 速率限制、CORS、驗證\n   - 使用: `import { withApiMiddleware } from "@/lib/api-gateway/middleware"`',
+    'knowledge': '✅ **知識庫系統** (`module-knowledge-base/`)\n   - 向量搜索 (pgvector)\n   - 版本控制和審計\n   - 使用: `import { ... } from "@/lib/knowledge"`',
+    'ai': '✅ **AI 整合** (`module-ai-integration/`)\n   - Azure OpenAI 封裝\n   - 流式回應支持\n   - 使用: `import { azureOpenAI } from "@/lib/ai"`',
+    'workflow': '✅ **工作流程引擎** (`module-workflow/`)\n   - 12狀態工作流\n   - 6種設計模式\n   - 使用: `import { ... } from "@/lib/workflow"`',
+    'notifications': '✅ **通知系統** (`module-notification/`)\n   - 多渠道通知 (Email, SMS, Push)\n   - 模板管理\n   - 使用: `import { ... } from "@/lib/notification"`',
+    'templates': '✅ **模板管理** (`module-template/`)\n   - Handlebars 模板引擎\n   - PDF 導出\n   - 使用: `import { ... } from "@/lib/template"`',
+    'dynamics365': '✅ **Dynamics 365 整合** (`module-dynamics365/`)\n   - CRM 數據同步\n   - OAuth 認證\n   - 使用: `import { ... } from "@/lib/dynamics365"`',
+    'monitoring': '✅ **監控系統** (`00-monitoring/`)\n   - OpenTelemetry 遙測\n   - Prometheus/Azure Monitor\n   - 自動配置和啟用',
+    'testing': '✅ **測試框架**\n   - Jest 單元測試 (120+ 測試)\n   - Playwright E2E 測試\n   - 執行: `npm test` / `npm run test:e2e`',
+  };
+
+  const installedModules = selectedModules
+    .map(mod => moduleDescriptions[mod] || `✅ **${mod}**`)
+    .join('\n\n');
+
+  const notInstalledNote = `
+### ⚠️ 未安裝的模組
+
+以下模組在初始化時未選擇，如需使用請參考模板倉庫的 \`02-modules/\` 目錄手動添加：
+
+${Object.keys(moduleDescriptions)
+  .filter(mod => !selectedModules.includes(mod))
+  .map(mod => `- ${mod}`)
+  .join('\n')}
+`;
+
+  return installedModules + '\n\n' + notInstalledNote;
+}
+
+function generateMonitoringCommands(backend) {
+  if (backend === 'prometheus' || backend === 'both') {
+    return `
+# 監控系統
+npm run monitoring:start  # 啟動 Prometheus + Grafana (Docker)
+npm run monitoring:stop   # 停止監控堆棧
+npm run monitoring:logs   # 查看監控日誌
+
+# 訪問監控面板
+# Prometheus: http://localhost:9090
+# Grafana: http://localhost:3001 (admin/admin)
+`;
+  }
+  return '';
+}
+
+function generateMonitoringStack(backend) {
+  const stacks = {
+    'prometheus': `
+**監控**:
+- OpenTelemetry (遙測收集)
+- Prometheus (指標存儲)
+- Grafana (可視化面板)
+- 46個預配置告警規則
+- 4個預建 Grafana 儀表板`,
+    'azure': `
+**監控**:
+- OpenTelemetry (遙測收集)
+- Azure Monitor (雲端監控)
+- Application Insights (應用洞察)
+- 自動化告警和診斷`,
+    'both': `
+**監控**:
+- OpenTelemetry (遙測收集)
+- Prometheus + Grafana (本地監控)
+- Azure Monitor (雲端監控)
+- 雙後端支持，最大靈活性`,
+  };
+
+  return stacks[backend] || '';
 }
 
 async function generatePackageJson(config) {
