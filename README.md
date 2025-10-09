@@ -3,7 +3,7 @@
 
 **版本**: 5.0-alpha
 **最後更新**: 2025-10-09
-**完成進度**: ~45% (基於源項目完整分析)
+**完成進度**: ~48% (基於源項目完整分析)
 **源項目**: AI Sales Enablement Platform
 **GitHub**: https://github.com/laitim2001/ai-webapp-template
 
@@ -42,9 +42,9 @@
 
 **P0 關鍵模組** (必須):
 - ✅ **Security & RBAC** - 19文件, 2,900+行 (角色權限、審計日誌、190+測試) - **Day 35-36 完成**
+- ✅ **lib/ 根目錄核心** - 3文件, 1,113行 (errors.ts, utils.ts, prisma.ts) - **Day 38-40 完成**
 - 🛠️ **API 工具層** - 2文件, ~200行 (API輔助函數)
 - 💾 **數據庫工具** - 多文件, ~300行 (DB輔助函數)
-- 📋 **根目錄核心** - 7文件, 1,375行 (errors.ts等基礎層)
 
 **P1 高優先級模組**:
 - ⚡ **Performance** - 6文件+測試, 600+行 (性能優化服務)
@@ -82,11 +82,11 @@
 
 ### 待補充功能 🚧
 - ✅ Security & RBAC 模組 (企業必需) - **Day 35-36 完成**
+- ✅ lib/ 根目錄核心文件 (errors, utils, prisma) - **Day 38-40 完成**
 - 🚧 Performance 和 Resilience 模組
 - 🚧 完整 Prisma Schema (29個模型待補充)
 - 🚧 91 個進階 UI 組件
 - 🚧 12 個業務功能模組
-- 🚧 lib/ 根目錄核心文件
 
 ### 源項目規模參考
 

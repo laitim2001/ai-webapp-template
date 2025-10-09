@@ -12,6 +12,43 @@
 
 ### 🎉 最新進展 (2025-10-09)
 
+#### 已完成 - Day 38-40: lib/ 根目錄核心文件
+- ✅ **核心工具庫完整實現** (3個文件, 1,113行代碼)
+  - **errors.ts** (615行) - 統一錯誤處理系統
+    - ErrorType 枚舉 (23種錯誤類型)
+    - ErrorSeverity 枚舉 (4個嚴重等級)
+    - AppError 類別 (8個靜態便捷方法)
+    - ErrorClassifier (自動錯誤分類：Prisma/JWT/Network/AI/Validation)
+    - ErrorLogger (環境特定日誌策略)
+    - ErrorMetrics (統計數據收集)
+    - 完整錯誤上下文追蹤
+
+  - **utils.ts** (400行) - 增強版通用工具庫
+    - CSS 類名合併 (cn + Tailwind 衝突解決)
+    - 字符串處理 (4個函數)
+    - 數字格式化 (3個函數)
+    - 日期/時間處理 (2個函數)
+    - 數組工具 (3個函數：unique, groupBy, chunk)
+    - 對象工具 (2個函數：deepClone, removeEmpty)
+    - 延遲/防抖/節流 (3個函數)
+    - ID 生成 (2個函數：generateId, generateUUID)
+    - 驗證工具 (2個函數：isValidEmail, isValidUrl)
+    - 文件工具 (2個函數：formatFileSize, getFileExtension)
+    - 錯誤處理 (2個函數：safeJsonParse, getErrorMessage)
+    - URL 處理 (absoluteUrl - 從源項目新增)
+
+  - **prisma.ts** (98行) - Prisma 客戶端單例
+    - 單例模式實現
+    - 開發環境熱重載優化
+    - 生產環境優雅關閉
+    - 環境特定日誌配置
+    - 連接池管理
+
+- ✅ **測試驗證** (Day 37)
+  - Security 模組測試配置驗證
+  - Jest + ts-jest 集成確認
+  - 測試套件結構確認正確
+
 #### 已完成 - Day 35-36: Security & RBAC 模組
 - ✅ **Security & RBAC 完整實現** (19個文件, 2,900+行代碼)
   - 核心 RBAC 系統 (rbac.ts, 800+行)
@@ -36,7 +73,7 @@
 ### 計劃中 (v5.1-beta)
 - [ ] 補充 Performance & Resilience 模組 (P1)
 - [ ] 完整 Prisma Schema (29個業務模型)
-- [ ] 補充 lib/ 根目錄核心文件 (7文件)
+- [ ] 補充 API/Database 工具層文件
 - [ ] 修正 API Gateway 中間件清單 (12個)
 - [ ] 更多數據庫配置選項
 

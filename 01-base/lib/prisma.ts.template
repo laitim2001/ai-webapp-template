@@ -1,0 +1,98 @@
+/**
+ * Prisma Client Singleton Module
+ *
+ * Provides a globally unique Prisma Client instance to avoid connection pool
+ * exhaustion in development environments.
+ *
+ * Core Features:
+ * - Singleton Pattern: Ensures only one PrismaClient instance exists
+ * - Development Optimization: Reuses existing connections during hot reload
+ * - Production Best Practices: Creates new instance per deployment
+ * - Graceful Shutdown: Properly disconnects on process exit
+ *
+ * Usage:
+ * ```typescript
+ * import { prisma } from '@/lib/prisma'
+ * const users = await prisma.user.findMany()
+ * ```
+ *
+ * Important Notes:
+ * - Development: Uses global variable to avoid creating multiple instances on hot reload
+ * - Production: Directly creates a single instance
+ * - Connection Pool: Prisma automatically manages connection pooling
+ *
+ * @module lib/prisma
+ * @created {{CURRENT_DATE}}
+ */
+
+import { PrismaClient } from '@prisma/client'
+
+// ========================================================================
+// Global Type Extension (Development Environment)
+// ========================================================================
+
+/**
+ * Extend NodeJS global object
+ * Used to store PrismaClient instance in development environment
+ */
+declare global {
+  // eslint-disable-next-line no-var
+  var prisma: PrismaClient | undefined
+}
+
+// ========================================================================
+// Prisma Client Instantiation
+// ========================================================================
+
+/**
+ * Create or get Prisma Client instance
+ *
+ * Implementation Logic:
+ * - Development: Use global.prisma to avoid creating multiple instances on hot reload
+ * - Production: Directly create new instance
+ *
+ * Connection Pool Configuration:
+ * - Prisma default pool size: num_physical_cpus * 2 + 1
+ * - Can be adjusted via DATABASE_URL connection_limit parameter
+ *
+ * Logging Configuration:
+ * - Development: Logs queries, errors, and warnings for debugging
+ * - Production: Only logs errors to reduce noise
+ */
+export const prisma = global.prisma || new PrismaClient({
+  log: process.env.NODE_ENV === 'development'
+    ? ['query', 'error', 'warn']
+    : ['error'],
+})
+
+// ========================================================================
+// Development Environment Configuration
+// ========================================================================
+
+/**
+ * Save instance to global in development
+ * Prevents creating too many connections during Next.js hot reload
+ */
+if (process.env.NODE_ENV !== 'production') {
+  global.prisma = prisma
+}
+
+// ========================================================================
+// Graceful Shutdown Handling
+// ========================================================================
+
+/**
+ * Disconnect database connection on process exit
+ * Ensures connection pool is properly cleaned up
+ */
+if (process.env.NODE_ENV === 'production') {
+  process.on('beforeExit', async () => {
+    await prisma.$disconnect()
+  })
+}
+
+/**
+ * Export default instance
+ * Convenient for importing in other modules
+ */
+export default prisma

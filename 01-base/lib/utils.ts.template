@@ -365,3 +365,36 @@ export function getErrorMessage(error: unknown): string {
   return '發生未知錯誤';
 }
 
+// =====================================================
+// URL 處理
+// =====================================================
+
+/**
+ * 生成絕對路徑 URL
+ *
+ * 將相對路徑轉換為完整的絕對 URL，用於 API 調用、重定向等
+ *
+ * @param path - 相對路徑字串 (例: "/api/users", "/dashboard")
+ * @returns 完整的絕對 URL
+ *
+ * @example
+ * ```typescript
+ * absoluteUrl("/api/users")         // "https://yourdomain.com/api/users"
+ * absoluteUrl("/dashboard")         // "https://yourdomain.com/dashboard"
+ * absoluteUrl("/auth/login")        // "https://yourdomain.com/auth/login"
+ * ```
+ *
+ * 配置依賴:
+ * - 環境變數: NEXT_PUBLIC_APP_URL
+ * - 開發環境: http://localhost:3000
+ * - 生產環境: https://yourdomain.com
+ *
+ * 注意事項:
+ * - 確保 NEXT_PUBLIC_APP_URL 環境變數已正確設定
+ * - 路徑參數應以 "/" 開頭
+ * - 在客戶端和伺服器端都可安全使用
+ */
+export function absoluteUrl(path: string): string {
+  return `${process.env.NEXT_PUBLIC_APP_URL}${path}`;
+}
+
