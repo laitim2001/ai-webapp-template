@@ -1,9 +1,44 @@
 # 🤖 AI 助手指南 - AI Web App Template
 
-**版本**: 5.0
+**版本**: 5.0-alpha
 **最後更新**: 2025-10-09
 **項目類型**: Next.js 14 全棧應用模板
 **GitHub**: https://github.com/laitim2001/ai-webapp-template
+
+---
+
+## ⚠️ 重要說明
+
+**版本狀態**: 5.0-alpha - 部分功能實現 (~45%完成)
+**適用**: 學習和評估，生產使用需等待完整版
+
+### 當前狀態
+
+**已實現** (~45%):
+- ✅ 完整多數據庫支持架構
+- ✅ 企業級監控系統 (100%完成)
+- ✅ 14個核心功能模組 (48%完成)
+- ✅ 23個基礎UI組件 (20%完成)
+- ✅ 智能CLI初始化工具
+
+**待補充** (~55%):
+- 🚧 Security & RBAC 模組 (P0關鍵)
+- 🚧 Performance & Resilience 模組 (P1)
+- 🚧 完整Prisma Schema (29個模型)
+- 🚧 91個進階UI組件
+- 🚧 13個業務功能模組
+
+### 源項目規模參考
+
+**完整源項目** (100%驗證):
+- 總代碼: 159,215 行
+- 總文件: 476 個生產文件
+- 功能模組: 27 個
+- Prisma模型: 34 個
+- UI組件: 114 個
+- API端點: 82 個
+
+**詳細分析**: 請查看 `Docs/SOURCE-PROJECT-VERIFICATION.md` 和 `Docs/TEMPLATE-GAP-ANALYSIS-REPORT.md`
 
 ---
 
@@ -15,32 +50,54 @@
 | **完整項目索引** | [PROJECT-INDEX.md](PROJECT-INDEX.md) | 所有文件和功能詳細索引 |
 | **開發指南** | [CLAUDE.md](CLAUDE.md) | Claude Code 開發指導 |
 | **實施計劃** | [Docs/TEMPLATE-CREATION-FINAL-v5-COMPLETE.md](Docs/TEMPLATE-CREATION-FINAL-v5-COMPLETE.md) | 完整模板實施計劃 |
+| **差距分析** | [Docs/TEMPLATE-GAP-ANALYSIS-REPORT.md](Docs/TEMPLATE-GAP-ANALYSIS-REPORT.md) | 完整差距分析報告 |
 | **初始化模板** | `node init-project.js` | 創建新項目 |
 
 ---
 
 ## 🎯 項目概述
 
-這是一個**生產就緒的 Next.js 14 全棧應用模板**，提供：
+這是一個**部分實現的 Next.js 14 全棧應用模板**，提供：
 
 ### 核心特性
 - ✅ **多數據庫支持** - PostgreSQL/MySQL/MongoDB/SQLite 無縫切換
-- ✅ **23個功能模組** - 可選擇性安裝的業務模組
-- ✅ **114個UI組件** - 基於 Radix UI 的無障礙組件庫
-- ✅ **82個API端點** - RESTful API 完整實現
-- ✅ **企業級監控** - OpenTelemetry + Prometheus/Azure Monitor
+- ⚠️ **14個功能模組** - 已提取48%，待補充13個模組
+- ⚠️ **23個UI組件** - 基礎組件完成，待補充91個進階組件
+- ⚠️ **5個API端點** - 基礎認證完成，待補充77個端點
+- ✅ **企業級監控** - OpenTelemetry + Prometheus/Azure Monitor (100%完成)
 - ✅ **完整認證系統** - JWT雙令牌 + Azure AD SSO
 - ✅ **測試框架** - Jest + Playwright (120+ 測試)
 
 ### 項目規模
+
+**當前模板已實現** (~45%):
 ```
-📊 代碼統計
-├── 總代碼行數: 164,091 行
+📊 已實現功能
+├── 功能模組: 14 個 (48%完成)
+├── UI組件: 23 個基礎組件 (20%完成)
+├── Prisma模型: 5 個基礎模型 (15%完成)
+├── 監控系統: 完整實現 (100%完成)
+└── 多數據庫: 完整實現 (100%完成)
+```
+
+**源項目完整規模** (100%驗證):
+```
+📊 源項目統計
+├── 總代碼行數: 159,215 行
 ├── 生產文件: 476 個
+├── 功能模組: 27 個
 ├── Prisma模型: 34 個
-├── 組件文件: 114 個
-├── API路由: 82 個
-└── 依賴包: 114 個
+├── UI組件: 114 個
+└── API端點: 82 個
+```
+
+**待補充內容** (~55%):
+```
+🚧 待補充功能
+├── 遺漏模組: 13 個 (Security, Performance等)
+├── 業務模型: 29 個
+├── 進階組件: 91 個
+└── 核心文件: 7 個 (errors.ts等)
 ```
 
 ---
@@ -64,7 +121,7 @@ node init-project.js
 
 1. **項目信息** - 名稱、描述、作者
 2. **數據庫選擇** - PostgreSQL (推薦) / MySQL / MongoDB / SQLite
-3. **模組選擇** - 從23個模組中選擇需要的功能
+3. **模組選擇** - 從14個已提取模組中選擇需要的功能
 4. **監控配置** - Prometheus / Azure Monitor / Both
 5. **環境設置** - 自動生成 `.env.local`
 6. **依賴安裝** - 自動 `npm install`
@@ -82,71 +139,119 @@ npm run dev
 ## 🧩 項目架構（5層架構）
 
 ```
-第零層: 監控與可觀測性基礎 (OpenTelemetry)
+第零層: 監控與可觀測性基礎 (OpenTelemetry) ✅ 100%完成
     ↓
-第一層: 技術棧基礎設施 (Next.js + Prisma + 多數據庫)
+第一層: 技術棧基礎設施 (Next.js + Prisma + 多數據庫) ✅ 100%完成
     ↓
-第二層: 功能模組庫 (23個可選模組)
+第二層: 功能模組庫 (14個已提取 + 13個待補充) ⚠️ 48%完成
     ↓
-第三層: 開發工具鏈 (CLI + 測試 + 文檔)
+第三層: 開發工具鏈 (CLI + 測試 + 文檔) ✅ 完成
     ↓
-第四層: 部署與運維 (Docker + CI/CD)
+第四層: 部署與運維 (Docker + CI/CD) ✅ 完成
 ```
 
 ---
 
-## 📦 功能模組清單（23個）
+## 📦 功能模組清單
 
-### P0 - 必選模組（4個）
-| 模組 | 代碼量 | 說明 |
-|------|--------|------|
-| **00-監控系統** | 2,776 行 | OpenTelemetry 完整堆疊 |
-| **01-認證授權** | 2,500+ 行 | JWT + Azure AD SSO |
-| **02-Security & RBAC** | 1,800+ 行 | 細粒度權限控制 |
-| **03-API Gateway** | 4,884 行 | 12個企業級中間件 |
+### 已提取模組（14個，~48%）
 
-### P1 - 高優先級模組（7個）
-| 模組 | 代碼量 | 說明 |
-|------|--------|------|
-| **知識庫系統** | 8,000+ 行 | 文檔管理 + 版本控制 |
-| **AI 整合層** | 3,000+ 行 | Azure OpenAI 封裝 |
-| **搜索引擎** | 2,800+ 行 | 多算法向量搜索 |
-| **工作流程引擎** | 2,035 行 | 12狀態流程管理 |
-| **通知系統** | 1,550 行 | 多渠道通知 |
-| **緩存系統** | 1,500+ 行 | Redis 雙層緩存 |
-| **Performance** | 600+ 行 | 性能優化服務 |
-| **Resilience** | 600+ 行 | 斷路器 + 重試 |
+#### P0 - 核心必選模組（3個）
 
-### P2 - 可選模組（12個）
-| 模組 | 代碼量 | 說明 |
-|------|--------|------|
-| **範本管理** | 1,150 行 | Handlebars 模板 |
-| **PDF 生成** | 640 行 | Puppeteer PDF |
-| **文件解析** | 1,280 行 | PDF/Word/Excel/OCR |
-| **Dynamics 365** | 1,200+ 行 | CRM 整合 |
-| **Customer 360** | 800+ 行 | 客戶360視圖 |
-| **Analytics** | 482 行 | 用戶行為追蹤 |
-| **Calendar** | 1,388 行 | Microsoft Graph 同步 |
-| **Collaboration** | 487 行 | 編輯鎖定管理 |
-| **Meeting** | 1,214 行 | AI 會議準備 |
-| **Recommendation** | 631 行 | 個性化推薦 |
-| **Reminder** | 674 行 | 提醒調度器 |
+| 模組 | 路徑 | 文件數 | 代碼量 | 狀態 |
+|------|------|--------|--------|------|
+| **00-監控系統** | `00-monitoring/` | 7+10 | 2,776行 | ✅ 完成 |
+| **01-認證授權** | `02-modules/module-auth/` | 17 | 4,252行 | ✅ 完成 |
+| **03-API Gateway** | `02-modules/module-api-gateway/` | 14 | 4,593行 | ✅ 完成 (實際12個中間件) |
+
+#### P1 - 高優先級模組（7個）
+
+| 模組 | 路徑 | 文件數 | 代碼量 | 狀態 |
+|------|------|--------|--------|------|
+| **知識庫系統** | `02-modules/module-knowledge-base/` | 40+ | 8,000+行 | ✅ 完成 |
+| **AI 整合層** | `02-modules/module-ai-integration/` | 8 | 3,000+行 | ✅ 完成 |
+| **搜索引擎** | `02-modules/module-search/` | 12 | 2,800+行 | ✅ 完成 |
+| **工作流程引擎** | `02-modules/module-workflow/` | 10 | 2,035行 | ✅ 完成 |
+| **通知系統** | `02-modules/module-notification/` | 8 | 1,550行 | ✅ 完成 |
+| **緩存系統** | `02-modules/module-cache/` | 6 | 1,500+行 | ✅ 完成 |
+
+#### P2 - 可選模組（4個）
+
+| 模組 | 路徑 | 文件數 | 代碼量 | 狀態 |
+|------|------|--------|--------|------|
+| **範本管理** | `02-modules/module-template/` | 6 | 1,150行 | ✅ 完成 |
+| **PDF 生成** | `02-modules/module-pdf/` | 3 | 640行 | ✅ 完成 |
+| **文件解析** | `02-modules/module-parsers/` | 6 | 1,280行 | ✅ 完成 |
+| **Dynamics 365** | `02-modules/module-dynamics365/` | 6 | 1,200+行 | ✅ 完成 |
+| **Customer 360** | `02-modules/module-customer360/` | 4 | 800+行 | ✅ 完成 |
+
+### 待補充模組（13個，~52%）
+
+#### P0 關鍵模組（必須補充）
+
+| # | 模組名稱 | 源路徑 | 文件數 | 代碼量 | 優先級 |
+|---|---------|--------|--------|--------|--------|
+| 15 | **Security & RBAC** | `lib/security/` | 14 | 1,800+行 | 🔴 P0 |
+| 16 | **API 工具層** | `lib/api/` | 2 | ~200行 | 🔴 P0 |
+| 17 | **數據庫工具** | `lib/db/` | 多個 | ~300行 | 🔴 P0 |
+| 18 | **根目錄核心** | `lib/*.ts` | 7 | 1,375行 | 🔴 P0 |
+
+**重要說明**:
+- `lib/*.ts` 包含關鍵的 `errors.ts` (653行) - 整個應用的錯誤處理標準
+- Security & RBAC 是企業級應用必需的安全基礎設施
+
+#### P1 高優先級模組
+
+| # | 模組名稱 | 源路徑 | 文件數 | 代碼量 | 優先級 |
+|---|---------|--------|--------|--------|--------|
+| 19 | **Performance** | `lib/performance/` | 6+測試 | 600+行 | 🟡 P1 |
+| 20 | **Resilience** | `lib/resilience/` | 6+測試 | 600+行 | 🟡 P1 |
+
+#### P2 業務功能模組
+
+| # | 模組名稱 | 源路徑 | 文件數 | 代碼量 | 優先級 |
+|---|---------|--------|--------|--------|--------|
+| 21 | **Analytics** | `lib/analytics/` | 2 | 482行 | 🟢 P2 |
+| 22 | **Calendar** | `lib/calendar/` | 3 | 1,388行 | 🟢 P2 |
+| 23 | **Collaboration** | `lib/collaboration/` | 2 | 487行 | 🟢 P2 |
+| 24 | **Meeting** | `lib/meeting/` | 3 | 1,214行 | 🟢 P2 |
+| 25 | **Recommendation** | `lib/recommendation/` | 2 | 631行 | 🟢 P2 |
+| 26 | **Reminder** | `lib/reminder/` | 3 | 674行 | 🟢 P2 |
+| 27 | **Email** | `lib/email/` | - | -行 | 🟢 P2 |
+
+**總遺漏代碼**: ~8,000+ 行
 
 ---
 
 ## 🎨 UI 組件系統
 
-### 組件目錄（19個，114個文件）
+### 已提取基礎組件（23個，~20%）
 
 ```
-components/
-├── ui/              # 24個基礎組件（Radix UI）
-├── knowledge/       # 35個知識庫組件
-├── workflow/        # 12個工作流組件
-├── dashboard/       # 6個儀表板組件
-├── search/          # 8個搜索組件
-├── meeting-prep/    # 5個會議準備組件
-└── [其他13個目錄]  # 24個業務組件
+components/ui/              # 23個基礎組件（Radix UI）✅
+├── alert.tsx              # 警告提示
+├── alert-dialog.tsx       # 對話框
+├── avatar.tsx             # 頭像
+├── badge.tsx              # 徽章
+├── button.tsx             # 按鈕
+├── card.tsx               # 卡片
+├── checkbox.tsx           # 複選框
+├── command.tsx            # 命令面板
+├── dialog.tsx             # 對話框
+├── dropdown-menu.tsx      # 下拉菜單
+├── error-display.tsx      # 錯誤展示
+├── input.tsx              # 輸入框
+├── label.tsx              # 標籤
+├── popover.tsx            # 彈出框
+├── progress.tsx           # 進度條
+├── select.tsx             # 選擇器
+├── separator.tsx          # 分隔線
+├── sheet.tsx              # 側邊欄
+├── skeleton.tsx           # 骨架屏
+├── slider.tsx             # 滑塊
+├── switch.tsx             # 開關
+├── tabs.tsx               # 標籤頁
+└── textarea.tsx           # 文本域
 ```
 
 **特性**:
@@ -156,46 +261,67 @@ components/
 - ✅ TypeScript 類型安全
 - ✅ 20+ 預定義動畫
 
----
+### 待補充進階組件（91個，~80%）
 
-## 🚀 API 路由系統
+**源項目組件統計** (114個組件，19個目錄):
 
-### API 域（23個，82個端點）
+| # | 目錄 | 組件數 | 功能 | 重要性 |
+|---|------|-------|------|--------|
+| 1 | **admin/** | 2 | 管理後台 (性能儀表板、系統監控) | P1 🟡 |
+| 2 | **assistant/** | 3 | AI助手UI (ChatInput, ChatMessage, ChatWindow) | P1 🟡 |
+| 3 | **audit/** | 4 | 審計日誌 (Export, Filters, List, Stats) | P0 🔴 |
+| 4 | **calendar/** | 1 | 日曆視圖 | P2 🟢 |
+| 5 | **collaboration/** | 1 | 編輯鎖定指示器 | P2 🟢 |
+| 6 | **crm/** | 1 | 客戶360視圖 | P2 🟢 |
+| 7 | **knowledge/** | 35 | 知識庫完整UI | P1 🟡 |
+| 8 | **meeting-prep/** | 5+ | 會議準備UI | P2 🟢 |
+| 9 | **notifications/** | 3+ | 通知中心 | P1 🟡 |
+| 10 | **permissions/** | 多個 | 權限管理UI | P0 🔴 |
+| 11 | **recommendation/** | 多個 | 推薦顯示 | P2 🟢 |
+| 12 | **reminder/** | 多個 | 提醒UI | P2 🟢 |
+| 13 | **search/** | 6 | 搜索界面 | P1 🟡 |
 
-**核心 API**:
-- **Knowledge Base** (17端點) - CRUD + 版本管理 + 高級搜索
-- **Authentication** (7端點) - JWT + Azure AD + 刷新令牌
-- **Templates** (8端點) - 範本管理 + PDF導出
-- **Proposals** (6端點) - 提案 + 版本控制
-
-**業務 API**:
-- **AI Services** (2端點) - AI生成提案
-- **Analytics** (3端點) - 用戶行為追蹤
-- **Calendar** (3端點) - Microsoft Graph 同步
-- **Collaboration** (3端點) - 編輯鎖定
-- **Meeting** (2+3端點) - 智能分析 + 準備包
-- **Recommendations** (3端點) - 個性化推薦
-- **Reminders** (3端點) - 提醒管理
-- **Notifications** (4端點) - 通知系統
-- **[其他11個域]** (26端點)
+**詳細清單**: 參考 `Docs/SOURCE-PROJECT-SNAPSHOT.md`
 
 ---
 
 ## 🗄️ 數據庫架構
 
-### Prisma Schema（34個模型）
+### 已包含基礎模型（5個，~15%）
 
-**核心系統** (6個):
-- User, Session, Role, Permission, RolePermission, UserRole
+| 模型名稱 | 用途 | 關聯 | 狀態 |
+|---------|------|------|------|
+| User | 用戶管理 | - | ✅ |
+| RefreshToken | JWT令牌 | User | ✅ |
+| TokenBlacklist | 令牌黑名單 | - | ✅ |
 
-**知識庫系統** (9個):
-- KnowledgeFolder, KnowledgeBase, KnowledgeChunk, KnowledgeTag, ProcessingTask, KnowledgeVersion, KnowledgeVersionComment, Document, AIAnalysis
+### 待補充業務模型（29個，~85%）
 
-**提案系統** (5個):
-- Proposal, ProposalVersion, ProposalTemplate, ProposalTemplateUsage, ProposalWorkflow
+**源項目完整模型** (34個):
 
-**其他系統** (14個):
-- 範本、工作流、通知、提醒、分析、客戶、會議等
+**客戶CRM (5個)** - ❌ 遺漏:
+- Customer, CustomerContact, SalesOpportunity, CallRecord, Interaction
+
+**知識庫系統 (9個)** - ❌ 遺漏:
+- KnowledgeFolder, KnowledgeBase, KnowledgeChunk, KnowledgeTag
+- ProcessingTask, KnowledgeVersion, KnowledgeVersionComment
+- Document, AIAnalysis
+
+**提案管理 (6個)** - ❌ 遺漏:
+- Proposal, ProposalItem, ProposalTemplate
+- ProposalGeneration, ProposalVersion, ProposalComment
+
+**工作流引擎 (3個)** - ❌ 遺漏:
+- ProposalWorkflow, WorkflowStateHistory, ApprovalTask
+
+**通知系統 (4個)** - ❌ 遺漏:
+- Notification, NotificationPreference
+- NotificationTemplate, NotificationBatch
+
+**其他業務模型 (2個)** - ❌ 遺漏:
+- AuditLog, SystemConfig
+
+**詳細Schema**: 參考 `Docs/SOURCE-PROJECT-SNAPSHOT.md`
 
 ### 多數據庫適配器
 
@@ -207,6 +333,51 @@ const users = await databaseAdapter.findMany('users', {
   where: { active: true }
 });
 ```
+
+---
+
+## 🚀 API 路由系統
+
+### 已實現API（基礎認證）
+
+**Authentication API** (7個端點) - ✅ 已實現:
+```
+/api/auth
+├── POST   /register                   # 用戶註冊
+├── POST   /login                      # 用戶登錄
+├── POST   /logout                     # 用戶登出
+├── POST   /refresh                    # 刷新令牌
+├── GET    /me                         # 獲取當前用戶
+├── GET    /azure-ad/login             # Azure AD 登錄
+└── GET    /azure-ad/callback          # Azure AD 回調
+```
+
+### 待補充API域（22個域，~75個端點）
+
+**核心業務 API** - ❌ 待補充:
+
+**Knowledge Base API** (17個端點):
+- 文檔CRUD、版本管理、高級搜索、上傳下載
+
+**Templates API** (8個端點):
+- 模板管理、預覽、導出PDF
+
+**Proposals API** (6個端點):
+- 提案管理、版本控制
+
+**其他 API 域** (54個端點):
+- AI Services (2端點)
+- Analytics (3端點)
+- Audit Logs (3端點)
+- Calendar (3端點)
+- Collaboration (3端點)
+- Meeting Intelligence (2端點)
+- Notifications (4端點)
+- Recommendations (3端點)
+- Reminders (3端點)
+- 等等...
+
+**詳細API清單**: 參考 `Docs/SOURCE-PROJECT-SNAPSHOT.md`
 
 ---
 
@@ -254,7 +425,7 @@ git push origin feature/my-feature
 
 ## 📊 監控與可觀測性
 
-### OpenTelemetry 堆疊
+### OpenTelemetry 堆疊 ✅ 100%完成
 
 **支持的後端**:
 - ✅ **Prometheus + Grafana** (本地部署)
@@ -304,22 +475,14 @@ git push origin feature/my-feature
 | [README.md](README.md) | 項目介紹和快速開始 |
 | [Docs/](Docs/) | 詳細技術文檔 |
 
-### 技術文檔（Docs/）
+### 分析報告（重要）
 
-**實施文檔**:
-- `TEMPLATE-CREATION-FINAL-v5-COMPLETE.md` - v5.0 完整實施計劃（3,266行）
-- `SOURCE-PROJECT-SNAPSHOT.md` - 源項目完整快照
-- `SOURCE-PROJECT-VERIFICATION.md` - 100% 驗證報告
-
-**對比分析**:
-- `TEMPLATE-VS-SOURCE-COMPARISON.md` - 模板與源項目對比
-- `V4-V5-COMPARISON-ANALYSIS.md` - v4/v5 版本對比
-- `VERIFICATION-SUMMARY.md` - 驗證摘要
-
-**整合指南**:
-- `V5-COMPLETE-INTEGRATION-GUIDE.md` - v5.0 整合指南
-- `V5-ADDITIONS.md` - v5.0 新增內容
-- `SCAN-COMPLETENESS-REPORT.md` - 掃描完整性報告
+| 文檔 | 大小 | 用途 | 優先級 |
+|------|------|------|--------|
+| [SOURCE-PROJECT-VERIFICATION.md](Docs/SOURCE-PROJECT-VERIFICATION.md) | ~23KB | 100%驗證報告 | ⭐⭐⭐ |
+| [TEMPLATE-GAP-ANALYSIS-REPORT.md](Docs/TEMPLATE-GAP-ANALYSIS-REPORT.md) | ~40KB | 完整差距分析報告 | ⭐⭐⭐ |
+| [SOURCE-PROJECT-SNAPSHOT.md](Docs/SOURCE-PROJECT-SNAPSHOT.md) | ~42KB | 源項目完整結構分析 | ⭐⭐⭐ |
+| [TEMPLATE-VS-SOURCE-COMPARISON.md](Docs/TEMPLATE-VS-SOURCE-COMPARISON.md) | ~30KB | 模板vs源項目對比 | ⭐⭐⭐ |
 
 ---
 
@@ -329,51 +492,37 @@ git push origin feature/my-feature
 
 ```bash
 # 初始化時選擇：
-✓ Knowledge Base 模組
+✓ Knowledge Base 模組 (待補充完整schema)
 ✓ Search 模組
 ✓ AI Integration 模組（可選）
-✓ Analytics 模組（可選）
+✓ Analytics 模組（待補充）
 
-# 獲得：
-- 文檔CRUD + 版本控制
-- 向量搜索 + 全文搜索
-- AI輔助內容生成
-- 用戶行為分析
+# 注意：當前版本僅包含部分功能
 ```
 
 ### 場景 2: 創建企業內部系統
 
 ```bash
 # 初始化時選擇：
-✓ Authentication 模組（必選）
-✓ RBAC 模組（必選）
-✓ API Gateway 模組（必選）
-✓ Workflow 模組
-✓ Notification 模組
-✓ Audit Log（內建）
+✓ Authentication 模組（已完成）
+⚠️ RBAC 模組（待補充）
+✓ API Gateway 模組（已完成）
+⚠️ Workflow 模組（待補充完整schema）
+⚠️ Notification 模組（待補充完整schema）
 
-# 獲得：
-- 完整認證授權系統
-- 細粒度權限控制
-- 審批工作流
-- 多渠道通知
-- 審計日誌追踪
+# 注意：Security & RBAC 模組尚未提取
 ```
 
 ### 場景 3: 創建 AI 驅動應用
 
 ```bash
 # 初始化時選擇：
-✓ AI Integration 模組
-✓ Meeting 模組
-✓ Recommendation 模組
-✓ Analytics 模組
+✓ AI Integration 模組（已完成）
+⚠️ Meeting 模組（待補充）
+⚠️ Recommendation 模組（待補充）
+⚠️ Analytics 模組（待補充）
 
-# 獲得：
-- Azure OpenAI 整合
-- AI會議準備包
-- 個性化推薦引擎
-- 用戶行為追蹤
+# 注意：部分AI相關模組尚未提取
 ```
 
 ---
@@ -410,7 +559,33 @@ git push origin feature/my-feature
 
 ## 🚨 常見問題解答
 
-### Q1: 如何選擇數據庫？
+### Q1: 為什麼說是~45%完成？
+
+**回答**: 經過完整的源項目分析和差距評估，當前模板包含：
+- 14個已提取模組 / 27個總模組 = 48%
+- 23個基礎組件 / 114個總組件 = 20%
+- 5個基礎模型 / 34個總模型 = 15%
+- 監控系統100%完成
+- 綜合評估約45%完成度
+
+詳見 `Docs/TEMPLATE-GAP-ANALYSIS-REPORT.md`
+
+### Q2: 缺少哪些關鍵模組？
+
+**P0關鍵** (必須補充):
+- Security & RBAC (1,800+行) - 企業必需
+- 根目錄核心文件 (1,375行) - errors.ts等
+- API工具層 & 數據庫工具
+
+**P1高優先級**:
+- Performance & Resilience 模組
+- 完整的Prisma Schema (29個業務模型)
+
+**P2業務功能**:
+- Analytics, Calendar, Collaboration
+- Meeting, Recommendation, Reminder
+
+### Q3: 如何選擇數據庫？
 
 **推薦**: PostgreSQL（支持 pgvector 向量搜索）
 
@@ -421,14 +596,14 @@ git push origin feature/my-feature
 | **MongoDB** | NoSQL需求、靈活Schema | 需要特殊適配器處理 |
 | **SQLite** | 開發/測試、快速原型 | **不適合生產環境** |
 
-### Q2: 如何添加自定義模組？
+### Q4: 如何添加自定義模組？
 
 1. 在 `02-modules/` 創建新目錄
 2. 添加代碼文件和配置
 3. 創建 `install.sh` 安裝腳本
 4. 更新 `init-project.js` 的 `MODULE_OPTIONS`
 
-### Q3: 如何切換監控後端？
+### Q5: 如何切換監控後端？
 
 編輯環境變量：
 ```env
@@ -437,33 +612,14 @@ MONITORING_BACKEND=prometheus  # 或 azure_monitor 或 console
 
 重啟服務即可，無需修改代碼。
 
-### Q4: 模組之間有依賴關係嗎？
+### Q6: 模組之間有依賴關係嗎？
 
 有些模組有依賴：
-- **Knowledge Base** 依賴 **Search** 模組
-- **Meeting** 模組建議搭配 **AI Integration**
-- **Recommendation** 依賴 **Analytics** 模組
+- **Knowledge Base** 依賴 **Search** 模組（待補充完整schema）
+- **Meeting** 模組建議搭配 **AI Integration**（待補充）
+- **Recommendation** 依賴 **Analytics** 模組（待補充）
 
 CLI 會自動提示依賴關係。
-
-### Q5: 如何升級到新版本？
-
-```bash
-# 查看變更日誌
-cat CHANGELOG.md
-
-# 備份當前項目
-git commit -am "backup before upgrade"
-
-# 拉取新版本
-git pull origin main
-
-# 合併變更
-git merge --no-commit origin/main
-
-# 解決衝突後提交
-git commit
-```
 
 ---
 
@@ -473,22 +629,22 @@ git commit
 
 1. **快速開始** (5分鐘)
    - ✅ 閱讀本文件
+   - ✅ 了解當前狀態和限制
    - ✅ 運行 `node init-project.js`
-   - ✅ 啟動 `npm run dev`
 
 2. **深入理解** (1小時)
-   - 📖 閱讀 [CLAUDE.md](CLAUDE.md)
-   - 📖 瀏覽 [PROJECT-INDEX.md](PROJECT-INDEX.md)
-   - 📖 查看組件目錄 `components/`
+   - 📖 閱讀 [PROJECT-INDEX.md](PROJECT-INDEX.md)
+   - 📖 閱讀 [TEMPLATE-GAP-ANALYSIS-REPORT.md](Docs/TEMPLATE-GAP-ANALYSIS-REPORT.md)
+   - 📖 理解已實現vs待補充功能
 
 3. **完整掌握** (1天)
-   - 📚 研讀 [TEMPLATE-CREATION-FINAL-v5-COMPLETE.md](Docs/TEMPLATE-CREATION-FINAL-v5-COMPLETE.md)
-   - 📚 理解架構設計決策
-   - 📚 熟悉所有模組功能
+   - 📚 研讀 [SOURCE-PROJECT-VERIFICATION.md](Docs/SOURCE-PROJECT-VERIFICATION.md)
+   - 📚 理解源項目完整結構
+   - 📚 規劃需要補充的功能
 
 4. **實戰開發** (持續)
-   - 💻 根據需求選擇模組
-   - 💻 參考使用範例開發
+   - 💻 根據需求選擇已實現模組
+   - 💻 根據差距報告補充缺失功能
    - 💻 遇到問題查閱文檔
 
 ---
@@ -529,7 +685,10 @@ git commit
 ---
 
 **最後更新**: 2025-10-09
-**版本**: 5.0
-**狀態**: 🟢 生產就緒（Production Ready）
+**版本**: 5.0-alpha
+**狀態**: ⚠️ 部分實現（~45%完成）- 適合學習評估，生產使用需等待完整版
 
-**下一步**: 查看 [PROJECT-INDEX.md](PROJECT-INDEX.md) 獲取完整項目索引
+**下一步**:
+1. 查看 [PROJECT-INDEX.md](PROJECT-INDEX.md) 獲取完整項目索引
+2. 閱讀 [TEMPLATE-GAP-ANALYSIS-REPORT.md](Docs/TEMPLATE-GAP-ANALYSIS-REPORT.md) 了解詳細差距分析
+3. 參考 [SOURCE-PROJECT-VERIFICATION.md](Docs/SOURCE-PROJECT-VERIFICATION.md) 查看源項目完整驗證
