@@ -1,0 +1,344 @@
+/**
+ * GDPR Compliance Tools
+ *
+ * EU General Data Protection Regulation (GDPR) compliance utilities:
+ * - Right to Access (Data Export)
+ * - Right to be Forgotten (Data Deletion/Anonymization)
+ * - Data Portability
+ * - Consent Management
+ *
+ * @module Security/GDPR
+ */
+
+import { databaseAdapter } from '@/lib/db/database-adapter';
+import { exportUserAuditLogs, anonymizeUserAuditLogs } from './audit-log';
+
+// ============================================================================
+// Types
+// ============================================================================
+
+export interface GDPRDataExport {
+  userId: string;
+  exportDate: Date;
+  personalData: {
+    user: any;
+    customers?: any[];
+    workflows?: any[];
+    knowledge?: any[];
+    notifications?: any[];
+  };
+  auditLogs: any[];
+  metadata: {
+    totalRecords: number;
+    exportFormat: string;
+  };
+}
+
+export interface GDPRDeletionResult {
+  userId: string;
+  deletionDate: Date;
+  recordsDeleted: {
+    user: number;
+    customers: number;
+    workflows: number;
+    knowledge: number;
+    notifications: number;
+    auditLogs: number;
+  };
+  anonymized: boolean;
+}
+
+// ============================================================================
+// Right to Access (Data Export)
+// ============================================================================
+
+/**
+ * Export all personal data for a user (GDPR Article 15)
+ */
+export async function exportUserData(userId: string): Promise<GDPRDataExport> {
+  try {
+    // Fetch user data
+    const user = await databaseAdapter.findUnique('user', {
+      where: { id: userId },
+    });
+
+    // Fetch related data
+    const [customers, workflows, knowledge, notifications] = await Promise.all([
+      databaseAdapter.findMany('customer', {
+        where: { ownerId: userId },
+      }),
+      databaseAdapter.findMany('workflowInstance', {
+        where: { createdBy: userId },
+      }),
+      databaseAdapter.findMany('knowledgeItem', {
+        where: { createdBy: userId },
+      }),
+      databaseAdapter.findMany('notification', {
+        where: { userId: userId },
+      }),
+    ]);
+
+    // Fetch audit logs
+    const auditLogs = await exportUserAuditLogs(userId);
+
+    const totalRecords =
+      1 + // user
+      (customers?.length || 0) +
+      (workflows?.length || 0) +
+      (knowledge?.length || 0) +
+      (notifications?.length || 0) +
+      auditLogs.length;
+
+    return {
+      userId,
+      exportDate: new Date(),
+      personalData: {
+        user,
+        customers,
+        workflows,
+        knowledge,
+        notifications,
+      },
+      auditLogs,
+      metadata: {
+        totalRecords,
+        exportFormat: 'JSON',
+      },
+    };
+  } catch (error) {
+    console.error('GDPR data export failed:', error);
+    throw new Error('Failed to export user data');
+  }
+}
+
+// ============================================================================
+// Right to be Forgotten (Data Deletion)
+// ============================================================================
+
+/**
+ * Delete or anonymize all user data (GDPR Article 17)
+ *
+ * @param userId User ID to process
+ * @param hardDelete If true, delete records; if false, anonymize
+ */
+export async function deleteUserData(
+  userId: string,
+  hardDelete: boolean = false
+): Promise<GDPRDeletionResult> {
+  try {
+    let recordsDeleted = {
+      user: 0,
+      customers: 0,
+      workflows: 0,
+      knowledge: 0,
+      notifications: 0,
+      auditLogs: 0,
+    };
+
+    if (hardDelete) {
+      // Hard delete: Remove all records
+      const [customersResult, workflowsResult, knowledgeResult, notificationsResult] =
+        await Promise.all([
+          databaseAdapter.deleteMany('customer', { where: { ownerId: userId } }),
+          databaseAdapter.deleteMany('workflowInstance', { where: { createdBy: userId } }),
+          databaseAdapter.deleteMany('knowledgeItem', { where: { createdBy: userId } }),
+          databaseAdapter.deleteMany('notification', { where: { userId: userId } }),
+        ]);
+
+      recordsDeleted.customers = customersResult.count || 0;
+      recordsDeleted.workflows = workflowsResult.count || 0;
+      recordsDeleted.knowledge = knowledgeResult.count || 0;
+      recordsDeleted.notifications = notificationsResult.count || 0;
+
+      // Anonymize audit logs (don't delete for compliance)
+      recordsDeleted.auditLogs = await anonymizeUserAuditLogs(userId);
+
+      // Delete user record
+      await databaseAdapter.delete('user', { where: { id: userId } });
+      recordsDeleted.user = 1;
+
+      return {
+        userId,
+        deletionDate: new Date(),
+        recordsDeleted,
+        anonymized: false,
+      };
+    } else {
+      // Soft delete: Anonymize records
+      const anonymizedId = `ANON-${Date.now()}`;
+      const anonymizedData = {
+        name: 'Anonymized User',
+        email: `anonymized-${Date.now()}@deleted.local`,
+        phone: null,
+        deletedAt: new Date(),
+      };
+
+      // Anonymize user
+      await databaseAdapter.update('user', {
+        where: { id: userId },
+        data: anonymizedData,
+      });
+      recordsDeleted.user = 1;
+
+      // Anonymize owned records
+      const [customersResult, workflowsResult, knowledgeResult] = await Promise.all([
+        databaseAdapter.updateMany('customer', {
+          where: { ownerId: userId },
+          data: { ownerId: anonymizedId },
+        }),
+        databaseAdapter.updateMany('workflowInstance', {
+          where: { createdBy: userId },
+          data: { createdBy: anonymizedId },
+        }),
+        databaseAdapter.updateMany('knowledgeItem', {
+          where: { createdBy: userId },
+          data: { createdBy: anonymizedId },
+        }),
+      ]);
+
+      recordsDeleted.customers = customersResult.count || 0;
+      recordsDeleted.workflows = workflowsResult.count || 0;
+      recordsDeleted.knowledge = knowledgeResult.count || 0;
+
+      // Delete notifications (not needed after anonymization)
+      const notificationsResult = await databaseAdapter.deleteMany('notification', {
+        where: { userId: userId },
+      });
+      recordsDeleted.notifications = notificationsResult.count || 0;
+
+      // Anonymize audit logs
+      recordsDeleted.auditLogs = await anonymizeUserAuditLogs(userId);
+
+      return {
+        userId,
+        deletionDate: new Date(),
+        recordsDeleted,
+        anonymized: true,
+      };
+    }
+  } catch (error) {
+    console.error('GDPR data deletion failed:', error);
+    throw new Error('Failed to delete user data');
+  }
+}
+
+// ============================================================================
+// Consent Management
+// ============================================================================
+
+export interface UserConsent {
+  userId: string;
+  consentType: 'marketing' | 'analytics' | 'data_processing' | 'third_party_sharing';
+  granted: boolean;
+  grantedAt?: Date;
+  revokedAt?: Date;
+  ipAddress?: string;
+}
+
+/**
+ * Record user consent
+ */
+export async function recordConsent(consent: UserConsent): Promise<void> {
+  try {
+    await databaseAdapter.create('userConsent', {
+      data: {
+        userId: consent.userId,
+        consentType: consent.consentType,
+        granted: consent.granted,
+        grantedAt: consent.granted ? new Date() : null,
+        revokedAt: !consent.granted ? new Date() : null,
+        ipAddress: consent.ipAddress,
+      },
+    });
+  } catch (error) {
+    console.error('Failed to record consent:', error);
+  }
+}
+
+/**
+ * Check if user has given consent
+ */
+export async function hasConsent(
+  userId: string,
+  consentType: UserConsent['consentType']
+): Promise<boolean> {
+  try {
+    const consent = await databaseAdapter.findFirst('userConsent', {
+      where: {
+        userId,
+        consentType,
+        granted: true,
+        revokedAt: null,
+      },
+      orderBy: { grantedAt: 'desc' },
+    });
+
+    return !!consent;
+  } catch (error) {
+    console.error('Failed to check consent:', error);
+    return false;
+  }
+}
+
+/**
+ * Get all consents for a user
+ */
+export async function getUserConsents(userId: string): Promise<UserConsent[]> {
+  try {
+    const consents = await databaseAdapter.findMany('userConsent', {
+      where: { userId },
+      orderBy: { grantedAt: 'desc' },
+    });
+
+    return consents as UserConsent[];
+  } catch (error) {
+    console.error('Failed to get user consents:', error);
+    return [];
+  }
+}
+
+// ============================================================================
+// Data Portability
+// ============================================================================
+
+/**
+ * Export data in machine-readable format (GDPR Article 20)
+ */
+export async function exportDataPortable(userId: string): Promise<string> {
+  const data = await exportUserData(userId);
+  return JSON.stringify(data, null, 2);
+}
+
+/**
+ * Generate GDPR compliance report for user
+ */
+export async function generateComplianceReport(userId: string): Promise<string> {
+  const [data, consents] = await Promise.all([
+    exportUserData(userId),
+    getUserConsents(userId),
+  ]);
+
+  return `
+# GDPR Compliance Report
+Generated: ${new Date().toISOString()}
+User ID: ${userId}
+
+## Data Holdings
+- User Records: ${data.personalData.user ? 1 : 0}
+- Customer Records: ${data.personalData.customers?.length || 0}
+- Workflow Records: ${data.personalData.workflows?.length || 0}
+- Knowledge Records: ${data.personalData.knowledge?.length || 0}
+- Notification Records: ${data.personalData.notifications?.length || 0}
+- Audit Log Entries: ${data.auditLogs.length}
+
+## Consents
+${consents.map(c => `- ${c.consentType}: ${c.granted ? 'Granted' : 'Revoked'}`).join('\n')}
+
+## Data Subject Rights
+- Right to Access: Available
+- Right to Rectification: Available
+- Right to Erasure: Available
+- Right to Data Portability: Available
+- Right to Object: Available
+`;
+}

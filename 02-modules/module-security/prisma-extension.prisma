@@ -1,0 +1,41 @@
+// Security Module Prisma Schema Extension
+// Add these models to your main schema.prisma
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  userId      String
+  action      String
+  resource    String
+  resourceId  String?
+  success     Boolean
+  ipAddress   String?
+  userAgent   String?
+  metadata    String?  // JSON string
+  timestamp   DateTime @default(now())
+
+  @@index([userId])
+  @@index([resource])
+  @@index([timestamp])
+  @@index([success])
+  @@map("audit_logs")
+}
+
+model UserConsent {
+  id          String    @id @default(cuid())
+  userId      String
+  consentType String    // 'marketing' | 'analytics' | 'data_processing' | 'third_party_sharing'
+  granted     Boolean
+  grantedAt   DateTime?
+  revokedAt   DateTime?
+  ipAddress   String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([userId])
+  @@index([consentType])
+  @@map("user_consents")
+}
+
+// Extend User model with role field (if not already present)
+// Add to your existing User model:
+//   role  String  @default("USER")  // "ADMIN" | "SALES_MANAGER" | "SALES_REP" | "USER"

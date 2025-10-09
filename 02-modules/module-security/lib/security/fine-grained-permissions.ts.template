@@ -1,0 +1,410 @@
+/**
+ * Fine-Grained Permissions
+ *
+ * Advanced permission system with:
+ * - Conditional permissions based on resource state
+ * - Dynamic permission evaluation
+ * - Context-aware access control
+ * - Custom permission rules
+ *
+ * @module Security/FineGrainedPermissions
+ */
+
+import { Role, getUserRole, checkPermission } from './rbac';
+import { databaseAdapter } from '@/lib/db/database-adapter';
+
+// ============================================================================
+// Types
+// ============================================================================
+
+export interface PermissionCondition {
+  /**
+   * Unique condition identifier
+   */
+  id: string;
+
+  /**
+   * Human-readable description
+   */
+  description: string;
+
+  /**
+   * Evaluation function
+   * Returns true if condition is met
+   */
+  evaluate: (context: PermissionContext) => Promise<boolean> | boolean;
+}
+
+export interface PermissionContext {
+  userId: string;
+  userRole: Role;
+  resource: string;
+  resourceId?: string;
+  action: string;
+  data?: any;
+  metadata?: Record<string, any>;
+}
+
+export interface PermissionRule {
+  roles: Role[];
+  conditions?: PermissionCondition[];
+  allow: boolean;
+}
+
+// ============================================================================
+// Built-in Conditions
+// ============================================================================
+
+/**
+ * Check if user owns the resource
+ */
+export const isOwner: PermissionCondition = {
+  id: 'isOwner',
+  description: 'User is the owner of the resource',
+  evaluate: async (context) => {
+    if (!context.resourceId) return false;
+
+    try {
+      const resource = await databaseAdapter.findUnique(context.resource, {
+        where: { id: context.resourceId },
+        select: { ownerId: true, createdBy: true },
+      });
+
+      return resource?.ownerId === context.userId ||
+             resource?.createdBy === context.userId ||
+             false;
+    } catch {
+      return false;
+    }
+  },
+};
+
+/**
+ * Check if user is assigned to the resource
+ */
+export const isAssigned: PermissionCondition = {
+  id: 'isAssigned',
+  description: 'User is assigned to the resource',
+  evaluate: async (context) => {
+    if (!context.resourceId) return false;
+
+    try {
+      const resource = await databaseAdapter.findUnique(context.resource, {
+        where: { id: context.resourceId },
+        select: { assignedTo: true, assignedUsers: true },
+      });
+
+      return resource?.assignedTo === context.userId ||
+             resource?.assignedUsers?.includes(context.userId) ||
+             false;
+    } catch {
+      return false;
+    }
+  },
+};
+
+/**
+ * Check if resource is in a specific state
+ */
+export function inState(...states: string[]): PermissionCondition {
+  return {
+    id: `inState:${states.join('|')}`,
+    description: `Resource is in state: ${states.join(' or ')}`,
+    evaluate: async (context) => {
+      if (!context.resourceId) return false;
+
+      try {
+        const resource = await databaseAdapter.findUnique(context.resource, {
+          where: { id: context.resourceId },
+          select: { status: true, state: true },
+        });
+
+        const resourceState = resource?.status || resource?.state;
+        return states.includes(resourceState);
+      } catch {
+        return false;
+      }
+    },
+  };
+}
+
+/**
+ * Check if resource is marked as public
+ */
+export const isPublic: PermissionCondition = {
+  id: 'isPublic',
+  description: 'Resource is marked as public',
+  evaluate: async (context) => {
+    if (!context.resourceId) return false;
+
+    try {
+      const resource = await databaseAdapter.findUnique(context.resource, {
+        where: { id: context.resourceId },
+        select: { isPublic: true, visibility: true },
+      });
+
+      return resource?.isPublic === true ||
+             resource?.visibility === 'public' ||
+             false;
+    } catch {
+      return false;
+    }
+  },
+};
+
+/**
+ * Check if user is in the same team/department as resource owner
+ */
+export const sameTeam: PermissionCondition = {
+  id: 'sameTeam',
+  description: 'User is in the same team as the resource owner',
+  evaluate: async (context) => {
+    if (!context.resourceId) return false;
+
+    try {
+      const [user, resource] = await Promise.all([
+        databaseAdapter.findUnique('user', {
+          where: { id: context.userId },
+          select: { teamId: true, departmentId: true },
+        }),
+        databaseAdapter.findUnique(context.resource, {
+          where: { id: context.resourceId },
+          select: { ownerId: true },
+        }),
+      ]);
+
+      if (!user || !resource?.ownerId) return false;
+
+      const owner = await databaseAdapter.findUnique('user', {
+        where: { id: resource.ownerId },
+        select: { teamId: true, departmentId: true },
+      });
+
+      return user.teamId === owner?.teamId ||
+             user.departmentId === owner?.departmentId ||
+             false;
+    } catch {
+      return false;
+    }
+  },
+};
+
+/**
+ * Check if current time is within allowed hours
+ */
+export function duringBusinessHours(
+  startHour: number = 9,
+  endHour: number = 17
+): PermissionCondition {
+  return {
+    id: `duringBusinessHours:${startHour}-${endHour}`,
+    description: `During business hours (${startHour}:00 - ${endHour}:00)`,
+    evaluate: () => {
+      const now = new Date();
+      const hour = now.getHours();
+      return hour >= startHour && hour < endHour;
+    },
+  };
+}
+
+// ============================================================================
+// Permission Rules Registry
+// ============================================================================
+
+type ResourceType = string;
+type ActionType = string;
+
+const permissionRules: Map<string, PermissionRule[]> = new Map();
+
+/**
+ * Register a permission rule
+ */
+export function registerPermissionRule(
+  resource: ResourceType,
+  action: ActionType,
+  rule: PermissionRule
+): void {
+  const key = `${resource}:${action}`;
+  const rules = permissionRules.get(key) || [];
+  rules.push(rule);
+  permissionRules.set(key, rules);
+}
+
+/**
+ * Get permission rules for resource and action
+ */
+function getPermissionRules(resource: ResourceType, action: ActionType): PermissionRule[] {
+  const key = `${resource}:${action}`;
+  return permissionRules.get(key) || [];
+}
+
+// ============================================================================
+// Default Rules Registration
+// ============================================================================
+
+// Customer: Owner can always update
+registerPermissionRule('customer', 'update', {
+  roles: [Role.SALES_REP, Role.SALES_MANAGER],
+  conditions: [isOwner],
+  allow: true,
+});
+
+// Customer: Assigned users can update
+registerPermissionRule('customer', 'update', {
+  roles: [Role.SALES_REP, Role.SALES_MANAGER],
+  conditions: [isAssigned],
+  allow: true,
+});
+
+// Workflow: Only approve if in pending state
+registerPermissionRule('workflow', 'approve', {
+  roles: [Role.SALES_MANAGER, Role.ADMIN],
+  conditions: [inState('PENDING', 'IN_REVIEW')],
+  allow: true,
+});
+
+// Knowledge: Public knowledge readable by all
+registerPermissionRule('knowledge', 'read', {
+  roles: [Role.USER, Role.SALES_REP, Role.SALES_MANAGER, Role.ADMIN],
+  conditions: [isPublic],
+  allow: true,
+});
+
+// ============================================================================
+// Core Evaluation Functions
+// ============================================================================
+
+/**
+ * Evaluate all conditions for a rule
+ */
+async function evaluateConditions(
+  conditions: PermissionCondition[],
+  context: PermissionContext
+): Promise<boolean> {
+  if (!conditions || conditions.length === 0) return true;
+
+  // All conditions must pass
+  for (const condition of conditions) {
+    const result = await condition.evaluate(context);
+    if (!result) return false;
+  }
+
+  return true;
+}
+
+/**
+ * Check fine-grained permissions
+ */
+export async function checkFineGrainedPermission(
+  context: PermissionContext
+): Promise<boolean> {
+  // First check basic RBAC permission
+  const hasBasicPermission = await checkPermission(
+    context.userId,
+    context.action as any,
+    context.resource as any,
+    context.resourceId
+  );
+
+  if (!hasBasicPermission) return false;
+
+  // Get fine-grained rules
+  const rules = getPermissionRules(context.resource, context.action);
+  if (rules.length === 0) return true; // No fine-grained rules, basic permission is enough
+
+  // Get user role
+  const userRole = await getUserRole(context.userId);
+  if (!userRole) return false;
+
+  // Evaluate rules
+  for (const rule of rules) {
+    // Check if rule applies to this role
+    if (!rule.roles.includes(userRole)) continue;
+
+    // Evaluate conditions
+    if (rule.conditions) {
+      const conditionsMet = await evaluateConditions(rule.conditions, {
+        ...context,
+        userRole,
+      });
+
+      if (conditionsMet) {
+        return rule.allow;
+      }
+    } else {
+      // No conditions, rule applies directly
+      return rule.allow;
+    }
+  }
+
+  // No rules matched, fall back to basic permission
+  return true;
+}
+
+/**
+ * Check permission with custom conditions
+ */
+export async function checkPermissionWithConditions(
+  userId: string,
+  action: string,
+  resource: string,
+  resourceId?: string,
+  conditions?: PermissionCondition[]
+): Promise<boolean> {
+  const userRole = await getUserRole(userId);
+  if (!userRole) return false;
+
+  const context: PermissionContext = {
+    userId,
+    userRole,
+    action,
+    resource,
+    resourceId,
+  };
+
+  // Check basic permission first
+  const hasBasicPermission = await checkPermission(
+    userId,
+    action as any,
+    resource as any,
+    resourceId
+  );
+
+  if (!hasBasicPermission) return false;
+
+  // Check custom conditions if provided
+  if (conditions && conditions.length > 0) {
+    return evaluateConditions(conditions, context);
+  }
+
+  return true;
+}
+
+// ============================================================================
+// Utility Functions
+// ============================================================================
+
+/**
+ * Get all registered rules
+ */
+export function getAllPermissionRules(): Map<string, PermissionRule[]> {
+  return new Map(permissionRules);
+}
+
+/**
+ * Clear all permission rules (for testing)
+ */
+export function clearPermissionRules(): void {
+  permissionRules.clear();
+}
+
+/**
+ * Create custom condition
+ */
+export function createCondition(
+  id: string,
+  description: string,
+  evaluate: (context: PermissionContext) => Promise<boolean> | boolean
+): PermissionCondition {
+  return { id, description, evaluate };
+}
