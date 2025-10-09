@@ -1,48 +1,48 @@
-# Source Project Snapshot - AI Sales Enablement Platform
+# 來源專案快照 - AI 銷售賦能平台
 
-**Generated**: 2025-10-09
-**Source**: `C:\ai-sales-enablement-webapp\`
-**Purpose**: Complete structural analysis for template extraction
-
----
-
-## Executive Summary
-
-### Project Statistics (Verified 2025-10-09)
-- **Total Production Files**: 476 TypeScript/JavaScript files (excluding POC)
-- **Total Production Lines**: 159,215 lines of code
-- **POC Files**: 381 files (experimental code - excluded from template)
-- **Components**: 114 files across 19 component directories
-- **App Routes**: 121 files (pages + API routes)
-- **API Route Files**: 82 route.ts files
-- **Lib Modules**: 27 distinct modules (125 files)
-- **Prisma Models**: 34 database models
-- **Unit Tests**: 31 test files
-- **E2E Tests**: 17 test files
-- **Additional Tests**: 3 test files
-- **Documentation Files**: 296 markdown files
-- **API Domains**: 23 distinct API domains
-- **Monitoring Files**: 7 OpenTelemetry files
-- **Middleware Files**: 12 API Gateway files
-- **Security Files**: 19 RBAC/encryption files
-
-**Note on POC Directory**: The source project contains a `poc/` directory with 381 files of experimental code (Azure OpenAI tests, Dynamics 365 integration tests, pgvector performance tests, and mock CRM data). This directory is **excluded from the template** as it contains legacy R&D code, not production-ready features. The statistics above reflect only production-ready code suitable for template extraction.
-
-**Verification**: See `SOURCE-PROJECT-VERIFICATION.md` for complete 100% verification details.
+**生成日期**: 2025-10-09
+**來源**: `C:\ai-sales-enablement-webapp\`
+**目的**: 用於模板提取的完整結構分析
 
 ---
 
-## 1. Complete Directory Structure
+## 執行摘要
 
-### Root Structure
+### 專案統計（已於 2025-10-09 驗證）
+- **生產檔案總數**: 476 個 TypeScript/JavaScript 檔案（不含 POC）
+- **生產程式碼總行數**: 159,215 行
+- **POC 檔案**: 381 個檔案（實驗性程式碼 - 已從模板中排除）
+- **元件**: 114 個檔案分布在 19 個元件目錄中
+- **應用路由**: 121 個檔案（頁面 + API 路由）
+- **API 路由檔案**: 82 個 route.ts 檔案
+- **函式庫模組**: 27 個不同模組（125 個檔案）
+- **Prisma 模型**: 34 個資料庫模型
+- **單元測試**: 31 個測試檔案
+- **E2E 測試**: 17 個測試檔案
+- **額外測試**: 3 個測試檔案
+- **文檔檔案**: 296 個 Markdown 檔案
+- **API 領域**: 23 個不同的 API 領域
+- **監控檔案**: 7 個 OpenTelemetry 檔案
+- **中介軟體檔案**: 12 個 API Gateway 檔案
+- **安全檔案**: 19 個 RBAC/加密檔案
+
+**關於 POC 目錄的說明**: 來源專案包含一個 `poc/` 目錄，其中有 381 個實驗性程式碼檔案（Azure OpenAI 測試、Dynamics 365 整合測試、pgvector 效能測試和模擬 CRM 資料）。此目錄**已從模板中排除**，因為它包含的是舊版研發程式碼，而非可用於生產的功能。上述統計數據僅反映適合提取到模板中的可用於生產的程式碼。
+
+**驗證**: 請參閱 `SOURCE-PROJECT-VERIFICATION.md` 以獲取完整的 100% 驗證詳細資訊。
+
+---
+
+## 1. 完整目錄結構
+
+### 根目錄結構
 ```
 C:\ai-sales-enablement-webapp\
 ├── app/                      # Next.js 14 App Router
-│   ├── (auth)/              # Auth pages (route group)
+│   ├── (auth)/              # 認證頁面（路由群組）
 │   │   ├── login/
 │   │   └── register/
-│   ├── api/                 # API Routes (23 domains)
-│   ├── dashboard/           # Dashboard pages
+│   ├── api/                 # API 路由（23 個領域）
+│   ├── dashboard/           # 儀表板頁面
 │   │   ├── (routes)/
 │   │   ├── admin/
 │   │   ├── assistant/
@@ -57,70 +57,70 @@ C:\ai-sales-enablement-webapp\
 │   ├── auth/
 │   └── globals/
 │
-├── components/              # React Components (31,650 lines)
-│   ├── admin/              # Admin dashboard components
-│   ├── assistant/          # AI assistant chat components
-│   ├── audit/              # Audit log components
-│   ├── calendar/           # Calendar integration
-│   ├── collaboration/      # Real-time collaboration
-│   ├── crm/                # Customer 360 view
-│   ├── dashboard/          # Dashboard widgets
-│   ├── features/           # Feature-specific components
-│   ├── knowledge/          # Knowledge base UI (50+ components)
+├── components/              # React 元件（31,650 行）
+│   ├── admin/              # 管理儀表板元件
+│   ├── assistant/          # AI 助理聊天元件
+│   ├── audit/              # 稽核日誌元件
+│   ├── calendar/           # 日曆整合
+│   ├── collaboration/      # 即時協作
+│   ├── crm/                # 客戶 360 度視圖
+│   ├── dashboard/          # 儀表板小工具
+│   ├── features/           # 功能特定元件
+│   ├── knowledge/          # 知識庫 UI（50+ 元件）
 │   │   ├── analytics/
 │   │   └── version/
-│   ├── layout/             # Layout components
-│   ├── meeting-prep/       # Meeting preparation
-│   ├── notifications/      # Notification system
-│   ├── permissions/        # Permission management
-│   ├── recommendation/     # AI recommendations
-│   ├── reminder/           # Reminder system
-│   ├── search/             # Advanced search UI
-│   ├── ui/                 # Base UI components (23 components)
-│   └── workflow/           # Workflow management
+│   ├── layout/             # 版面配置元件
+│   ├── meeting-prep/       # 會議準備
+│   ├── notifications/      # 通知系統
+│   ├── permissions/        # 權限管理
+│   ├── recommendation/     # AI 推薦
+│   ├── reminder/           # 提醒系統
+│   ├── search/             # 進階搜尋 UI
+│   ├── ui/                 # 基礎 UI 元件（23 個元件）
+│   └── workflow/           # 工作流程管理
 │       ├── approval/
 │       ├── comments/
 │       └── version/
 │
-├── lib/                    # Core Libraries (100+ files)
-│   ├── ai/                 # AI integration (8 files)
-│   ├── analytics/          # User behavior tracking (2 files)
-│   ├── api/                # API utilities (2 files)
-│   ├── auth/               # Authentication (2 files)
-│   ├── cache/              # Redis caching (2 files)
-│   ├── calendar/           # Calendar sync (3 files)
-│   ├── collaboration/      # Edit locking (2 files)
-│   ├── db/                 # Database utilities
-│   ├── integrations/       # External integrations
+├── lib/                    # 核心函式庫（100+ 檔案）
+│   ├── ai/                 # AI 整合（8 個檔案）
+│   ├── analytics/          # 使用者行為追蹤（2 個檔案）
+│   ├── api/                # API 工具（2 個檔案）
+│   ├── auth/               # 認證（2 個檔案）
+│   ├── cache/              # Redis 快取（2 個檔案）
+│   ├── calendar/           # 日曆同步（3 個檔案）
+│   ├── collaboration/      # 編輯鎖定（2 個檔案）
+│   ├── db/                 # 資料庫工具
+│   ├── integrations/       # 外部整合
 │   │   ├── customer-360/
 │   │   └── dynamics365/
-│   ├── knowledge/          # Knowledge base logic (5 files)
-│   ├── meeting/            # Meeting intelligence (3 files)
-│   ├── middleware/         # API Gateway (12 files)
-│   ├── monitoring/         # OpenTelemetry monitoring (7 files, 2,776 lines)
-│   ├── notification/       # Multi-channel notifications (4 files)
-│   ├── parsers/            # Document parsers (5 files)
-│   ├── pdf/                # PDF generation (3 files)
-│   ├── performance/        # Performance optimization (6 files)
-│   ├── recommendation/     # Recommendation engine (2 files)
-│   ├── reminder/           # Reminder scheduler (3 files)
-│   ├── resilience/         # Circuit breaker & retry (6 files)
-│   ├── search/             # Vector search (9 files)
-│   ├── security/           # RBAC & permissions (11 files)
-│   ├── startup/            # Initialization (1 file)
-│   ├── template/           # Handlebars templates (3 files)
-│   ├── utils/              # General utilities
-│   ├── workflow/           # Workflow engine (5 files)
-│   └── [root files]/       # Core utilities (7 files, 1,375 lines)
+│   ├── knowledge/          # 知識庫邏輯（5 個檔案）
+│   ├── meeting/            # 會議智能（3 個檔案）
+│   ├── middleware/         # API Gateway（12 個檔案）
+│   ├── monitoring/         # OpenTelemetry 監控（7 個檔案，2,776 行）
+│   ├── notification/       # 多通道通知（4 個檔案）
+│   ├── parsers/            # 文件解析器（5 個檔案）
+│   ├── pdf/                # PDF 生成（3 個檔案）
+│   ├── performance/        # 效能優化（6 個檔案）
+│   ├── recommendation/     # 推薦引擎（2 個檔案）
+│   ├── reminder/           # 提醒排程器（3 個檔案）
+│   ├── resilience/         # 斷路器與重試（6 個檔案）
+│   ├── search/             # 向量搜尋（9 個檔案）
+│   ├── security/           # RBAC 與權限（11 個檔案）
+│   ├── startup/            # 初始化（1 個檔案）
+│   ├── template/           # Handlebars 範本（3 個檔案）
+│   ├── utils/              # 一般工具
+│   ├── workflow/           # 工作流程引擎（5 個檔案）
+│   └── [root files]/       # 核心工具（7 個檔案，1,375 行）
 │
-├── prisma/                 # Database Schema
-│   └── schema.prisma       # 34 models (PostgreSQL)
+├── prisma/                 # 資料庫 Schema
+│   └── schema.prisma       # 34 個模型（PostgreSQL）
 │
-├── monitoring/             # Monitoring Configuration
+├── monitoring/             # 監控設定
 │   ├── alertmanager/
 │   │   └── alertmanager.yml
 │   ├── grafana/
-│   │   ├── dashboards/     # 4 pre-built dashboards
+│   │   ├── dashboards/     # 4 個預建儀表板
 │   │   │   ├── 01-system-overview.json
 │   │   │   ├── 02-api-performance.json
 │   │   │   ├── 03-business-metrics.json
@@ -129,52 +129,52 @@ C:\ai-sales-enablement-webapp\
 │   │       ├── dashboards/
 │   │       └── datasources/
 │   └── prometheus/
-│       ├── alerts.yml      # 46 alert rules
+│       ├── alerts.yml      # 46 個警報規則
 │       └── prometheus.yml
 │
-├── __tests__/              # Unit Tests (36 files)
-├── e2e/                    # E2E Tests (16 files)
-├── docs/                   # Documentation (60+ files)
-├── scripts/                # Utility scripts
-├── public/                 # Static assets
-├── types/                  # TypeScript type definitions
-└── hooks/                  # Custom React hooks
+├── __tests__/              # 單元測試（36 個檔案）
+├── e2e/                    # E2E 測試（16 個檔案）
+├── docs/                   # 文檔（60+ 檔案）
+├── scripts/                # 工具腳本
+├── public/                 # 靜態資源
+├── types/                  # TypeScript 型別定義
+└── hooks/                  # 自訂 React hooks
 ```
 
 ---
 
-## 2. Package.json Analysis
+## 2. Package.json 分析
 
-### Production Dependencies (68 total)
+### 生產相依套件（共 68 個）
 
-#### Framework Core
+#### 框架核心
 - `next`: ^14.2.25
 - `react`: ^18.3.0
 - `react-dom`: ^18.3.0
-- `typescript`: (via devDependencies)
+- `typescript`: （透過 devDependencies）
 
-#### Database & ORM
+#### 資料庫與 ORM
 - `@prisma/client`: ^5.17.0
-- `pg`: ^8.12.0 (PostgreSQL driver)
-- `pgvector`: ^0.1.8 (Vector search extension)
+- `pg`: ^8.12.0（PostgreSQL 驅動程式）
+- `pgvector`: ^0.1.8（向量搜尋擴充）
 
-#### Authentication & Identity
-- `@azure/msal-node`: ^3.8.0 (Azure AD SSO)
-- `@clerk/nextjs`: ^6.33.0 (Auth provider)
-- `bcryptjs`: ^2.4.3 (Password hashing)
-- `jsonwebtoken`: ^9.0.2 (JWT tokens)
-- `jose`: ^5.6.3 (JWT utilities)
+#### 認證與身分識別
+- `@azure/msal-node`: ^3.8.0（Azure AD SSO）
+- `@clerk/nextjs`: ^6.33.0（認證提供者）
+- `bcryptjs`: ^2.4.3（密碼雜湊）
+- `jsonwebtoken`: ^9.0.2（JWT tokens）
+- `jose`: ^5.6.3（JWT 工具）
 
-#### AI & OpenAI Integration
+#### AI 與 OpenAI 整合
 - `@azure/openai`: ^1.0.0-beta.12
 - `openai`: ^4.104.0
 
-#### Azure Services
+#### Azure 服務
 - `@azure/identity`: ^4.12.0
 - `@azure/keyvault-secrets`: ^4.10.0
-- `@microsoft/microsoft-graph-client`: ^3.0.7 (Calendar sync)
+- `@microsoft/microsoft-graph-client`: ^3.0.7（日曆同步）
 
-#### UI Component Libraries
+#### UI 元件函式庫
 - `@radix-ui/react-alert-dialog`: ^1.1.15
 - `@radix-ui/react-avatar`: ^1.1.0
 - `@radix-ui/react-checkbox`: ^1.3.3
@@ -191,7 +191,7 @@ C:\ai-sales-enablement-webapp\
 - `@radix-ui/react-tabs`: ^1.1.0
 - `@radix-ui/react-toast`: ^1.2.0
 
-#### Rich Text Editor
+#### 富文本編輯器
 - `@tiptap/react`: ^3.6.2
 - `@tiptap/starter-kit`: ^3.6.2
 - `@tiptap/extension-image`: ^3.6.2
@@ -203,54 +203,54 @@ C:\ai-sales-enablement-webapp\
 - `@tiptap/extension-table-row`: ^3.6.5
 - `@tiptap/pm`: ^3.6.2
 
-#### State Management & Data Fetching
+#### 狀態管理與資料擷取
 - `@tanstack/react-query`: ^4.36.1
 - `@trpc/client`: ^10.45.0
 - `@trpc/next`: ^10.45.0
 - `@trpc/react-query`: ^10.45.0
 - `@trpc/server`: ^10.45.0
 
-#### Styling & UI Utilities
-- `tailwindcss`: (via devDependencies)
+#### 樣式與 UI 工具
+- `tailwindcss`: （透過 devDependencies）
 - `tailwind-merge`: ^2.4.0
 - `tailwindcss-animate`: ^1.0.7
 - `class-variance-authority`: ^0.7.0
 - `clsx`: ^2.1.0
-- `lucide-react`: ^0.408.0 (Icon library)
+- `lucide-react`: ^0.408.0（圖示庫）
 - `@heroicons/react`: ^2.2.0
 - `@headlessui/react`: ^2.2.8
 
-#### Caching & Performance
-- `ioredis`: ^5.8.0 (Redis client)
+#### 快取與效能
+- `ioredis`: ^5.8.0（Redis 客戶端）
 
-#### Document Processing
-- `pdf-parse`: ^2.1.1 (PDF parsing)
-- `mammoth`: ^1.11.0 (Word document parsing)
-- `xlsx`: ^0.18.5 (Excel parsing)
-- `tesseract.js`: ^6.0.1 (OCR)
-- `puppeteer`: ^24.23.0 (PDF generation)
+#### 文件處理
+- `pdf-parse`: ^2.1.1（PDF 解析）
+- `mammoth`: ^1.11.0（Word 文件解析）
+- `xlsx`: ^0.18.5（Excel 解析）
+- `tesseract.js`: ^6.0.1（OCR）
+- `puppeteer`: ^24.23.0（PDF 生成）
 
-#### Template Engine
+#### 範本引擎
 - `handlebars`: ^4.7.8
 
-#### Form Management
+#### 表單管理
 - `react-hook-form`: ^7.52.0
 - `@hookform/resolvers`: ^3.7.0
-- `zod`: ^3.23.0 (Schema validation)
+- `zod`: ^3.23.0（Schema 驗證）
 
-#### File Upload
+#### 檔案上傳
 - `react-dropzone`: ^14.3.8
 
-#### Utilities
-- `axios`: ^1.7.0 (HTTP client)
-- `date-fns`: ^3.6.0 (Date utilities)
-- `dotenv`: ^17.2.2 (Environment variables)
-- `cmdk`: ^1.1.1 (Command palette)
+#### 工具
+- `axios`: ^1.7.0（HTTP 客戶端）
+- `date-fns`: ^3.6.0（日期工具）
+- `dotenv`: ^17.2.2（環境變數）
+- `cmdk`: ^1.1.1（命令選單）
 
-### Development Dependencies (23 total)
+### 開發相依套件（共 23 個）
 
-#### Testing
-- `@playwright/test`: ^1.45.0 (E2E testing)
+#### 測試
+- `@playwright/test`: ^1.45.0（E2E 測試）
 - `@testing-library/react`: ^16.0.0
 - `@testing-library/jest-dom`: ^6.4.0
 - `@testing-library/user-event`: ^14.5.0
@@ -259,7 +259,7 @@ C:\ai-sales-enablement-webapp\
 - `jest-environment-jsdom`: ^29.7.0
 - `@types/jest`: ^29.5.0
 
-#### TypeScript Type Definitions
+#### TypeScript 型別定義
 - `@types/node`: ^20.14.0
 - `@types/react`: ^18.3.0
 - `@types/react-dom`: ^18.3.0
@@ -270,37 +270,37 @@ C:\ai-sales-enablement-webapp\
 - `@types/pg`: ^8.11.0
 - `@types/tar`: ^6.1.13
 
-#### Linting & Code Quality
+#### Linting 與程式碼品質
 - `eslint`: ^8.57.0
 - `eslint-config-next`: ^14.2.0
 - `@typescript-eslint/eslint-plugin`: ^7.16.0
 - `@typescript-eslint/parser`: ^7.16.0
 
-#### Build Tools
+#### 建置工具
 - `autoprefixer`: ^10.4.0
 - `postcss`: ^8.4.0
-- `prisma`: ^5.17.0 (Prisma CLI)
+- `prisma`: ^5.17.0（Prisma CLI）
 - `tsx`: ^4.16.0
 
-#### Load Testing
+#### 負載測試
 - `autocannon`: ^7.15.0
 
-#### Utilities
+#### 工具
 - `cross-env`: ^10.1.0
 - `tar`: ^7.5.1
 
 ---
 
-## 3. Prisma Schema Analysis
+## 3. Prisma Schema 分析
 
-### Database Configuration
-- **Provider**: PostgreSQL
-- **Extensions**: pgvector (for vector search)
-- **Total Models**: 34
+### 資料庫設定
+- **提供者**: PostgreSQL
+- **擴充功能**: pgvector（用於向量搜尋）
+- **模型總數**: 34
 
-### All 34 Prisma Models
+### 全部 34 個 Prisma 模型
 
-#### 1. User Management (1 model)
+#### 1. 使用者管理（1 個模型）
 ```prisma
 model User {
   id            String    @id @default(cuid())
@@ -316,437 +316,437 @@ model User {
 }
 ```
 
-#### 2. Customer & CRM (5 models)
+#### 2. 客戶與 CRM（5 個模型）
 ```prisma
-model Customer { }          # Customer master data
-model CustomerContact { }   # Customer contacts
-model SalesOpportunity { }  # Sales pipeline
-model CallRecord { }        # Customer interactions
-model Interaction { }       # Customer engagement history
+model Customer { }          # 客戶主資料
+model CustomerContact { }   # 客戶聯絡人
+model SalesOpportunity { }  # 銷售流程
+model CallRecord { }        # 客戶互動
+model Interaction { }       # 客戶參與歷史
 ```
 
-#### 3. Knowledge Base System (9 models)
+#### 3. 知識庫系統（9 個模型）
 ```prisma
-model KnowledgeFolder { }         # Folder hierarchy
-model KnowledgeBase { }           # Documents
-model KnowledgeChunk { }          # Vector embeddings (pgvector)
-model KnowledgeTag { }            # Tagging system
-model ProcessingTask { }          # Async processing queue
-model KnowledgeVersion { }        # Version control
-model KnowledgeVersionComment { } # Version comments
-model Document { }                # Document metadata
-model AIAnalysis { }              # AI-generated insights
+model KnowledgeFolder { }         # 資料夾階層
+model KnowledgeBase { }           # 文件
+model KnowledgeChunk { }          # 向量嵌入（pgvector）
+model KnowledgeTag { }            # 標籤系統
+model ProcessingTask { }          # 非同步處理佇列
+model KnowledgeVersion { }        # 版本控制
+model KnowledgeVersionComment { } # 版本註解
+model Document { }                # 文件中繼資料
+model AIAnalysis { }              # AI 生成的洞察
 ```
 
-#### 4. Proposal Management (6 models)
+#### 4. 提案管理（6 個模型）
 ```prisma
-model Proposal { }           # Proposals
-model ProposalItem { }       # Line items
-model ProposalTemplate { }   # Templates
-model ProposalGeneration { } # Generation tracking
-model ProposalVersion { }    # Version history
-model ProposalComment { }    # Comments
+model Proposal { }           # 提案
+model ProposalItem { }       # 行項目
+model ProposalTemplate { }   # 範本
+model ProposalGeneration { } # 生成追蹤
+model ProposalVersion { }    # 版本歷史
+model ProposalComment { }    # 註解
 ```
 
-#### 5. Workflow Engine (3 models)
+#### 5. 工作流程引擎（3 個模型）
 ```prisma
-model ProposalWorkflow { }      # Workflow instances
-model WorkflowStateHistory { }  # State transitions (12 states)
-model ApprovalTask { }          # Approval tasks
+model ProposalWorkflow { }      # 工作流程實例
+model WorkflowStateHistory { }  # 狀態轉換（12 個狀態）
+model ApprovalTask { }          # 核准任務
 ```
 
-#### 6. Notification System (4 models)
+#### 6. 通知系統（4 個模型）
 ```prisma
-model Notification { }           # Notifications
-model NotificationPreference { } # User preferences
-model NotificationTemplate { }   # Templates
-model NotificationBatch { }      # Batch sending
+model Notification { }           # 通知
+model NotificationPreference { } # 使用者偏好設定
+model NotificationTemplate { }   # 範本
+model NotificationBatch { }      # 批次傳送
 ```
 
-#### 7. Authentication & Security (3 models)
+#### 7. 認證與安全（3 個模型）
 ```prisma
-model RefreshToken { }   # JWT refresh tokens
-model TokenBlacklist { } # Revoked tokens
-model ApiKey { }         # API key management
+model RefreshToken { }   # JWT 刷新令牌
+model TokenBlacklist { } # 已撤銷的令牌
+model ApiKey { }         # API 金鑰管理
 ```
 
-#### 8. Configuration & System (3 models)
+#### 8. 設定與系統（3 個模型）
 ```prisma
-model SystemConfig { }      # System configuration
-model AuditLog { }          # Audit logging
-model AIGenerationConfig { } # AI generation settings
+model SystemConfig { }      # 系統設定
+model AuditLog { }          # 稽核日誌
+model AIGenerationConfig { } # AI 生成設定
 ```
 
-### Vector Search Models
-- **KnowledgeChunk**: Uses `vector(1536)` type with pgvector extension
-- Enables semantic search across knowledge base
+### 向量搜尋模型
+- **KnowledgeChunk**: 使用 `vector(1536)` 型別配合 pgvector 擴充
+- 啟用知識庫的語意搜尋
 
 ---
 
-## 4. Monitoring System Files
+## 4. 監控系統檔案
 
-### lib/monitoring/ Structure (7 files, 2,776 total lines)
+### lib/monitoring/ 結構（7 個檔案，共 2,776 行）
 
-| File | Lines | Purpose |
+| 檔案 | 行數 | 用途 |
 |------|-------|---------|
-| `backend-factory.ts` | 217 | Factory pattern for monitoring backends (Prometheus/Azure/Console) |
-| `config.ts` | 118 | Monitoring configuration management |
-| `connection-monitor.ts` | 540 | Database connection pool monitoring |
-| `middleware.ts` | 104 | Express/Next.js monitoring middleware |
-| `monitor-init.ts` | 312 | Initialization and startup logic |
-| `performance-monitor.ts` | 1,025 | Core performance monitoring service |
-| `telemetry.ts` | 460 | OpenTelemetry integration layer |
+| `backend-factory.ts` | 217 | 監控後端的工廠模式（Prometheus/Azure/Console） |
+| `config.ts` | 118 | 監控設定管理 |
+| `connection-monitor.ts` | 540 | 資料庫連線池監控 |
+| `middleware.ts` | 104 | Express/Next.js 監控中介軟體 |
+| `monitor-init.ts` | 312 | 初始化與啟動邏輯 |
+| `performance-monitor.ts` | 1,025 | 核心效能監控服務 |
+| `telemetry.ts` | 460 | OpenTelemetry 整合層 |
 
-### monitoring/ Configuration Files
+### monitoring/ 設定檔案
 
-#### Prometheus Configuration
-- `monitoring/prometheus/prometheus.yml` - Main Prometheus config
-- `monitoring/prometheus/alerts.yml` - 46 alert rules (P1-P4 severity)
+#### Prometheus 設定
+- `monitoring/prometheus/prometheus.yml` - 主要 Prometheus 設定
+- `monitoring/prometheus/alerts.yml` - 46 個警報規則（P1-P4 嚴重性）
 
-#### Grafana Dashboards (4 pre-built)
-- `01-system-overview.json` - System-wide metrics
-- `02-api-performance.json` - API endpoint performance
-- `03-business-metrics.json` - Business KPIs
-- `04-resource-usage.json` - Resource utilization
+#### Grafana 儀表板（4 個預建）
+- `01-system-overview.json` - 系統範圍指標
+- `02-api-performance.json` - API 端點效能
+- `03-business-metrics.json` - 業務 KPI
+- `04-resource-usage.json` - 資源使用率
 
 #### AlertManager
-- `monitoring/alertmanager/alertmanager.yml` - Alert routing config
+- `monitoring/alertmanager/alertmanager.yml` - 警報路由設定
 
-### Monitoring Features
-- **Backend Abstraction**: Switch between Prometheus/Azure Monitor/Console
-- **46 Alert Rules**: P1 (Critical), P2 (High), P3 (Medium), P4 (Low)
-- **12 Metric Categories**: HTTP, Database, Cache, Queue, AI, Business, etc.
-- **4 Grafana Dashboards**: Pre-configured visualizations
-- **OpenTelemetry**: Vendor-neutral instrumentation
-
----
-
-## 5. Core Modules in lib/
-
-### Module Breakdown (27+ modules)
-
-#### AI Integration (lib/ai/ - 8 files)
-- `azure-openai-service.ts` - Azure OpenAI wrapper
-- `chat.ts` - Chat completions
-- `embeddings.ts` - Text embeddings
-- `enhanced-embeddings.ts` - Advanced embedding logic
-- `openai.ts` - OpenAI SDK wrapper
-- `proposal-generation-service.ts` - AI proposal generation
-- `types.ts` - Type definitions
-- `index.ts` - Module exports
-
-**Key Features**:
-- Azure OpenAI integration
-- Embeddings for vector search
-- Proposal generation with AI
-- Type-safe AI responses
-
-#### Authentication (lib/auth/ + lib/auth-server.ts + lib/auth.ts - 4 files, ~430 lines)
-- `azure-ad-service.ts` - Azure AD SSO integration
-- `token-service.ts` - JWT token management (dual-token system)
-- `auth-server.ts` - Server-side auth utilities (179 lines)
-- `auth.ts` - Client-side auth utilities (73 lines)
-
-**Key Features**:
-- JWT dual-token authentication
-- Azure AD SSO integration
-- Token refresh & blacklisting
-- Role-based access control
-
-#### API Gateway (lib/middleware/ - 12 files)
-- `api-versioning.ts` - API version management
-- `cors.ts` - CORS configuration
-- `https-enforcement.ts` - HTTPS redirect
-- `rate-limiter.ts` - Rate limiting
-- `request-id.ts` - Request ID generation
-- `request-transformer.ts` - Request transformation
-- `request-validator.ts` - Request validation
-- `response-cache.ts` - Response caching
-- `response-transformer.ts` - Response transformation
-- `route-matcher.ts` - Route matching logic
-- `routing-config.ts` - Routing configuration
-- `security-headers.ts` - Security headers
-
-**Key Features**:
-- 10+ enterprise-grade middlewares
-- Rate limiting with Redis
-- Request/response transformation
-- Security headers (CSP, HSTS, etc.)
-
-#### Knowledge Base (lib/knowledge/ - 5 files)
-- `analytics-service.ts` - Search analytics
-- `full-text-search.ts` - Full-text search
-- `index.ts` - Module exports
-- `search-history-manager.ts` - Search history tracking
-- `version-control.ts` - Document versioning
-
-**Key Features**:
-- Full-text + vector search hybrid
-- Search analytics & history
-- Document version control
-- Tag management
-
-#### Search System (lib/search/ - 9 files)
-- `contextual-result-enhancer.ts` - Result enhancement
-- `crm-search-adapter.ts` - CRM integration
-- `pgvector-search.ts` - PostgreSQL vector search
-- `query-processor.ts` - Query processing
-- `result-ranker.ts` - Result ranking
-- `search-analytics.ts` - Analytics tracking
-- `search-suggestions.ts` - Query suggestions
-- `semantic-query-processor.ts` - Semantic processing
-- `vector-search.ts` - Vector search engine
-
-**Key Features**:
-- Multi-algorithm vector search
-- Hybrid search (vector + full-text)
-- Semantic query understanding
-- Result ranking & enhancement
-
-#### Workflow Engine (lib/workflow/ - 5 files)
-- `approval-manager.ts` - Approval workflows
-- `comment-system.ts` - Comments on workflows
-- `engine.ts` - Core workflow engine
-- `index.ts` - Module exports
-- `version-control.ts` - Workflow versioning
-
-**Key Features**:
-- 12-state workflow engine
-- Multi-level approval system
-- Workflow versioning
-- Comment threads
-
-#### Notification System (lib/notification/ - 4 files)
-- `email-service.ts` - Email notifications
-- `engine.ts` - Notification engine
-- `in-app-service.ts` - In-app notifications
-- `index.ts` - Module exports
-
-**Key Features**:
-- Multi-channel (email, in-app)
-- Template system
-- User preferences
-- Batch sending
-
-#### Cache System (lib/cache/ - 2 files)
-- `redis-client.ts` - Redis client wrapper
-- `vector-cache.ts` - Vector search caching
-
-**Key Features**:
-- Redis dual-layer caching
-- Vector embedding caching
-- TTL management
-
-#### Document Parsers (lib/parsers/ - 5 files)
-- `excel-parser.ts` - Excel parsing
-- `image-ocr-parser.ts` - OCR with Tesseract
-- `pdf-parser.ts` - PDF parsing
-- `word-parser.ts` - Word document parsing
-- `index.ts` - Module exports
-
-**Key Features**:
-- PDF, Word, Excel parsing
-- OCR for images
-- Text extraction
-
-#### PDF Generation (lib/pdf/ - 3 files)
-- `pdf-generator.ts` - PDF generation with Puppeteer
-- `proposal-pdf-template.ts` - Proposal templates
-- `index.ts` - Module exports
-
-**Key Features**:
-- HTML to PDF conversion
-- Template-based generation
-- Puppeteer integration
-
-#### Template Engine (lib/template/ - 3 files)
-- `handlebars-helpers.ts` - Custom Handlebars helpers
-- `template-engine.ts` - Template engine
-- `template-manager.ts` - Template management
-
-**Key Features**:
-- Handlebars templating
-- Custom helpers
-- Template caching
-
-#### Security & RBAC (lib/security/ - 11 files)
-- `action-restrictions.ts` - Action-based permissions
-- `audit-log-prisma.ts` - Audit logging with Prisma
-- `audit-log.ts` - Audit log service
-- `audit-log.test.ts` - Audit log tests
-- `field-level-permissions.ts` - Field-level access
-- `fine-grained-permissions.ts` - Fine-grained RBAC
-- `gdpr.ts` - GDPR compliance
-- `permission-middleware.ts` - Permission middleware
-- `permission-middleware.test.ts` - Middleware tests
-- `rbac.ts` - Core RBAC logic
-- `rbac.test.ts` - RBAC tests
-- `resource-conditions.ts` - Resource-based conditions
-- `sensitive-fields-config.ts` - Sensitive field configuration
-- `index.ts` - Module exports
-
-**Key Features**:
-- Role-based access control (RBAC)
-- Fine-grained permissions
-- Field-level permissions
-- GDPR compliance utilities
-- Audit logging
-
-#### Performance Optimization (lib/performance/ - 6 files)
-- `monitor.ts` - Performance monitoring
-- `monitor.test.ts` - Monitor tests
-- `query-optimizer.ts` - Database query optimization
-- `query-optimizer.test.ts` - Optimizer tests
-- `response-cache.ts` - Response caching
-- `response-cache.test.ts` - Cache tests
-
-**Key Features**:
-- Query optimization
-- Response caching
-- Performance monitoring
-- Unit tested
-
-#### Resilience (lib/resilience/ - 6 files)
-- `circuit-breaker.ts` - Circuit breaker pattern
-- `circuit-breaker.test.ts` - Circuit breaker tests
-- `health-check.ts` - Health checking
-- `health-check.test.ts` - Health check tests
-- `retry.ts` - Retry logic
-- `retry.test.ts` - Retry tests
-
-**Key Features**:
-- Circuit breaker pattern
-- Retry with exponential backoff
-- Health checking
-- Unit tested
-
-#### Other Modules
-- **lib/analytics/** (2 files) - User behavior tracking
-- **lib/api/** (2 files) - API utilities (error handler, response helper)
-- **lib/calendar/** (3 files) - Microsoft Graph calendar sync
-- **lib/collaboration/** (2 files) - Real-time edit locking
-- **lib/meeting/** (3 files) - Meeting intelligence & prep
-- **lib/recommendation/** (2 files) - Recommendation engine
-- **lib/reminder/** (3 files) - Reminder scheduling
-- **lib/integrations/customer-360/** (1 file) - Customer 360 view
-- **lib/integrations/dynamics365/** (3 files) - Dynamics 365 integration
-- **lib/startup/** (1 file) - Application initialization
-
-#### Root lib/ Files (7 files, 1,375 lines)
-- `auth.ts` (73 lines) - Auth utilities
-- `auth-server.ts` (179 lines) - Server auth
-- `db.ts` (36 lines) - Database utilities
-- `errors.ts` (653 lines) - Error handling
-- `middleware.ts` (255 lines) - Core middleware
-- `prisma.ts` (77 lines) - Prisma client
-- `utils.ts` (102 lines) - General utilities
+### 監控功能
+- **後端抽象化**: 在 Prometheus/Azure Monitor/Console 之間切換
+- **46 個警報規則**: P1（嚴重）、P2（高）、P3（中等）、P4（低）
+- **12 個指標類別**: HTTP、資料庫、快取、佇列、AI、業務等
+- **4 個 Grafana 儀表板**: 預先設定的視覺化
+- **OpenTelemetry**: 供應商中立的檢測
 
 ---
 
-## 6. UI Components in components/
+## 5. lib/ 中的核心模組
 
-### Component Directory Structure (18 directories)
+### 模組細分（27+ 模組）
 
-#### admin/ (2 components)
-- `performance-dashboard.tsx` - Performance metrics dashboard
-- `system-monitor.tsx` - System monitoring dashboard
+#### AI 整合（lib/ai/ - 8 個檔案）
+- `azure-openai-service.ts` - Azure OpenAI 包裝器
+- `chat.ts` - 聊天完成
+- `embeddings.ts` - 文字嵌入
+- `enhanced-embeddings.ts` - 進階嵌入邏輯
+- `openai.ts` - OpenAI SDK 包裝器
+- `proposal-generation-service.ts` - AI 提案生成
+- `types.ts` - 型別定義
+- `index.ts` - 模組匯出
 
-#### assistant/ (3 components)
-- `ChatInput.tsx` - Chat input field
-- `ChatMessage.tsx` - Chat message display
-- `ChatWindow.tsx` - Chat window container
+**主要功能**:
+- Azure OpenAI 整合
+- 向量搜尋的嵌入
+- AI 提案生成
+- 型別安全的 AI 回應
 
-#### audit/ (4 components)
-- `AuditLogExport.tsx` - Export audit logs
-- `AuditLogFilters.tsx` - Filter audit logs
-- `AuditLogList.tsx` - Display audit logs
-- `AuditLogStats.tsx` - Audit statistics
+#### 認證（lib/auth/ + lib/auth-server.ts + lib/auth.ts - 4 個檔案，約 430 行）
+- `azure-ad-service.ts` - Azure AD SSO 整合
+- `token-service.ts` - JWT 令牌管理（雙令牌系統）
+- `auth-server.ts` - 伺服器端認證工具（179 行）
+- `auth.ts` - 客戶端認證工具（73 行）
 
-#### calendar/ (1 component)
-- `CalendarView.tsx` - Calendar integration view
+**主要功能**:
+- JWT 雙令牌認證
+- Azure AD SSO 整合
+- 令牌刷新與黑名單
+- 基於角色的存取控制
 
-#### collaboration/ (1 component)
-- `EditLockIndicator.tsx` - Real-time edit lock indicator
+#### API Gateway（lib/middleware/ - 12 個檔案）
+- `api-versioning.ts` - API 版本管理
+- `cors.ts` - CORS 設定
+- `https-enforcement.ts` - HTTPS 重新導向
+- `rate-limiter.ts` - 速率限制
+- `request-id.ts` - 請求 ID 生成
+- `request-transformer.ts` - 請求轉換
+- `request-validator.ts` - 請求驗證
+- `response-cache.ts` - 回應快取
+- `response-transformer.ts` - 回應轉換
+- `route-matcher.ts` - 路由比對邏輯
+- `routing-config.ts` - 路由設定
+- `security-headers.ts` - 安全標頭
 
-#### crm/ (1 component)
-- `customer-360-view.tsx` - Customer 360 view
+**主要功能**:
+- 10+ 個企業級中介軟體
+- Redis 速率限制
+- 請求/回應轉換
+- 安全標頭（CSP、HSTS 等）
 
-#### dashboard/ (7 components)
-- `ai-insights.tsx` - AI-generated insights widget
-- `dashboard-stats.tsx` - Statistics cards
-- `quick-actions.tsx` - Quick action buttons
-- `recent-activity.tsx` - Recent activity feed
-- `sales-chart.tsx` - Sales charts
-- `top-customers.tsx` - Top customers list
+#### 知識庫（lib/knowledge/ - 5 個檔案）
+- `analytics-service.ts` - 搜尋分析
+- `full-text-search.ts` - 全文搜尋
+- `index.ts` - 模組匯出
+- `search-history-manager.ts` - 搜尋歷史追蹤
+- `version-control.ts` - 文件版本控制
 
-#### knowledge/ (29+ components)
-Main knowledge base UI components:
-- `advanced-editor-toolbar.tsx` - Rich text editor toolbar
-- `advanced-search-builder.tsx` - Advanced search query builder
-- `breadcrumb-navigation.tsx` - Folder breadcrumbs
-- `bulk-upload.tsx` - Bulk document upload
-- `document-preview.tsx` - Document preview
-- `enhanced-knowledge-editor.tsx` - Rich text editor
-- `enhanced-knowledge-search.tsx` - Enhanced search interface
-- `folder-selector.tsx` - Folder selection UI
-- `knowledge-base-filters.tsx` - Filter components
-- `knowledge-base-list.tsx` - Document list
-- `knowledge-base-list-optimized.tsx` - Optimized list rendering
-- `knowledge-base-upload.tsx` - Single file upload
-- `knowledge-create-form.tsx` - Document creation form
-- `knowledge-document-edit.tsx` - Document editor
-- `knowledge-document-edit-with-version.tsx` - Versioned editor
-- `knowledge-document-view.tsx` - Document viewer
-- `knowledge-folder-tree.tsx` - Folder tree navigation
-- `knowledge-management-dashboard.tsx` - Knowledge dashboard
-- `knowledge-recommendation-widget.tsx` - AI recommendations
-- `knowledge-review-workflow.tsx` - Review workflow UI
-- `knowledge-search.tsx` - Search interface
-- `quick-jump-search.tsx` - Quick jump search
-- `rich-text-editor.tsx` - TipTap rich text editor
-- `search-analytics-dashboard.tsx` - Search analytics
-- `search-results-optimizer.tsx` - Search result optimization
-- `search-suggestions.tsx` - Search suggestions
+**主要功能**:
+- 全文 + 向量搜尋混合
+- 搜尋分析與歷史
+- 文件版本控制
+- 標籤管理
 
-**knowledge/analytics/** (4 components):
+#### 搜尋系統（lib/search/ - 9 個檔案）
+- `contextual-result-enhancer.ts` - 結果增強
+- `crm-search-adapter.ts` - CRM 整合
+- `pgvector-search.ts` - PostgreSQL 向量搜尋
+- `query-processor.ts` - 查詢處理
+- `result-ranker.ts` - 結果排序
+- `search-analytics.ts` - 分析追蹤
+- `search-suggestions.ts` - 查詢建議
+- `semantic-query-processor.ts` - 語意處理
+- `vector-search.ts` - 向量搜尋引擎
+
+**主要功能**:
+- 多演算法向量搜尋
+- 混合搜尋（向量 + 全文）
+- 語意查詢理解
+- 結果排序與增強
+
+#### 工作流程引擎（lib/workflow/ - 5 個檔案）
+- `approval-manager.ts` - 核准工作流程
+- `comment-system.ts` - 工作流程註解
+- `engine.ts` - 核心工作流程引擎
+- `index.ts` - 模組匯出
+- `version-control.ts` - 工作流程版本控制
+
+**主要功能**:
+- 12 狀態工作流程引擎
+- 多層級核准系統
+- 工作流程版本控制
+- 註解討論串
+
+#### 通知系統（lib/notification/ - 4 個檔案）
+- `email-service.ts` - 電子郵件通知
+- `engine.ts` - 通知引擎
+- `in-app-service.ts` - 應用內通知
+- `index.ts` - 模組匯出
+
+**主要功能**:
+- 多通道（電子郵件、應用內）
+- 範本系統
+- 使用者偏好設定
+- 批次傳送
+
+#### 快取系統（lib/cache/ - 2 個檔案）
+- `redis-client.ts` - Redis 客戶端包裝器
+- `vector-cache.ts` - 向量搜尋快取
+
+**主要功能**:
+- Redis 雙層快取
+- 向量嵌入快取
+- TTL 管理
+
+#### 文件解析器（lib/parsers/ - 5 個檔案）
+- `excel-parser.ts` - Excel 解析
+- `image-ocr-parser.ts` - Tesseract OCR
+- `pdf-parser.ts` - PDF 解析
+- `word-parser.ts` - Word 文件解析
+- `index.ts` - 模組匯出
+
+**主要功能**:
+- PDF、Word、Excel 解析
+- 圖片 OCR
+- 文字提取
+
+#### PDF 生成（lib/pdf/ - 3 個檔案）
+- `pdf-generator.ts` - Puppeteer PDF 生成
+- `proposal-pdf-template.ts` - 提案範本
+- `index.ts` - 模組匯出
+
+**主要功能**:
+- HTML 轉 PDF 轉換
+- 基於範本的生成
+- Puppeteer 整合
+
+#### 範本引擎（lib/template/ - 3 個檔案）
+- `handlebars-helpers.ts` - 自訂 Handlebars 輔助函式
+- `template-engine.ts` - 範本引擎
+- `template-manager.ts` - 範本管理
+
+**主要功能**:
+- Handlebars 範本
+- 自訂輔助函式
+- 範本快取
+
+#### 安全與 RBAC（lib/security/ - 11 個檔案）
+- `action-restrictions.ts` - 基於動作的權限
+- `audit-log-prisma.ts` - Prisma 稽核日誌
+- `audit-log.ts` - 稽核日誌服務
+- `audit-log.test.ts` - 稽核日誌測試
+- `field-level-permissions.ts` - 欄位層級存取
+- `fine-grained-permissions.ts` - 細粒度 RBAC
+- `gdpr.ts` - GDPR 合規性
+- `permission-middleware.ts` - 權限中介軟體
+- `permission-middleware.test.ts` - 中介軟體測試
+- `rbac.ts` - 核心 RBAC 邏輯
+- `rbac.test.ts` - RBAC 測試
+- `resource-conditions.ts` - 基於資源的條件
+- `sensitive-fields-config.ts` - 敏感欄位設定
+- `index.ts` - 模組匯出
+
+**主要功能**:
+- 基於角色的存取控制（RBAC）
+- 細粒度權限
+- 欄位層級權限
+- GDPR 合規性工具
+- 稽核日誌
+
+#### 效能優化（lib/performance/ - 6 個檔案）
+- `monitor.ts` - 效能監控
+- `monitor.test.ts` - 監控測試
+- `query-optimizer.ts` - 資料庫查詢優化
+- `query-optimizer.test.ts` - 優化器測試
+- `response-cache.ts` - 回應快取
+- `response-cache.test.ts` - 快取測試
+
+**主要功能**:
+- 查詢優化
+- 回應快取
+- 效能監控
+- 單元測試
+
+#### 韌性（lib/resilience/ - 6 個檔案）
+- `circuit-breaker.ts` - 斷路器模式
+- `circuit-breaker.test.ts` - 斷路器測試
+- `health-check.ts` - 健康檢查
+- `health-check.test.ts` - 健康檢查測試
+- `retry.ts` - 重試邏輯
+- `retry.test.ts` - 重試測試
+
+**主要功能**:
+- 斷路器模式
+- 指數退避重試
+- 健康檢查
+- 單元測試
+
+#### 其他模組
+- **lib/analytics/**（2 個檔案）- 使用者行為追蹤
+- **lib/api/**（2 個檔案）- API 工具（錯誤處理器、回應輔助函式）
+- **lib/calendar/**（3 個檔案）- Microsoft Graph 日曆同步
+- **lib/collaboration/**（2 個檔案）- 即時編輯鎖定
+- **lib/meeting/**（3 個檔案）- 會議智能與準備
+- **lib/recommendation/**（2 個檔案）- 推薦引擎
+- **lib/reminder/**（3 個檔案）- 提醒排程
+- **lib/integrations/customer-360/**（1 個檔案）- 客戶 360 度視圖
+- **lib/integrations/dynamics365/**（3 個檔案）- Dynamics 365 整合
+- **lib/startup/**（1 個檔案）- 應用程式初始化
+
+#### lib/ 根目錄檔案（7 個檔案，1,375 行）
+- `auth.ts`（73 行）- 認證工具
+- `auth-server.ts`（179 行）- 伺服器認證
+- `db.ts`（36 行）- 資料庫工具
+- `errors.ts`（653 行）- 錯誤處理
+- `middleware.ts`（255 行）- 核心中介軟體
+- `prisma.ts`（77 行）- Prisma 客戶端
+- `utils.ts`（102 行）- 一般工具
+
+---
+
+## 6. components/ 中的 UI 元件
+
+### 元件目錄結構（18 個目錄）
+
+#### admin/（2 個元件）
+- `performance-dashboard.tsx` - 效能指標儀表板
+- `system-monitor.tsx` - 系統監控儀表板
+
+#### assistant/（3 個元件）
+- `ChatInput.tsx` - 聊天輸入欄位
+- `ChatMessage.tsx` - 聊天訊息顯示
+- `ChatWindow.tsx` - 聊天視窗容器
+
+#### audit/（4 個元件）
+- `AuditLogExport.tsx` - 匯出稽核日誌
+- `AuditLogFilters.tsx` - 篩選稽核日誌
+- `AuditLogList.tsx` - 顯示稽核日誌
+- `AuditLogStats.tsx` - 稽核統計
+
+#### calendar/（1 個元件）
+- `CalendarView.tsx` - 日曆整合視圖
+
+#### collaboration/（1 個元件）
+- `EditLockIndicator.tsx` - 即時編輯鎖定指示器
+
+#### crm/（1 個元件）
+- `customer-360-view.tsx` - 客戶 360 度視圖
+
+#### dashboard/（7 個元件）
+- `ai-insights.tsx` - AI 生成的洞察小工具
+- `dashboard-stats.tsx` - 統計卡片
+- `quick-actions.tsx` - 快速動作按鈕
+- `recent-activity.tsx` - 最近活動動態
+- `sales-chart.tsx` - 銷售圖表
+- `top-customers.tsx` - 頂級客戶列表
+
+#### knowledge/（29+ 元件）
+主要知識庫 UI 元件：
+- `advanced-editor-toolbar.tsx` - 富文本編輯器工具列
+- `advanced-search-builder.tsx` - 進階搜尋查詢建構器
+- `breadcrumb-navigation.tsx` - 資料夾麵包屑
+- `bulk-upload.tsx` - 批次文件上傳
+- `document-preview.tsx` - 文件預覽
+- `enhanced-knowledge-editor.tsx` - 富文本編輯器
+- `enhanced-knowledge-search.tsx` - 增強搜尋介面
+- `folder-selector.tsx` - 資料夾選擇 UI
+- `knowledge-base-filters.tsx` - 篩選元件
+- `knowledge-base-list.tsx` - 文件列表
+- `knowledge-base-list-optimized.tsx` - 優化列表呈現
+- `knowledge-base-upload.tsx` - 單一檔案上傳
+- `knowledge-create-form.tsx` - 文件建立表單
+- `knowledge-document-edit.tsx` - 文件編輯器
+- `knowledge-document-edit-with-version.tsx` - 版本化編輯器
+- `knowledge-document-view.tsx` - 文件檢視器
+- `knowledge-folder-tree.tsx` - 資料夾樹狀導航
+- `knowledge-management-dashboard.tsx` - 知識儀表板
+- `knowledge-recommendation-widget.tsx` - AI 推薦
+- `knowledge-review-workflow.tsx` - 審查工作流程 UI
+- `knowledge-search.tsx` - 搜尋介面
+- `quick-jump-search.tsx` - 快速跳轉搜尋
+- `rich-text-editor.tsx` - TipTap 富文本編輯器
+- `search-analytics-dashboard.tsx` - 搜尋分析
+- `search-results-optimizer.tsx` - 搜尋結果優化
+- `search-suggestions.tsx` - 搜尋建議
+
+**knowledge/analytics/**（4 個元件）：
 - `BarChart.tsx`
 - `DocumentList.tsx`
 - `PieChart.tsx`
 - `StatsCard.tsx`
 
-**knowledge/version/** (2 components):
-- `KnowledgeVersionComparison.tsx` - Version diff view
-- `KnowledgeVersionHistory.tsx` - Version history list
+**knowledge/version/**（2 個元件）：
+- `KnowledgeVersionComparison.tsx` - 版本差異視圖
+- `KnowledgeVersionHistory.tsx` - 版本歷史列表
 
-#### layout/ (components for app layout)
-- Navigation components
-- Header/Footer
-- Sidebar
+#### layout/（應用版面配置元件）
+- 導航元件
+- 頁首/頁尾
+- 側邊欄
 
-#### meeting-prep/ (components for meeting preparation)
-- Meeting prep package UI
+#### meeting-prep/（會議準備元件）
+- 會議準備套件 UI
 
-#### notifications/ (notification UI components)
-- Notification bell
-- Notification list
+#### notifications/（通知 UI 元件）
+- 通知鈴鐺
+- 通知列表
 
-#### permissions/ (permission management UI)
-- Permission editor
-- Role management
+#### permissions/（權限管理 UI）
+- 權限編輯器
+- 角色管理
 
-#### recommendation/ (recommendation UI)
-- AI recommendation cards
+#### recommendation/（推薦 UI）
+- AI 推薦卡片
 
-#### reminder/ (reminder UI)
-- Reminder list
-- Reminder editor
+#### reminder/（提醒 UI）
+- 提醒列表
+- 提醒編輯器
 
-#### search/ (advanced search UI)
-- Search filters
-- Search results
+#### search/（進階搜尋 UI）
+- 搜尋篩選器
+- 搜尋結果
 
-#### ui/ (23 base components)
-**Radix UI-based components**:
+#### ui/（23 個基礎元件）
+**基於 Radix UI 的元件**：
 - `alert-dialog.tsx`
 - `alert.tsx`
 - `avatar.tsx`
@@ -771,281 +771,281 @@ Main knowledge base UI components:
 - `tabs.tsx`
 - `textarea.tsx`
 
-#### workflow/ (workflow UI components)
-**Main workflow components**:
-- Workflow editor
-- State machine visualizer
+#### workflow/（工作流程 UI 元件）
+**主要工作流程元件**：
+- 工作流程編輯器
+- 狀態機視覺化
 
-**workflow/approval/** (approval UI):
-- Approval tasks
-- Approval buttons
+**workflow/approval/**（核准 UI）：
+- 核准任務
+- 核准按鈕
 
-**workflow/comments/** (comment UI):
-- Comment threads
-- Reply system
+**workflow/comments/**（註解 UI）：
+- 註解討論串
+- 回覆系統
 
-**workflow/version/** (version UI):
-- Version comparison
-- Version history
+**workflow/version/**（版本 UI）：
+- 版本比較
+- 版本歷史
 
-### Total Component Statistics
-- **Total Components**: 80+ TSX files
-- **Total Lines**: 31,650 lines
-- **Largest Module**: knowledge/ (29+ components)
-- **Base UI Components**: 23 Radix UI-based components
-
----
-
-## 7. API Routes in app/api/
-
-### API Route Structure (23 domains)
-
-#### ai/ (2 routes)
-- `generate-proposal/route.ts` - AI proposal generation
-- `regenerate-proposal/route.ts` - Regenerate proposals
-
-#### analytics/ (3 routes)
-- `behaviors/route.ts` - User behavior tracking
-- `profile/route.ts` - User profile analytics
-- `track/route.ts` - Event tracking
-
-#### assistant/ (1 route)
-- `chat/route.ts` - AI assistant chat endpoint
-
-#### audit-logs/ (3 routes)
-- `export/route.ts` - Export audit logs
-- `route.ts` - List audit logs
-- `stats/route.ts` - Audit statistics
-
-#### auth/ (7 routes)
-- `azure-ad/callback/route.ts` - Azure AD callback
-- `azure-ad/login/route.ts` - Azure AD login
-- `login/route.ts` - Standard login
-- `logout/route.ts` - Logout
-- `me/route.ts` - Current user info
-- `refresh/route.ts` - Token refresh
-- `register/route.ts` - User registration
-
-#### calendar/ (3 routes)
-- `auth/route.ts` - Calendar OAuth
-- `events/route.ts` - Calendar events
-- `sync/route.ts` - Calendar sync
-
-#### collaboration/ (3 routes)
-- `locks/route.ts` - List locks
-- `locks/lock/[lockId]/route.ts` - Lock operations
-- `locks/[resourceType]/[resourceId]/status/route.ts` - Lock status
-
-#### customers/ (2 routes)
-- `route.ts` - Customer CRUD
-- `[id]/360-view/route.ts` - Customer 360 view
-
-#### health/ (1 route)
-- `route.ts` - Health check endpoint
-
-#### knowledge-base/ (15 routes)
-Main knowledge base API:
-- `advanced-search/route.ts` - Advanced search
-- `analytics/route.ts` - Knowledge analytics
-- `bulk-upload/route.ts` - Bulk document upload
-- `check-duplicate/route.ts` - Duplicate detection
-- `processing/route.ts` - Document processing status
-- `route.ts` - Main CRUD operations
-- `route-optimized.ts` - Optimized queries
-- `search/route.ts` - Search endpoint
-- `suggestions/route.ts` - Search suggestions
-- `tags/route.ts` - Tag management
-- `upload/route.ts` - Single file upload
-
-**Dynamic routes**:
-- `[id]/content/route.ts` - Document content
-- `[id]/download/route.ts` - Download document
-- `[id]/route.ts` - Single document CRUD
-- `[id]/versions/route.ts` - Version list
-- `[id]/versions/compare/route.ts` - Version comparison
-- `[id]/versions/revert/route.ts` - Revert to version
-- `[id]/versions/[versionId]/route.ts` - Single version
-
-#### knowledge-folders/ (4 routes)
-- `route.ts` - Folder CRUD
-- `reorder/route.ts` - Reorder folders
-- `[id]/move/route.ts` - Move folder
-- `[id]/route.ts` - Single folder operations
-
-#### meeting-intelligence/ (2 routes)
-- `analyze/route.ts` - Analyze meeting transcripts
-- `recommendations/route.ts` - Meeting recommendations
-
-#### meeting-prep/ (1 route)
-- `route.ts` - Meeting prep packages
-
-#### mock/ (mock data endpoints for testing)
-
-#### monitoring/ (monitoring endpoints)
-- Health metrics
-- Performance data
-
-#### notifications/ (notification endpoints)
-- Send notifications
-- Notification preferences
-
-#### proposals/ (proposal endpoints)
-- Proposal CRUD
-- Proposal generation
-
-#### proposal-templates/ (template endpoints)
-- Template CRUD
-- Template management
-
-#### recommendations/ (recommendation endpoints)
-- AI recommendations
-- Recommendation feedback
-
-#### reminders/ (reminder endpoints)
-- Reminder CRUD
-- Reminder scheduling
-
-#### search/ (search endpoints)
-- Global search
-- Search across entities
-
-#### templates/ (template endpoints)
-- Template CRUD
-
-#### [...slug]/ (catch-all route)
-- Fallback handler
-
-### Total API Statistics
-- **Total API Domains**: 23
-- **Total Route Files**: 70+ route.ts files
-- **Most Complex**: knowledge-base (15 routes)
+### 元件統計總計
+- **元件總數**: 80+ 個 TSX 檔案
+- **總行數**: 31,650 行
+- **最大模組**: knowledge/（29+ 元件）
+- **基礎 UI 元件**: 23 個基於 Radix UI 的元件
 
 ---
 
-## 8. Documentation System
+## 7. app/api/ 中的 API 路由
 
-### Root Documentation Files (15 files)
+### API 路由結構（23 個領域）
 
-| File | Purpose |
+#### ai/（2 個路由）
+- `generate-proposal/route.ts` - AI 提案生成
+- `regenerate-proposal/route.ts` - 重新生成提案
+
+#### analytics/（3 個路由）
+- `behaviors/route.ts` - 使用者行為追蹤
+- `profile/route.ts` - 使用者檔案分析
+- `track/route.ts` - 事件追蹤
+
+#### assistant/（1 個路由）
+- `chat/route.ts` - AI 助理聊天端點
+
+#### audit-logs/（3 個路由）
+- `export/route.ts` - 匯出稽核日誌
+- `route.ts` - 列出稽核日誌
+- `stats/route.ts` - 稽核統計
+
+#### auth/（7 個路由）
+- `azure-ad/callback/route.ts` - Azure AD 回呼
+- `azure-ad/login/route.ts` - Azure AD 登入
+- `login/route.ts` - 標準登入
+- `logout/route.ts` - 登出
+- `me/route.ts` - 當前使用者資訊
+- `refresh/route.ts` - 令牌刷新
+- `register/route.ts` - 使用者註冊
+
+#### calendar/（3 個路由）
+- `auth/route.ts` - 日曆 OAuth
+- `events/route.ts` - 日曆事件
+- `sync/route.ts` - 日曆同步
+
+#### collaboration/（3 個路由）
+- `locks/route.ts` - 列出鎖定
+- `locks/lock/[lockId]/route.ts` - 鎖定操作
+- `locks/[resourceType]/[resourceId]/status/route.ts` - 鎖定狀態
+
+#### customers/（2 個路由）
+- `route.ts` - 客戶 CRUD
+- `[id]/360-view/route.ts` - 客戶 360 度視圖
+
+#### health/（1 個路由）
+- `route.ts` - 健康檢查端點
+
+#### knowledge-base/（15 個路由）
+主要知識庫 API：
+- `advanced-search/route.ts` - 進階搜尋
+- `analytics/route.ts` - 知識分析
+- `bulk-upload/route.ts` - 批次文件上傳
+- `check-duplicate/route.ts` - 重複檢測
+- `processing/route.ts` - 文件處理狀態
+- `route.ts` - 主要 CRUD 操作
+- `route-optimized.ts` - 優化查詢
+- `search/route.ts` - 搜尋端點
+- `suggestions/route.ts` - 搜尋建議
+- `tags/route.ts` - 標籤管理
+- `upload/route.ts` - 單一檔案上傳
+
+**動態路由**：
+- `[id]/content/route.ts` - 文件內容
+- `[id]/download/route.ts` - 下載文件
+- `[id]/route.ts` - 單一文件 CRUD
+- `[id]/versions/route.ts` - 版本列表
+- `[id]/versions/compare/route.ts` - 版本比較
+- `[id]/versions/revert/route.ts` - 還原版本
+- `[id]/versions/[versionId]/route.ts` - 單一版本
+
+#### knowledge-folders/（4 個路由）
+- `route.ts` - 資料夾 CRUD
+- `reorder/route.ts` - 重新排序資料夾
+- `[id]/move/route.ts` - 移動資料夾
+- `[id]/route.ts` - 單一資料夾操作
+
+#### meeting-intelligence/（2 個路由）
+- `analyze/route.ts` - 分析會議記錄
+- `recommendations/route.ts` - 會議推薦
+
+#### meeting-prep/（1 個路由）
+- `route.ts` - 會議準備套件
+
+#### mock/（測試用的模擬資料端點）
+
+#### monitoring/（監控端點）
+- 健康指標
+- 效能資料
+
+#### notifications/（通知端點）
+- 傳送通知
+- 通知偏好設定
+
+#### proposals/（提案端點）
+- 提案 CRUD
+- 提案生成
+
+#### proposal-templates/（範本端點）
+- 範本 CRUD
+- 範本管理
+
+#### recommendations/（推薦端點）
+- AI 推薦
+- 推薦回饋
+
+#### reminders/（提醒端點）
+- 提醒 CRUD
+- 提醒排程
+
+#### search/（搜尋端點）
+- 全域搜尋
+- 跨實體搜尋
+
+#### templates/（範本端點）
+- 範本 CRUD
+
+#### [...slug]/（萬用路由）
+- 後備處理器
+
+### API 統計總計
+- **API 領域總數**: 23
+- **路由檔案總數**: 70+ 個 route.ts 檔案
+- **最複雜**: knowledge-base（15 個路由）
+
+---
+
+## 8. 文檔系統
+
+### 根目錄文檔檔案（15 個檔案）
+
+| 檔案 | 用途 |
 |------|---------|
-| `README.md` | Project overview |
-| `AI-ASSISTANT-GUIDE.md` | AI assistant usage guide (76KB) |
-| `CLAUDE.md` | Claude Code instructions (29KB) |
-| `DEPLOYMENT-GUIDE.md` | Deployment instructions (30KB) |
-| `DEVELOPMENT-LOG.md` | Development journal (622KB) |
-| `DEVELOPMENT-SERVICE-MANAGEMENT.md` | Service management guide |
-| `FIXLOG.md` | Bug tracking log (100KB) |
-| `INDEX-MAINTENANCE-GUIDE.md` | Index maintenance guide (24KB) |
-| `PROJECT-INDEX.md` | Project navigation (162KB) |
-| `START-SERVICES.md` | Service startup guide |
-| `STARTUP-GUIDE.md` | Getting started guide (23KB) |
-| `e2e-test-summary.md` | E2E test results |
-| `test-execution-report.md` | Test execution report |
-| `github.md` | GitHub workflow guide |
+| `README.md` | 專案概述 |
+| `AI-ASSISTANT-GUIDE.md` | AI 助理使用指南（76KB） |
+| `CLAUDE.md` | Claude Code 指示（29KB） |
+| `DEPLOYMENT-GUIDE.md` | 部署說明（30KB） |
+| `DEVELOPMENT-LOG.md` | 開發日誌（622KB） |
+| `DEVELOPMENT-SERVICE-MANAGEMENT.md` | 服務管理指南 |
+| `FIXLOG.md` | 錯誤追蹤日誌（100KB） |
+| `INDEX-MAINTENANCE-GUIDE.md` | 索引維護指南（24KB） |
+| `PROJECT-INDEX.md` | 專案導航（162KB） |
+| `START-SERVICES.md` | 服務啟動指南 |
+| `STARTUP-GUIDE.md` | 入門指南（23KB） |
+| `e2e-test-summary.md` | E2E 測試結果 |
+| `test-execution-report.md` | 測試執行報告 |
+| `github.md` | GitHub 工作流程指南 |
 
-### docs/ Directory (60+ files)
+### docs/ 目錄（60+ 檔案）
 
-#### Architecture Documentation
-- `architecture.md` - System architecture
-- `api-specification.md` - API specification
-- `front-end-spec.md` - Frontend specification
+#### 架構文檔
+- `architecture.md` - 系統架構
+- `api-specification.md` - API 規格
+- `front-end-spec.md` - 前端規格
 
-#### Setup Guides
-- `azure-openai-setup-guide.md` - Azure OpenAI setup
-- `dynamics365-setup-guide.md` - Dynamics 365 setup
-- `microsoft-graph-setup-guide.md` - Microsoft Graph setup
+#### 設定指南
+- `azure-openai-setup-guide.md` - Azure OpenAI 設定
+- `dynamics365-setup-guide.md` - Dynamics 365 設定
+- `microsoft-graph-setup-guide.md` - Microsoft Graph 設定
 
-#### Monitoring Documentation
-- `monitoring-operations-manual.md` - Operations manual
-- `monitoring-usage-examples.md` - Usage examples
-- `monitoring-migration-strategy.md` - Migration strategy
-- `azure-monitor-migration-checklist.md` - Azure Monitor migration
+#### 監控文檔
+- `monitoring-operations-manual.md` - 操作手冊
+- `monitoring-usage-examples.md` - 使用範例
+- `monitoring-migration-strategy.md` - 遷移策略
+- `azure-monitor-migration-checklist.md` - Azure Monitor 遷移
 
-#### Testing Documentation
-- `COMPLETE-UAT-TEST-PLAN.md` - UAT test plan
-- `load-testing-plan.md` - Load testing plan
-- `load-testing-execution-guide.md` - Load testing guide
-- `load-testing-summary.md` - Load test summary
-- `load-test-execution-report-2025-10-07.md` - Load test results
+#### 測試文檔
+- `COMPLETE-UAT-TEST-PLAN.md` - UAT 測試計畫
+- `load-testing-plan.md` - 負載測試計畫
+- `load-testing-execution-guide.md` - 負載測試指南
+- `load-testing-summary.md` - 負載測試摘要
+- `load-test-execution-report-2025-10-07.md` - 負載測試結果
 
-#### Development Documentation
-- `mvp-development-plan.md` - MVP development plan
-- `mvp-implementation-checklist.md` - MVP checklist
-- `future-innovations.md` - Future features
-- `code-comments-enhancement-plan.md` - Code quality plan
-- `code-comments-qa.md` - Code comments QA
-- `ai-comment-context-analysis.md` - AI comment analysis
-- `ai-comment-reference-documents.md` - Comment references
-- `ai-comments-completion-report.md` - Comment completion
-- `ai-full-automation-plan.md` - Automation plan
+#### 開發文檔
+- `mvp-development-plan.md` - MVP 開發計畫
+- `mvp-implementation-checklist.md` - MVP 檢查清單
+- `future-innovations.md` - 未來功能
+- `code-comments-enhancement-plan.md` - 程式碼品質計畫
+- `code-comments-qa.md` - 程式碼註解 QA
+- `ai-comment-context-analysis.md` - AI 註解分析
+- `ai-comment-reference-documents.md` - 註解參考
+- `ai-comments-completion-report.md` - 註解完成
+- `ai-full-automation-plan.md` - 自動化計畫
 
-#### API Documentation
-- `api/knowledge-base-api.md` - Knowledge base API docs
-- `api-gateway-architecture.md` - API gateway architecture
-- `api-gateway-decision.md` - API gateway decisions
+#### API 文檔
+- `api/knowledge-base-api.md` - 知識庫 API 文檔
+- `api-gateway-architecture.md` - API gateway 架構
+- `api-gateway-decision.md` - API gateway 決策
 
-#### Index Maintenance
-- `index-maintenance-improvement-log.md` - Index improvements
-- `index-maintenance-root-cause-analysis.md` - Index issues
-- `INDEX-REMINDER-SETUP.md` - Index reminder setup
-
----
-
-## 9. Configuration Files
-
-### Environment Files (7 files)
-- `.env` - Active environment variables
-- `.env.local` - Local overrides
-- `.env.example` - Example configuration (6.7KB)
-- `.env.production.example` - Production example (6.6KB)
-- `.env.monitoring.example` - Monitoring configuration (2KB)
-- `.env.security.example` - Security configuration (6KB)
-- `.env.test` - Test environment
-
-### Docker Configuration (5 files)
-- `docker-compose.dev.yml` - Development compose
-- `docker-compose.monitoring.yml` - Monitoring stack (3.5KB)
-- `docker-compose.prod.yml` - Production compose (4.6KB)
-- `Dockerfile.dev` - Development image
-- `Dockerfile.prod` - Production image (2KB)
-
-### Next.js Configuration (2 files)
-- `next.config.js` - Standard configuration (1.7KB)
-- `next.config.optimized.js` - Optimized configuration (5.4KB)
-
-### Testing Configuration (3 files)
-- `jest.config.js` - Jest unit tests (1.3KB)
-- `jest.config.workflow.js` - Workflow tests (2KB)
-- `playwright.config.ts` - Playwright E2E tests (3KB)
-
-### Build & Tooling (4 files)
-- `tailwind.config.js` - Tailwind CSS configuration (5.4KB)
-- `postcss.config.js` - PostCSS configuration (2.9KB)
-- `tsconfig.json` - TypeScript configuration (843 bytes)
-- `.eslintrc.json` - ESLint configuration (3.4KB)
-
-### Utility Scripts
-- `jest.setup.js` - Jest setup (6.5KB)
-- `jest.setup.workflow.js` - Workflow test setup (2KB)
-- `healthcheck.js` - Health check script (4.4KB)
-- `instrumentation.ts` - OpenTelemetry instrumentation (1.3KB)
+#### 索引維護
+- `index-maintenance-improvement-log.md` - 索引改進
+- `index-maintenance-root-cause-analysis.md` - 索引問題
+- `INDEX-REMINDER-SETUP.md` - 索引提醒設定
 
 ---
 
-## 10. Test File Statistics
+## 9. 設定檔案
 
-### Unit Tests (__tests__/ - 36 files)
+### 環境檔案（7 個檔案）
+- `.env` - 使用中的環境變數
+- `.env.local` - 本機覆寫
+- `.env.example` - 範例設定（6.7KB）
+- `.env.production.example` - 生產環境範例（6.6KB）
+- `.env.monitoring.example` - 監控設定（2KB）
+- `.env.security.example` - 安全設定（6KB）
+- `.env.test` - 測試環境
 
-**Test Coverage Areas**:
-- Authentication tests
-- API endpoint tests
-- Utility function tests
-- Monitoring tests
-- Security tests (RBAC, permissions)
-- Performance tests (query optimizer, cache)
-- Resilience tests (circuit breaker, retry)
+### Docker 設定（5 個檔案）
+- `docker-compose.dev.yml` - 開發環境 compose
+- `docker-compose.monitoring.yml` - 監控堆疊（3.5KB）
+- `docker-compose.prod.yml` - 生產環境 compose（4.6KB）
+- `Dockerfile.dev` - 開發環境映像
+- `Dockerfile.prod` - 生產環境映像（2KB）
 
-**Test Files with Line Counts**:
+### Next.js 設定（2 個檔案）
+- `next.config.js` - 標準設定（1.7KB）
+- `next.config.optimized.js` - 優化設定（5.4KB）
+
+### 測試設定（3 個檔案）
+- `jest.config.js` - Jest 單元測試（1.3KB）
+- `jest.config.workflow.js` - 工作流程測試（2KB）
+- `playwright.config.ts` - Playwright E2E 測試（3KB）
+
+### 建置與工具（4 個檔案）
+- `tailwind.config.js` - Tailwind CSS 設定（5.4KB）
+- `postcss.config.js` - PostCSS 設定（2.9KB）
+- `tsconfig.json` - TypeScript 設定（843 bytes）
+- `.eslintrc.json` - ESLint 設定（3.4KB）
+
+### 工具腳本
+- `jest.setup.js` - Jest 設定（6.5KB）
+- `jest.setup.workflow.js` - 工作流程測試設定（2KB）
+- `healthcheck.js` - 健康檢查腳本（4.4KB）
+- `instrumentation.ts` - OpenTelemetry 檢測（1.3KB）
+
+---
+
+## 10. 測試檔案統計
+
+### 單元測試（__tests__/ - 36 個檔案）
+
+**測試覆蓋範圍**：
+- 認證測試
+- API 端點測試
+- 工具函式測試
+- 監控測試
+- 安全測試（RBAC、權限）
+- 效能測試（查詢優化器、快取）
+- 韌性測試（斷路器、重試）
+
+**測試檔案與行數**：
 - `lib/performance/monitor.test.ts`
 - `lib/performance/query-optimizer.test.ts`
 - `lib/performance/response-cache.test.ts`
@@ -1055,163 +1055,163 @@ Main knowledge base API:
 - `lib/security/audit-log.test.ts`
 - `lib/security/permission-middleware.test.ts`
 - `lib/security/rbac.test.ts`
-- (+ 27 more test files)
+- （+ 27 個額外測試檔案）
 
-### E2E Tests (e2e/ + tests/ - 16 files)
+### E2E 測試（e2e/ + tests/ - 16 個檔案）
 
-**E2E Test Scenarios**:
-- Authentication flows (login, logout, SSO)
-- Knowledge base operations (CRUD, search, upload)
-- Proposal generation workflows
-- Dashboard navigation
-- Search functionality
-- User workflows
+**E2E 測試情境**：
+- 認證流程（登入、登出、SSO）
+- 知識庫操作（CRUD、搜尋、上傳）
+- 提案生成工作流程
+- 儀表板導航
+- 搜尋功能
+- 使用者工作流程
 
-**Test Results**:
-- E2E test reports in `e2e-results/`
-- Playwright reports in `playwright-report/`
-- Test execution reports available
+**測試結果**：
+- E2E 測試報告在 `e2e-results/`
+- Playwright 報告在 `playwright-report/`
+- 可用的測試執行報告
 
-### Test Statistics Summary
-- **Total Unit Tests**: 36 test files
-- **Total E2E Tests**: 16 test files
-- **Test Coverage**: 120+ test cases
-- **Testing Framework**: Jest (unit), Playwright (E2E)
-- **Test Infrastructure**: GitHub Actions CI/CD
-
----
-
-## 11. Additional Project Files
-
-### Scripts Directory
-- Database migration scripts
-- Seed data scripts
-- Build scripts
-- Deployment scripts
-
-### Public Assets
-- Images
-- Icons
-- Static files
-
-### Types Directory
-- Shared TypeScript type definitions
-- API type definitions
-- Component prop types
-
-### Hooks Directory
-- Custom React hooks
-- Reusable logic hooks
-
-### Indexes Directory
-- Search index configurations
-- Database index definitions
-
-### POC Directory
-- Proof of concept implementations
-- Experimental features
-
-### Temporary/Build Artifacts
-- `.next/` - Next.js build output
-- `node_modules/` - Dependencies
-- `coverage/` - Test coverage reports
-- `output/` - Build outputs
-- `temp/` - Temporary files
+### 測試統計摘要
+- **單元測試總數**: 36 個測試檔案
+- **E2E 測試總數**: 16 個測試檔案
+- **測試覆蓋率**: 120+ 個測試案例
+- **測試框架**: Jest（單元）、Playwright（E2E）
+- **測試基礎設施**: GitHub Actions CI/CD
 
 ---
 
-## 12. Key Integration Points
+## 11. 額外專案檔案
 
-### External Services Integrated
-1. **Azure OpenAI** - AI completions and embeddings
-2. **Azure AD** - SSO authentication
-3. **Microsoft Graph** - Calendar synchronization
-4. **Dynamics 365** - CRM integration
-5. **Redis** - Caching layer
-6. **PostgreSQL + pgvector** - Database with vector search
-7. **Prometheus** - Metrics collection
-8. **Grafana** - Metrics visualization
-9. **AlertManager** - Alert management
+### 腳本目錄
+- 資料庫遷移腳本
+- 種子資料腳本
+- 建置腳本
+- 部署腳本
 
-### Internal Service Architecture
-- **Next.js 14 App Router** - Frontend and API
-- **Prisma ORM** - Database access layer
-- **OpenTelemetry** - Observability
-- **tRPC** - Type-safe API layer (optional)
-- **React Query** - Client-side data fetching
-- **Radix UI** - Component primitives
-- **TipTap** - Rich text editing
-- **Handlebars** - Template engine
-- **Puppeteer** - PDF generation
+### 公開資源
+- 圖片
+- 圖示
+- 靜態檔案
 
----
+### 型別目錄
+- 共享 TypeScript 型別定義
+- API 型別定義
+- 元件屬性型別
 
-## 13. Module Extraction Priority
+### Hooks 目錄
+- 自訂 React hooks
+- 可重用邏輯 hooks
 
-### High Priority (Core Template)
-1. **Monitoring System** (lib/monitoring/, monitoring/) - 2,776 lines
-2. **API Gateway** (lib/middleware/) - 12 middlewares
-3. **Authentication** (lib/auth/) - JWT + Azure AD
-4. **Database Abstraction** (lib/db.ts, lib/prisma.ts)
-5. **UI Component System** (components/ui/) - 23 components
-6. **Base Layout** (app/layout.tsx, components/layout/)
+### 索引目錄
+- 搜尋索引設定
+- 資料庫索引定義
 
-### Medium Priority (Optional Modules)
-7. **Knowledge Base** (lib/knowledge/, components/knowledge/, app/api/knowledge-base/)
-8. **Search System** (lib/search/, components/search/, app/api/search/)
-9. **Workflow Engine** (lib/workflow/, components/workflow/)
-10. **Notification System** (lib/notification/, components/notifications/)
-11. **AI Integration** (lib/ai/, app/api/ai/)
-12. **Template Engine** (lib/template/)
-13. **PDF Generation** (lib/pdf/)
-14. **Document Parsers** (lib/parsers/)
+### POC 目錄
+- 概念驗證實作
+- 實驗性功能
 
-### Low Priority (Domain-Specific)
-15. **CRM Features** (components/crm/, lib/integrations/customer-360/)
-16. **Dynamics 365** (lib/integrations/dynamics365/)
-17. **Meeting Intelligence** (lib/meeting/, components/meeting-prep/)
-18. **Calendar Sync** (lib/calendar/, components/calendar/)
+### 暫存/建置成品
+- `.next/` - Next.js 建置輸出
+- `node_modules/` - 相依套件
+- `coverage/` - 測試覆蓋率報告
+- `output/` - 建置輸出
+- `temp/` - 暫存檔案
 
 ---
 
-## 14. Extraction Challenges & Considerations
+## 12. 關鍵整合點
 
-### Database Dependencies
-- **34 Prisma models** - Need to separate core vs optional
-- **pgvector extension** - Optional for vector search
-- **Multiple DB support** - Need abstraction for PostgreSQL/MySQL/MongoDB/SQLite
+### 整合的外部服務
+1. **Azure OpenAI** - AI 完成與嵌入
+2. **Azure AD** - SSO 認證
+3. **Microsoft Graph** - 日曆同步
+4. **Dynamics 365** - CRM 整合
+5. **Redis** - 快取層
+6. **PostgreSQL + pgvector** - 具向量搜尋的資料庫
+7. **Prometheus** - 指標收集
+8. **Grafana** - 指標視覺化
+9. **AlertManager** - 警報管理
 
-### Environment Variables
-- **50+ environment variables** - Need template system
-- **Secrets management** - Azure Key Vault integration
-- **Multi-environment configs** - Dev/Staging/Production
-
-### Monitoring Complexity
-- **Vendor-neutral design** - Prometheus/Azure Monitor abstraction
-- **46 alert rules** - Need to be configurable
-- **4 Grafana dashboards** - Need to be optional
-
-### Module Interdependencies
-- **Knowledge Base ↔ Search** - Tightly coupled
-- **Workflow ↔ Notification** - Approval notifications
-- **Auth ↔ All modules** - Authentication required everywhere
-
-### Testing Infrastructure
-- **120+ tests** - Need to be modularized
-- **E2E test scenarios** - Should be optional
-- **CI/CD pipelines** - GitHub Actions integration
+### 內部服務架構
+- **Next.js 14 App Router** - 前端與 API
+- **Prisma ORM** - 資料庫存取層
+- **OpenTelemetry** - 可觀測性
+- **tRPC** - 型別安全 API 層（選用）
+- **React Query** - 客戶端資料擷取
+- **Radix UI** - 元件原語
+- **TipTap** - 富文本編輯
+- **Handlebars** - 範本引擎
+- **Puppeteer** - PDF 生成
 
 ---
 
-## 15. Recommended Template Structure
+## 13. 模組提取優先順序
 
-Based on this analysis, recommended template structure:
+### 高優先順序（核心模板）
+1. **監控系統**（lib/monitoring/、monitoring/）- 2,776 行
+2. **API Gateway**（lib/middleware/）- 12 個中介軟體
+3. **認證**（lib/auth/）- JWT + Azure AD
+4. **資料庫抽象化**（lib/db.ts、lib/prisma.ts）
+5. **UI 元件系統**（components/ui/）- 23 個元件
+6. **基礎版面配置**（app/layout.tsx、components/layout/）
+
+### 中優先順序（選用模組）
+7. **知識庫**（lib/knowledge/、components/knowledge/、app/api/knowledge-base/）
+8. **搜尋系統**（lib/search/、components/search/、app/api/search/）
+9. **工作流程引擎**（lib/workflow/、components/workflow/）
+10. **通知系統**（lib/notification/、components/notifications/）
+11. **AI 整合**（lib/ai/、app/api/ai/）
+12. **範本引擎**（lib/template/）
+13. **PDF 生成**（lib/pdf/）
+14. **文件解析器**（lib/parsers/）
+
+### 低優先順序（領域特定）
+15. **CRM 功能**（components/crm/、lib/integrations/customer-360/）
+16. **Dynamics 365**（lib/integrations/dynamics365/）
+17. **會議智能**（lib/meeting/、components/meeting-prep/）
+18. **日曆同步**（lib/calendar/、components/calendar/）
+
+---
+
+## 14. 提取挑戰與考量
+
+### 資料庫相依性
+- **34 個 Prisma 模型** - 需要區分核心與選用
+- **pgvector 擴充** - 向量搜尋為選用
+- **多資料庫支援** - 需要 PostgreSQL/MySQL/MongoDB/SQLite 的抽象化
+
+### 環境變數
+- **50+ 環境變數** - 需要範本系統
+- **秘密管理** - Azure Key Vault 整合
+- **多環境設定** - 開發/預備/生產
+
+### 監控複雜性
+- **供應商中立設計** - Prometheus/Azure Monitor 抽象化
+- **46 個警報規則** - 需要可設定
+- **4 個 Grafana 儀表板** - 需要為選用
+
+### 模組相依性
+- **知識庫 ↔ 搜尋** - 緊密耦合
+- **工作流程 ↔ 通知** - 核准通知
+- **認證 ↔ 所有模組** - 各處都需要認證
+
+### 測試基礎設施
+- **120+ 測試** - 需要模組化
+- **E2E 測試情境** - 應為選用
+- **CI/CD 管線** - GitHub Actions 整合
+
+---
+
+## 15. 建議的模板結構
+
+基於此分析，建議的模板結構：
 
 ```
 ai-webapp-template/
-├── 00-monitoring/          # Monitoring system (extracted as-is)
-├── 01-base/                # Core template (auth, DB, UI, layout)
-├── 02-modules/             # Optional modules
+├── 00-monitoring/          # 監控系統（原樣提取）
+├── 01-base/                # 核心模板（認證、資料庫、UI、版面配置）
+├── 02-modules/             # 選用模組
 │   ├── module-auth/
 │   ├── module-api-gateway/
 │   ├── module-knowledge-base/
@@ -1226,41 +1226,41 @@ ai-webapp-template/
 │   ├── module-dynamics365/
 │   ├── module-customer360/
 │   └── module-performance/
-├── 03-examples/            # Example implementations
-├── 04-ui-design-system/    # Design system documentation
-└── init-project.js         # Interactive CLI
+├── 03-examples/            # 範例實作
+├── 04-ui-design-system/    # 設計系統文檔
+└── init-project.js         # 互動式 CLI
 ```
 
 ---
 
-## Conclusion
+## 結論
 
-### Project Scale Summary
-- **161,166 lines of code** across 642 files
-- **27+ distinct modules** in lib/
-- **34 database models** with vector search
-- **80+ React components** across 18 directories
-- **70+ API routes** across 23 domains
-- **120+ tests** (unit + E2E)
-- **45+ documentation files**
+### 專案規模摘要
+- **161,166 行程式碼**分布在 642 個檔案中
+- **27+ 個不同模組**在 lib/ 中
+- **34 個資料庫模型**具有向量搜尋
+- **80+ 個 React 元件**分布在 18 個目錄中
+- **70+ 個 API 路由**分布在 23 個領域中
+- **120+ 測試**（單元 + E2E）
+- **45+ 文檔檔案**
 
-### Extraction Readiness
-✅ **Well-Structured**: Clear module boundaries
-✅ **Documented**: Comprehensive documentation
-✅ **Tested**: Good test coverage
-✅ **Configurable**: Environment-based configuration
-⚠️ **Complex**: Many interdependencies to manage
-⚠️ **Large**: 160K+ LOC requires careful extraction
+### 提取就緒性
+✅ **結構良好**: 清晰的模組邊界
+✅ **已文檔化**: 全面的文檔
+✅ **已測試**: 良好的測試覆蓋率
+✅ **可設定**: 基於環境的設定
+⚠️ **複雜**: 許多相依性需要管理
+⚠️ **龐大**: 160K+ LOC 需要仔細提取
 
-### Next Steps
-1. **Phase 1**: Extract monitoring system (2,776 lines)
-2. **Phase 2**: Extract base template (auth, DB, UI)
-3. **Phase 3**: Extract optional modules (knowledge base, search, workflow)
-4. **Phase 4**: Create init-project.js CLI
-5. **Phase 5**: Create documentation and examples
+### 下一步驟
+1. **階段 1**: 提取監控系統（2,776 行）
+2. **階段 2**: 提取基礎模板（認證、資料庫、UI）
+3. **階段 3**: 提取選用模組（知識庫、搜尋、工作流程）
+4. **階段 4**: 建立 init-project.js CLI
+5. **階段 5**: 建立文檔與範例
 
 ---
 
-**Report Generated**: 2025-10-09
-**Source Project**: AI Sales Enablement Platform
-**Target Template**: AI Web App Template v5.0
+**報告生成日期**: 2025-10-09
+**來源專案**: AI 銷售賦能平台
+**目標模板**: AI Web App Template v5.0
