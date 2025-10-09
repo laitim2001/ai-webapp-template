@@ -87,12 +87,13 @@ ai-webapp-template/
 
 ### 3️⃣ 功能模組庫（02-modules/）
 
-#### ✅ 已提取模組（14個）
+#### ✅ 已提取模組（15個）
 
 **P0 核心**:
 - 00-monitoring - 監控系統（OpenTelemetry + Prometheus/Azure Monitor）
 - module-auth - 認證授權（JWT + Azure AD SSO）
 - module-api-gateway - API Gateway（12個中間件）
+- module-security - Security & RBAC（角色權限 + 審計日誌 + 190+測試）⭐ **Day 35-36 完成**
 
 **P1 高優先級**:
 - module-knowledge-base - 知識庫系統
@@ -109,10 +110,10 @@ ai-webapp-template/
 - module-parsers - 文件解析
 - module-dynamics365 - Dynamics 365 整合
 
-#### 🚧 待補充模組（13個）
+#### 🚧 待補充模組（12個）
 
 **P0 關鍵**:
-- Security & RBAC（1,800+行）
+- ~~Security & RBAC（1,800+行）~~ ✅ **已完成 (Day 35-36, 2,900+行)**
 - API 工具層
 - 數據庫工具
 - 根目錄核心文件
@@ -223,16 +224,18 @@ ai-webapp-template/
 
 ### 已實現
 
-- ✅ 14個功能模組（~35,000行）
+- ✅ 15個功能模組（~38,000行）**+1 新增**
 - ✅ 監控系統（100%完成，2,776行）
+- ✅ Security & RBAC（100%完成，2,900+行）⭐ **Day 35-36 新增**
 - ✅ 23個基礎UI組件
 - ✅ 5個基礎Prisma模型
 - ✅ 多數據庫支持架構
 - ✅ 智能CLI初始化工具
+- ✅ 190+ 測試案例（85% 覆蓋率）
 
 ### 待補充
 
-- 🚧 13個遺漏模組
+- 🚧 12個遺漏模組（減少1個）
 - 🚧 29個業務模型（85%不完整）
 - 🚧 91個進階UI組件（80%不完整）
 - 🚧 75個API端點
