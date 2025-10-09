@@ -16,11 +16,23 @@
 🟦 第1步：了解項目狀態
    └─ 版本: 5.0-alpha | 完成度: ~45% | 狀態: 部分實現
 
-🟦 第2步：讀取完整索引
-   └─ 文件: PROJECT-INDEX.md - 所有功能、文件、模組的完整導航
+🟦 第2步：理解文檔體系（重要！）
+   ├─ 📘 快速參考: TEMPLATE-DEVELOPMENT-GUIDE.md (本文件)
+   │  └─ 用途: AI助手30秒快速了解，3個核心動作 + 工作流程
+   │
+   ├─ 📗 完整索引: TEMPLATE-INDEX.md
+   │  └─ 用途: 所有文件的詳細索引（路徑、大小、用途）
+   │
+   ├─ 📙 項目導航: PROJECT-INDEX.md
+   │  └─ 用途: 高層次結構導航和模組概覽
+   │
+   └─ 📕 差距分析: Docs/TEMPLATE-GAP-ANALYSIS-REPORT.md
+      └─ 用途: 了解已實現vs待補充（必讀！）
 
-🟦 第3步：查看差距分析
-   └─ 文件: Docs/TEMPLATE-GAP-ANALYSIS-REPORT.md - 了解已實現vs待補充
+🟦 第3步：開始工作前閱讀順序
+   1️⃣ TEMPLATE-DEVELOPMENT-GUIDE.md (本文件) - 了解規則和流程
+   2️⃣ TEMPLATE-INDEX.md - 找到需要的文件
+   3️⃣ TEMPLATE-GAP-ANALYSIS-REPORT.md - 確認功能是否已實現
 ```
 
 ### 🔴 **強制執行規則（不可妥協）**
@@ -37,9 +49,9 @@
 
 ### **📥 開發前準備（每次必須）**
 
-1. ✅ 檢查 AI-ASSISTANT-GUIDE.md (本文件) - 了解工作流程
-2. ✅ 檢查 PROJECT-INDEX.md - 了解項目完整結構和文件位置
-3. ✅ 檢查 TEMPLATE-GAP-ANALYSIS-REPORT.md - 了解功能差距
+1. ✅ 檢查 TEMPLATE-DEVELOPMENT-GUIDE.md (本文件) - 了解規則和工作流程
+2. ✅ 檢查 TEMPLATE-INDEX.md - 找到需要修改的具體文件
+3. ✅ 檢查 TEMPLATE-GAP-ANALYSIS-REPORT.md - 確認功能是否已實現
 4. ✅ 確認要使用的功能是否已實現 (查閱已實現模組清單)
 5. ✅ 制定 todos list 或工作計劃
 
@@ -138,31 +150,44 @@
 
 ---
 
-## 📚 關鍵文檔快速導航
+## 📚 文檔體系完整說明
 
-### 🔴 必讀文檔 (5分鐘)
+### 📘 第一層：統一入口（AI助手優先）
+
+| 文檔 | 用途 | 讀者 | 優先級 |
+|------|------|------|--------|
+| **TEMPLATE-DEVELOPMENT-GUIDE.md** | AI助手快速參考（本文件） | 模板開發者、AI助手 | ⭐⭐⭐ |
+| **README.md** | 項目介紹和快速開始 | GitHub訪客、用戶 | ⭐⭐⭐ |
+
+### 📗 第二層：完整索引（詳細查找）
+
+| 文檔 | 用途 | 讀者 | 優先級 |
+|------|------|------|--------|
+| **TEMPLATE-INDEX.md** | 模板項目完整文件索引 | 需要找具體文件的開發者 | ⭐⭐⭐ |
+| **PROJECT-INDEX.md** | 高層次項目導航 | 需要理解整體結構的人 | ⭐⭐ |
+
+### 📕 第三層：詳細分析（深入參考）
 
 | 文檔 | 用途 | 優先級 |
 |------|------|--------|
-| **AI-ASSISTANT-GUIDE.md** | AI助手快速參考 (本文件) | ⭐⭐⭐ |
-| **PROJECT-INDEX.md** | 完整項目索引和導航 | ⭐⭐⭐ |
-| **README.md** | 項目介紹和快速開始 | ⭐⭐⭐ |
-
-### 🟡 重要文檔 (30分鐘)
-
-| 文檔 | 用途 | 優先級 |
-|------|------|--------|
-| **TEMPLATE-GAP-ANALYSIS-REPORT.md** | 完整差距分析報告 | ⭐⭐⭐ |
-| **SOURCE-PROJECT-VERIFICATION.md** | 100%驗證報告 | ⭐⭐ |
+| **Docs/TEMPLATE-GAP-ANALYSIS-REPORT.md** | 完整差距分析報告（必讀） | ⭐⭐⭐ |
+| **Docs/SOURCE-PROJECT-VERIFICATION.md** | 100%驗證報告 | ⭐⭐⭐ |
+| **Docs/SOURCE-PROJECT-SNAPSHOT.md** | 源項目完整快照 | ⭐⭐ |
+| **Docs/TEMPLATE-VS-SOURCE-COMPARISON.md** | 模板vs源項目對比 | ⭐⭐ |
 | **CLAUDE.md** | Claude Code 開發指導 | ⭐⭐ |
 
-### 🟢 參考文檔 (按需查閱)
+### 🟢 第四層：參考文檔（按需查閱）
 
 | 文檔 | 用途 | 位置 |
 |------|------|------|
-| **SOURCE-PROJECT-SNAPSHOT.md** | 源項目完整結構 | Docs/ |
-| **TEMPLATE-VS-SOURCE-COMPARISON.md** | 模板vs源項目對比 | Docs/ |
-| **TEMPLATE-CREATION-FINAL-v5-COMPLETE.md** | 完整實施計劃 | Docs/ |
+| **TEMPLATE-CREATION-FINAL-v5-COMPLETE.md** | 完整實施計劃（已過時，僅參考） | Docs/ |
+| **template-implementation-log.md** | 開發日誌記錄 | Docs/ |
+| **CHANGELOG.md** | 版本變更記錄 | 根目錄 |
+
+**重要提醒**：
+- ✅ **優先使用** TEMPLATE-INDEX.md 查找文件
+- ✅ **優先使用** TEMPLATE-GAP-ANALYSIS-REPORT.md 了解差距
+- ⚠️ TEMPLATE-CREATION-FINAL-v5-COMPLETE.md 數據已過時（聲稱96.3%，實際45%）
 
 ---
 
