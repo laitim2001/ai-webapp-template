@@ -1528,6 +1528,537 @@ scheduler.start();
 
 ---
 
+## 📱 Components 完整組件列表（114個文件，19個目錄）
+
+### 組件目錄結構總覽
+
+```
+components/
+├── admin/                    # 管理員組件（2個）
+├── assistant/                # AI助手組件（4個）
+├── audit/                    # 審計日誌組件（3個）
+├── calendar/                 # 日曆組件（3個）
+├── collaboration/            # 協作組件（2個）
+├── crm/                      # CRM組件（7個）
+├── dashboard/                # 儀表板組件（6個）
+├── features/                 # 功能組件（2個）
+├── knowledge/                # 知識庫組件（35個）⭐⭐⭐
+├── layout/                   # 佈局組件（5個）
+├── meeting-prep/             # 會議準備組件（5個）
+├── notifications/            # 通知組件（3個）
+├── permissions/              # 權限組件（1個）
+├── recommendation/           # 推薦組件（2個）
+├── reminder/                 # 提醒組件（2個）
+├── search/                   # 搜索組件（8個）
+├── ui/                       # UI基礎組件（24個）⭐⭐⭐
+└── workflow/                 # 工作流組件（12個）
+```
+
+**總計**: 19個目錄，114個組件文件
+
+### 核心組件目錄詳解
+
+#### 1. `components/ui/` - UI基礎組件庫（24個）⭐⭐⭐
+
+基於 **Radix UI** 構建的無障礙組件庫：
+
+```typescript
+// 24個基礎UI組件
+alert.tsx                    // 警告提示組件
+alert-dialog.tsx             // 對話框組件
+avatar.tsx                   // 頭像組件
+badge.tsx                    // 徽章組件
+button.tsx                   // 按鈕組件
+card.tsx                     // 卡片組件
+checkbox.tsx                 // 複選框組件
+command.tsx                  // 命令面板組件
+dialog.tsx                   // 對話框組件
+dropdown-menu.tsx            // 下拉菜單組件
+error-display.tsx            // 錯誤展示組件
+input.tsx                    // 輸入框組件
+label.tsx                    // 標籤組件
+popover.tsx                  // 彈出框組件
+progress.tsx                 // 進度條組件
+select.tsx                   // 選擇器組件
+separator.tsx                // 分隔線組件
+sheet.tsx                    // 側邊欄組件
+skeleton.tsx                 // 骨架屏組件
+slider.tsx                   // 滑塊組件
+switch.tsx                   // 開關組件
+tabs.tsx                     // 標籤頁組件
+textarea.tsx                 // 文本域組件
+use-toast.ts                 // Toast通知鉤子
+```
+
+**特性**:
+- ✅ 完全無障礙（WCAG 2.1 AA級）
+- ✅ 鍵盤導航支持
+- ✅ 主題系統集成
+- ✅ TypeScript類型安全
+
+#### 2. `components/knowledge/` - 知識庫組件（35個）⭐⭐⭐
+
+知識庫系統的完整UI層：
+
+```typescript
+// 核心編輯器（3個）
+enhanced-knowledge-editor.tsx           // 增強型知識編輯器（TipTap）
+rich-text-editor.tsx                    // 富文本編輯器
+advanced-editor-toolbar.tsx             // 高級編輯工具欄
+
+// 搜索相關（5個）
+enhanced-knowledge-search.tsx           // 增強型知識搜索
+advanced-search-builder.tsx             // 高級搜索構建器
+knowledge-search.tsx                    // 基礎知識搜索
+quick-jump-search.tsx                   // 快速跳轉搜索
+search-suggestions.tsx                  // 搜索建議
+
+// 文檔管理（8個）
+knowledge-document-view.tsx             // 文檔查看
+knowledge-document-edit.tsx             // 文檔編輯
+knowledge-document-edit-with-version.tsx // 帶版本的文檔編輯
+document-preview.tsx                    // 文檔預覽
+knowledge-base-upload.tsx               // 文檔上傳
+bulk-upload.tsx                         // 批量上傳
+knowledge-create-form.tsx               // 創建表單
+folder-selector.tsx                     // 文件夾選擇器
+
+// 列表與視圖（4個）
+knowledge-base-list.tsx                 // 知識庫列表
+knowledge-base-list-optimized.tsx       // 優化版列表
+knowledge-base-filters.tsx              // 篩選器
+knowledge-folder-tree.tsx               // 文件夾樹
+
+// 分析與推薦（4個）
+analytics/ (子目錄)                     // 分析組件
+knowledge-recommendation-widget.tsx     // 推薦小部件
+search-analytics-dashboard.tsx          // 搜索分析儀表板
+search-results-optimizer.tsx            // 搜索結果優化器
+
+// 工作流與導航（4個）
+knowledge-review-workflow.tsx           // 審核工作流
+knowledge-management-dashboard.tsx      // 管理儀表板
+breadcrumb-navigation.tsx               // 麵包屑導航
+version/ (子目錄)                       // 版本管理組件
+```
+
+**特性**:
+- ✅ TipTap富文本編輯器集成
+- ✅ 版本控制UI
+- ✅ 高級搜索與篩選
+- ✅ 批量操作支持
+- ✅ 實時預覽
+
+#### 3. `components/workflow/` - 工作流組件（12個）
+
+12狀態工作流引擎的UI層：
+
+```typescript
+workflow-builder.tsx                    // 工作流構建器
+workflow-state-machine.tsx              // 狀態機可視化
+workflow-designer.tsx                   // 工作流設計器
+workflow-list.tsx                       // 工作流列表
+workflow-detail.tsx                     // 工作流詳情
+state-transition-visualizer.tsx         // 狀態轉換可視化器
+// ... 等12個文件
+```
+
+#### 4. `components/dashboard/` - 儀表板組件（6個）
+
+數據可視化與監控組件：
+
+```typescript
+overview-stats.tsx                      // 概覽統計
+activity-timeline.tsx                   // 活動時間線
+quick-actions.tsx                       // 快速操作
+recent-items.tsx                        // 最近項目
+performance-charts.tsx                  // 性能圖表
+user-engagement-metrics.tsx             // 用戶參與度指標
+```
+
+#### 5. `components/search/` - 搜索組件（8個）
+
+多算法搜索引擎的UI層：
+
+```typescript
+semantic-search.tsx                     // 語義搜索
+hybrid-search.tsx                       // 混合搜索
+search-filters.tsx                      // 搜索篩選器
+search-results.tsx                      // 搜索結果
+faceted-search.tsx                      // 分面搜索
+search-history.tsx                      // 搜索歷史
+saved-searches.tsx                      // 保存的搜索
+search-analytics.tsx                    // 搜索分析
+```
+
+#### 6. `components/meeting-prep/` - 會議準備組件（5個）
+
+AI驅動的會議準備系統UI：
+
+```typescript
+meeting-analyzer.tsx                    // 會議分析器
+prep-package-generator.tsx              // 準備包生成器
+customer-insights.tsx                   // 客戶洞察
+recommended-materials.tsx               // 推薦材料
+agenda-builder.tsx                      // 議程構建器
+```
+
+#### 7. 其他功能組件
+
+```typescript
+// Admin 管理員組件（2個）
+admin/performance-dashboard.tsx         // 性能儀表板
+admin/system-monitor.tsx                // 系統監控器
+
+// Assistant AI助手組件（4個）
+assistant/chat-interface.tsx            // 聊天界面
+assistant/message-list.tsx              // 消息列表
+assistant/input-box.tsx                 // 輸入框
+assistant/suggestions.tsx               // 建議
+
+// Calendar 日曆組件（3個）
+calendar/event-list.tsx                 // 事件列表
+calendar/sync-status.tsx                // 同步狀態
+calendar/settings.tsx                   // 設置
+
+// Collaboration 協作組件（2個）
+collaboration/edit-lock-indicator.tsx   // 編輯鎖指示器
+collaboration/user-presence.tsx         // 用戶在線狀態
+
+// CRM 組件（7個）
+crm/customer-list.tsx                   // 客戶列表
+crm/customer-detail.tsx                 // 客戶詳情
+crm/customer-360-view.tsx               // 客戶360視圖
+crm/interaction-timeline.tsx            // 互動時間線
+crm/opportunity-tracker.tsx             // 商機追蹤器
+crm/contact-manager.tsx                 // 聯繫人管理器
+crm/account-overview.tsx                // 帳戶概覽
+
+// Notification 通知組件（3個）
+notifications/notification-center.tsx   // 通知中心
+notifications/notification-bell.tsx     // 通知鈴鐺
+notifications/preferences.tsx           // 偏好設置
+
+// Recommendation 推薦組件（2個）
+recommendation/content-recommendations.tsx  // 內容推薦
+recommendation/feedback-collector.tsx       // 反饋收集器
+
+// Reminder 提醒組件（2個）
+reminder/reminder-list.tsx              // 提醒列表
+reminder/reminder-creator.tsx           // 提醒創建器
+```
+
+---
+
+## 🚀 API Routes 完整端點列表（82個路由，23個域）
+
+### API 域分類總覽
+
+```
+app/api/
+├── [...slug]                 # 動態路由捕獲（1個）
+├── ai/                       # AI服務（2個）
+├── analytics/                # 用戶分析（3個）
+├── assistant/                # AI助手（1個）
+├── audit-logs/               # 審計日誌（3個）
+├── auth/                     # 認證授權（7個）
+├── calendar/                 # 日曆同步（3個）
+├── collaboration/            # 協作功能（3個）
+├── customers/                # 客戶管理（2個）
+├── health/                   # 健康檢查（1個）
+├── knowledge-base/           # 知識庫（17個）⭐⭐⭐
+├── knowledge-folders/        # 知識文件夾（4個）
+├── meeting-intelligence/     # 會議智能（2個）
+├── meeting-prep/             # 會議準備（3個）
+├── mock/                     # 模擬服務（1個）
+├── monitoring/               # 監控（1個）
+├── notifications/            # 通知（4個）
+├── proposals/                # 提案（6個）
+├── proposal-templates/       # 提案模板（4個）
+├── recommendations/          # 推薦（3個）
+├── reminders/                # 提醒（3個）
+├── search/                   # 搜索（1個）
+└── templates/                # 範本（8個）
+```
+
+**總計**: 23個域，82個API端點
+
+### 詳細端點列表
+
+#### 1. **Knowledge Base API**（17個端點）⭐⭐⭐
+
+知識庫核心CRUD與高級功能：
+
+```
+GET    /api/knowledge-base                        # 列表查詢
+POST   /api/knowledge-base                        # 創建文檔
+GET    /api/knowledge-base/[id]                   # 獲取單個文檔
+PUT    /api/knowledge-base/[id]                   # 更新文檔
+DELETE /api/knowledge-base/[id]                   # 刪除文檔
+
+GET    /api/knowledge-base/[id]/content           # 獲取文檔內容
+GET    /api/knowledge-base/[id]/download          # 下載文檔
+
+# 版本管理（5個）
+GET    /api/knowledge-base/[id]/versions          # 獲取版本列表
+GET    /api/knowledge-base/[id]/versions/[versionId]  # 獲取特定版本
+POST   /api/knowledge-base/[id]/versions/compare  # 版本對比
+POST   /api/knowledge-base/[id]/versions/revert   # 回退版本
+
+# 高級功能（6個）
+POST   /api/knowledge-base/search                 # 基礎搜索
+POST   /api/knowledge-base/advanced-search        # 高級搜索
+POST   /api/knowledge-base/upload                 # 文件上傳
+POST   /api/knowledge-base/bulk-upload            # 批量上傳
+POST   /api/knowledge-base/check-duplicate        # 重複檢查
+GET    /api/knowledge-base/suggestions            # 搜索建議
+GET    /api/knowledge-base/tags                   # 標籤列表
+GET    /api/knowledge-base/analytics              # 分析數據
+GET    /api/knowledge-base/processing             # 處理狀態
+```
+
+#### 2. **Authentication API**（7個端點）⭐⭐⭐
+
+JWT雙令牌 + Azure AD SSO：
+
+```
+POST   /api/auth/register                         # 用戶註冊
+POST   /api/auth/login                            # 用戶登錄
+POST   /api/auth/logout                           # 用戶登出
+POST   /api/auth/refresh                          # 刷新令牌
+GET    /api/auth/me                               # 獲取當前用戶
+
+# Azure AD SSO（2個）
+GET    /api/auth/azure-ad/login                   # Azure AD 登錄
+GET    /api/auth/azure-ad/callback                # Azure AD 回調
+```
+
+#### 3. **Templates API**（8個端點）
+
+Handlebars模板系統：
+
+```
+GET    /api/templates                             # 模板列表
+POST   /api/templates                             # 創建模板
+GET    /api/templates/[id]                        # 獲取模板
+PUT    /api/templates/[id]                        # 更新模板
+DELETE /api/templates/[id]                        # 刪除模板
+
+POST   /api/templates/[id]/duplicate              # 複製模板
+POST   /api/templates/[id]/preview                # 預覽模板
+POST   /api/templates/[id]/export-pdf             # 導出PDF
+GET    /api/templates/stats                       # 統計數據
+```
+
+#### 4. **Proposals API**（6個端點）
+
+提案管理與版本控制：
+
+```
+GET    /api/proposals/[id]                        # 獲取提案
+PUT    /api/proposals/[id]                        # 更新提案
+DELETE /api/proposals/[id]                        # 刪除提案
+
+# 版本管理（3個）
+GET    /api/proposals/[id]/versions               # 版本列表
+GET    /api/proposals/[id]/versions/[versionId]   # 特定版本
+POST   /api/proposals/[id]/versions/compare       # 版本對比
+POST   /api/proposals/[id]/versions/restore       # 恢復版本
+```
+
+#### 5. **AI Services API**（2個端點）
+
+Azure OpenAI集成：
+
+```
+POST   /api/ai/generate-proposal                  # AI生成提案
+POST   /api/ai/regenerate-proposal                # AI重新生成提案
+```
+
+#### 6. **Analytics API**（3個端點）
+
+用戶行為追蹤：
+
+```
+POST   /api/analytics/track                       # 追蹤行為事件
+GET    /api/analytics/behaviors                   # 獲取行為數據
+GET    /api/analytics/profile                     # 獲取用戶畫像
+```
+
+#### 7. **Calendar API**（3個端點）
+
+Microsoft Graph日曆同步：
+
+```
+GET    /api/calendar/auth                         # 獲取OAuth URL
+GET    /api/calendar/events                       # 獲取日曆事件
+POST   /api/calendar/sync                         # 同步日曆
+```
+
+#### 8. **Collaboration API**（3個端點）
+
+編輯鎖定管理：
+
+```
+GET    /api/collaboration/locks                   # 獲取所有鎖定
+GET    /api/collaboration/locks/[resourceType]/[resourceId]/status  # 檢查狀態
+POST   /api/collaboration/locks                   # 獲取鎖定
+DELETE /api/collaboration/locks/lock/[lockId]     # 釋放鎖定
+```
+
+#### 9. **Meeting Intelligence API**（2個端點）
+
+AI會議分析：
+
+```
+POST   /api/meeting-intelligence/analyze          # 分析會議
+GET    /api/meeting-intelligence/recommendations  # 獲取建議
+```
+
+#### 10. **Meeting Prep API**（3個端點）
+
+會議準備包：
+
+```
+GET    /api/meeting-prep                          # 獲取準備包列表
+POST   /api/meeting-prep                          # 創建準備包
+GET    /api/meeting-prep/[id]                     # 獲取特定準備包
+GET    /api/meeting-prep/templates                # 獲取模板
+```
+
+#### 11. **Recommendations API**（3個端點）
+
+個性化推薦：
+
+```
+GET    /api/recommendations/content               # 內容推薦
+GET    /api/recommendations/meetings              # 會議推薦
+POST   /api/recommendations/feedback              # 提交反饋
+```
+
+#### 12. **Reminders API**（3個端點）
+
+提醒管理：
+
+```
+GET    /api/reminders                             # 獲取提醒列表
+POST   /api/reminders                             # 創建提醒
+GET    /api/reminders/[id]                        # 獲取單個提醒
+PUT    /api/reminders/[id]                        # 更新提醒
+DELETE /api/reminders/[id]                        # 刪除提醒
+POST   /api/reminders/[id]/snooze                 # 暫停提醒
+```
+
+#### 13. **Notifications API**（4個端點）
+
+多渠道通知：
+
+```
+GET    /api/notifications                         # 獲取通知列表
+POST   /api/notifications                         # 發送通知
+PATCH  /api/notifications/read                    # 標記為已讀
+GET    /api/notifications/preferences             # 獲取偏好設置
+PUT    /api/notifications/preferences             # 更新偏好設置
+GET    /api/notifications/stats                   # 統計數據
+```
+
+#### 14. **Customers API**（2個端點）
+
+客戶管理：
+
+```
+GET    /api/customers                             # 客戶列表
+POST   /api/customers                             # 創建客戶
+GET    /api/customers/[id]                        # 獲取客戶詳情
+GET    /api/customers/[id]/360-view               # 客戶360視圖
+```
+
+#### 15. **Knowledge Folders API**（4個端點）
+
+文件夾層次結構：
+
+```
+GET    /api/knowledge-folders                     # 獲取文件夾樹
+POST   /api/knowledge-folders                     # 創建文件夾
+GET    /api/knowledge-folders/[id]                # 獲取文件夾
+PUT    /api/knowledge-folders/[id]                # 更新文件夾
+DELETE /api/knowledge-folders/[id]                # 刪除文件夾
+POST   /api/knowledge-folders/[id]/move           # 移動文件夾
+POST   /api/knowledge-folders/reorder             # 重新排序
+```
+
+#### 16. **Audit Logs API**（3個端點）
+
+審計日誌：
+
+```
+GET    /api/audit-logs                            # 獲取審計日誌
+POST   /api/audit-logs/export                     # 導出日誌
+GET    /api/audit-logs/stats                      # 統計數據
+```
+
+#### 17. **其他端點**
+
+```
+# Health Check（1個）
+GET    /api/health                                # 系統健康檢查
+
+# Monitoring（1個）
+POST   /api/monitoring/init                       # 初始化監控
+
+# Assistant（1個）
+POST   /api/assistant/chat                        # AI助手聊天
+
+# Search（1個）
+POST   /api/search/crm                            # CRM搜索
+
+# Proposal Templates（4個）
+GET    /api/proposal-templates                    # 模板列表
+POST   /api/proposal-templates                    # 創建模板
+GET    /api/proposal-templates/[id]               # 獲取模板
+GET    /api/proposal-templates/[id]/stats         # 統計數據
+POST   /api/proposal-templates/[id]/test          # 測試模板
+
+# Mock Services（1個）
+ALL    /api/mock/dynamics365/[...path]            # Dynamics 365 模擬
+
+# Dynamic Catch-All（1個）
+ALL    /api/[...slug]                             # 動態路由捕獲
+```
+
+### API 設計模式
+
+所有API端點遵循以下設計模式：
+
+```typescript
+// 標準響應格式
+{
+  success: boolean;
+  data?: any;
+  error?: {
+    code: string;
+    message: string;
+    details?: any;
+  };
+  metadata?: {
+    timestamp: string;
+    requestId: string;
+    pagination?: { page, limit, total };
+  };
+}
+
+// 標準錯誤碼
+400: Bad Request - 請求參數錯誤
+401: Unauthorized - 未認證
+403: Forbidden - 無權限
+404: Not Found - 資源不存在
+409: Conflict - 資源衝突
+422: Unprocessable Entity - 驗證失敗
+500: Internal Server Error - 服務器錯誤
+```
+
+---
+
 ### 🆕 examples/ 示例數據與範例系統（v5.0）
 
 #### 目錄結構
