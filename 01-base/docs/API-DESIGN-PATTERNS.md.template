@@ -1,0 +1,708 @@
+# 🔌 {{PROJECT_NAME}} - API 設計模式
+
+> **目的**: 定義統一的 API 設計標準和最佳實踐
+> **適用範圍**: 所有 API 端點開發
+> **維護**: API 變更時更新
+> **最後更新**: {{CURRENT_DATE}}
+
+## 📋 目錄
+
+- [通用設計原則](#通用設計原則)
+- [RESTful API 規範](#restful-api-規範)
+- [請求格式](#請求格式)
+- [響應格式](#響應格式)
+- [錯誤處理](#錯誤處理)
+- [認證授權](#認證授權)
+- [分頁](#分頁)
+- [過濾和排序](#過濾和排序)
+- [API 版本控制](#api-版本控制)
+- [速率限制](#速率限制)
+
+---
+
+## 🎯 通用設計原則
+
+### 1. RESTful 設計
+
+遵循 REST 架構風格：
+
+- **資源導向**: URL 代表資源，不是動作
+- **HTTP 方法**: 使用正確的 HTTP 方法
+- **無狀態**: 每個請求包含所有必要信息
+- **統一接口**: 一致的 URL 結構和命名
+
+### 2. 命名規範
+
+```
+✅ 正確示例:
+GET    /api/users              # 獲取用戶列表
+GET    /api/users/:id          # 獲取單個用戶
+POST   /api/users              # 創建用戶
+PUT    /api/users/:id          # 更新用戶
+DELETE /api/users/:id          # 刪除用戶
+
+❌ 錯誤示例:
+GET    /api/getUsers           # 不要在URL中使用動詞
+POST   /api/user/create        # 資源名稱應該用複數
+PUT    /api/updateUser/:id     # 動詞應該用HTTP方法表示
+```
+
+### 3. 一致性原則
+
+- **URL 結構**: 保持統一的 URL 模式
+- **參數命名**: 使用 camelCase 或 snake_case，全局統一
+- **響應格式**: 所有 API 使用相同的響應結構
+- **錯誤碼**: 統一的錯誤碼體系
+
+---
+
+## 🔄 RESTful API 規範
+
+### HTTP 方法使用
+
+| 方法 | 用途 | 冪等性 | 安全性 |
+|------|------|--------|--------|
+| GET | 獲取資源 | ✅ | ✅ |
+| POST | 創建資源 | ❌ | ❌ |
+| PUT | 完整更新資源 | ✅ | ❌ |
+| PATCH | 部分更新資源 | ❌ | ❌ |
+| DELETE | 刪除資源 | ✅ | ❌ |
+
+### 標準 CRUD 操作
+
+```typescript
+// 列表 - GET /api/resource
+GET /api/users
+GET /api/users?page=1&limit=20&sort=createdAt:desc
+
+// 詳情 - GET /api/resource/:id
+GET /api/users/123
+
+// 創建 - POST /api/resource
+POST /api/users
+Body: { "name": "John", "email": "john@example.com" }
+
+// 完整更新 - PUT /api/resource/:id
+PUT /api/users/123
+Body: { "name": "John Doe", "email": "john@example.com" }
+
+// 部分更新 - PATCH /api/resource/:id
+PATCH /api/users/123
+Body: { "name": "John Doe" }
+
+// 刪除 - DELETE /api/resource/:id
+DELETE /api/users/123
+```
+
+### 嵌套資源
+
+```typescript
+// 獲取用戶的訂單
+GET /api/users/:userId/orders
+
+// 獲取用戶的特定訂單
+GET /api/users/:userId/orders/:orderId
+
+// 創建用戶的訂單
+POST /api/users/:userId/orders
+
+// 限制嵌套深度 (最多 2 層)
+✅ /api/users/:userId/orders/:orderId
+❌ /api/users/:userId/orders/:orderId/items/:itemId
+```
+
+---
+
+## 📥 請求格式
+
+### Content-Type
+
+```
+JSON API (推薦):
+Content-Type: application/json
+
+Form Data:
+Content-Type: application/x-www-form-urlencoded
+
+File Upload:
+Content-Type: multipart/form-data
+```
+
+### 請求示例
+
+```typescript
+// GET 請求 - 查詢參數
+GET /api/users?status=active&role=admin&page=1&limit=20
+
+// POST 請求 - JSON Body
+POST /api/users
+Content-Type: application/json
+
+{
+  "name": "John Doe",
+  "email": "john@example.com",
+  "role": "user",
+  "metadata": {
+    "department": "Engineering",
+    "location": "Taiwan"
+  }
+}
+
+// PATCH 請求 - 部分更新
+PATCH /api/users/123
+Content-Type: application/json
+
+{
+  "status": "inactive"
+}
+```
+
+---
+
+## 📤 響應格式
+
+### 成功響應
+
+#### 標準成功響應結構
+
+```typescript
+interface SuccessResponse<T> {
+  success: true;
+  data: T;
+  message?: string;
+  timestamp: string;
+}
+```
+
+#### 示例
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": "123",
+    "name": "John Doe",
+    "email": "john@example.com",
+    "createdAt": "2024-01-01T00:00:00Z"
+  },
+  "message": "User created successfully",
+  "timestamp": "2024-01-01T00:00:00Z"
+}
+```
+
+### 列表響應 (含分頁)
+
+```typescript
+interface PaginatedResponse<T> {
+  success: true;
+  data: T[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+    hasNext: boolean;
+    hasPrev: boolean;
+  };
+  timestamp: string;
+}
+```
+
+#### 示例
+
+```json
+{
+  "success": true,
+  "data": [
+    { "id": "1", "name": "User 1" },
+    { "id": "2", "name": "User 2" }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 100,
+    "totalPages": 5,
+    "hasNext": true,
+    "hasPrev": false
+  },
+  "timestamp": "2024-01-01T00:00:00Z"
+}
+```
+
+### HTTP 狀態碼
+
+| 狀態碼 | 含義 | 使用場景 |
+|--------|------|----------|
+| 200 | OK | 成功獲取資源 |
+| 201 | Created | 成功創建資源 |
+| 204 | No Content | 成功刪除資源（無返回內容） |
+| 400 | Bad Request | 請求參數錯誤 |
+| 401 | Unauthorized | 未認證 |
+| 403 | Forbidden | 無權限 |
+| 404 | Not Found | 資源不存在 |
+| 409 | Conflict | 資源衝突 |
+| 422 | Unprocessable Entity | 驗證錯誤 |
+| 429 | Too Many Requests | 速率限制 |
+| 500 | Internal Server Error | 服務器錯誤 |
+
+---
+
+## ❌ 錯誤處理
+
+### 錯誤響應結構
+
+```typescript
+interface ErrorResponse {
+  success: false;
+  error: {
+    code: string;
+    message: string;
+    details?: any;
+    field?: string;  // 驗證錯誤時指出具體字段
+  };
+  timestamp: string;
+}
+```
+
+### 錯誤碼規範
+
+```typescript
+// 格式: CATEGORY_SPECIFIC_ERROR
+// 示例:
+AUTH_INVALID_CREDENTIALS   // 認證錯誤
+AUTH_TOKEN_EXPIRED         // Token過期
+VALIDATION_REQUIRED_FIELD  // 必填字段缺失
+VALIDATION_INVALID_FORMAT  // 格式錯誤
+RESOURCE_NOT_FOUND         // 資源不存在
+PERMISSION_DENIED          // 權限不足
+RATE_LIMIT_EXCEEDED        // 超過速率限制
+SERVER_INTERNAL_ERROR      // 服務器內部錯誤
+```
+
+### 錯誤響應示例
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_REQUIRED_FIELD",
+    "message": "Email is required",
+    "field": "email",
+    "details": {
+      "field": "email",
+      "constraint": "required"
+    }
+  },
+  "timestamp": "2024-01-01T00:00:00Z"
+}
+```
+
+### 驗證錯誤 (多個字段)
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Validation failed",
+    "details": [
+      {
+        "field": "email",
+        "message": "Email is required"
+      },
+      {
+        "field": "password",
+        "message": "Password must be at least 8 characters"
+      }
+    ]
+  },
+  "timestamp": "2024-01-01T00:00:00Z"
+}
+```
+
+---
+
+## 🔐 認證授權
+
+### JWT 認證流程
+
+```typescript
+// 1. 登入獲取 Token
+POST /api/auth/login
+Body: { "email": "user@example.com", "password": "password" }
+
+Response:
+{
+  "success": true,
+  "data": {
+    "accessToken": "eyJhbGc...",
+    "refreshToken": "eyJhbGc...",
+    "expiresIn": 3600
+  }
+}
+
+// 2. 使用 Token 訪問受保護的 API
+GET /api/users/me
+Headers: {
+  "Authorization": "Bearer eyJhbGc..."
+}
+
+// 3. 刷新 Token
+POST /api/auth/refresh
+Body: { "refreshToken": "eyJhbGc..." }
+```
+
+### Authorization Header 格式
+
+```
+Authorization: Bearer {access_token}
+```
+
+### 認證錯誤
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "AUTH_TOKEN_INVALID",
+    "message": "Invalid or expired token"
+  },
+  "timestamp": "2024-01-01T00:00:00Z"
+}
+```
+
+---
+
+## 📄 分頁
+
+### 查詢參數
+
+```typescript
+// Offset-based 分頁 (推薦用於一般情況)
+GET /api/users?page=1&limit=20
+
+// Cursor-based 分頁 (推薦用於大數據集)
+GET /api/users?cursor=eyJpZCI6MTIzfQ&limit=20
+```
+
+### 分頁響應
+
+```json
+{
+  "success": true,
+  "data": [...],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 100,
+    "totalPages": 5,
+    "hasNext": true,
+    "hasPrev": false
+  }
+}
+```
+
+### 默認值
+
+- **默認頁碼**: page=1
+- **默認每頁數量**: limit=20
+- **最大每頁數量**: limit=100
+
+---
+
+## 🔍 過濾和排序
+
+### 過濾
+
+```typescript
+// 單條件過濾
+GET /api/users?status=active
+
+// 多條件過濾
+GET /api/users?status=active&role=admin
+
+// 日期範圍過濾
+GET /api/users?createdAfter=2024-01-01&createdBefore=2024-12-31
+
+// 搜索
+GET /api/users?search=john
+```
+
+### 排序
+
+```typescript
+// 單字段排序 (升序)
+GET /api/users?sort=createdAt
+
+// 單字段排序 (降序)
+GET /api/users?sort=-createdAt
+// 或
+GET /api/users?sort=createdAt:desc
+
+// 多字段排序
+GET /api/users?sort=-createdAt,name
+```
+
+### 字段選擇 (可選)
+
+```typescript
+// 只返回特定字段
+GET /api/users?fields=id,name,email
+
+// 排除特定字段
+GET /api/users?exclude=password,token
+```
+
+---
+
+## 🔄 API 版本控制
+
+### URL 版本控制 (推薦)
+
+```typescript
+// 版本 1
+GET /api/v1/users
+
+// 版本 2
+GET /api/v2/users
+```
+
+### Header 版本控制 (可選)
+
+```
+GET /api/users
+Headers: {
+  "Accept": "application/vnd.myapp.v2+json"
+}
+```
+
+### 版本策略
+
+- **主版本**: 不兼容的 API 變更
+- **向後兼容**: 新增字段、可選參數
+- **廢棄通知**: 提前通知版本廢棄
+- **文檔**: 維護多版本文檔
+
+---
+
+## ⏱️ 速率限制
+
+### Rate Limit Headers
+
+```
+X-RateLimit-Limit: 100          # 時間窗口內的最大請求數
+X-RateLimit-Remaining: 95       # 剩餘請求數
+X-RateLimit-Reset: 1640995200   # 重置時間 (Unix timestamp)
+```
+
+### 超過限制的響應
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "RATE_LIMIT_EXCEEDED",
+    "message": "Too many requests. Please try again later.",
+    "details": {
+      "limit": 100,
+      "remaining": 0,
+      "resetAt": "2024-01-01T01:00:00Z"
+    }
+  },
+  "timestamp": "2024-01-01T00:00:00Z"
+}
+```
+
+### 默認限制
+
+- **未認證用戶**: 10 請求/分鐘
+- **已認證用戶**: 100 請求/分鐘
+- **特殊端點**: 根據需求調整
+
+---
+
+## 📝 最佳實踐
+
+### 1. 使用複數名詞
+
+```
+✅ /api/users
+❌ /api/user
+```
+
+### 2. 使用小寫
+
+```
+✅ /api/users
+❌ /api/Users
+```
+
+### 3. 使用連字符而非下劃線
+
+```
+✅ /api/user-profiles
+❌ /api/user_profiles
+```
+
+### 4. 不要在 URL 中使用文件副檔名
+
+```
+✅ /api/users
+❌ /api/users.json
+```
+
+### 5. 使用查詢參數進行過濾
+
+```
+✅ /api/users?status=active
+❌ /api/users/active
+```
+
+### 6. 提供有意義的錯誤消息
+
+```json
+✅ {
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Email format is invalid",
+    "field": "email"
+  }
+}
+
+❌ {
+  "error": "Invalid input"
+}
+```
+
+### 7. 使用 HTTPS
+
+所有 API 端點都應該使用 HTTPS。
+
+### 8. 文檔化
+
+每個 API 端點都應該有完整的文檔，包括：
+- 請求方法和 URL
+- 請求參數
+- 請求示例
+- 響應示例
+- 錯誤碼
+
+---
+
+## 🛠️ 實現示例
+
+### Next.js API Route 示例
+
+```typescript
+// app/api/users/route.ts
+import { NextRequest, NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
+
+export async function GET(request: NextRequest) {
+  try {
+    // 解析查詢參數
+    const searchParams = request.nextUrl.searchParams;
+    const page = parseInt(searchParams.get('page') || '1');
+    const limit = parseInt(searchParams.get('limit') || '20');
+    const status = searchParams.get('status');
+
+    // 構建查詢條件
+    const where = status ? { status } : {};
+
+    // 查詢數據
+    const [users, total] = await Promise.all([
+      prisma.user.findMany({
+        where,
+        skip: (page - 1) * limit,
+        take: limit,
+        orderBy: { createdAt: 'desc' }
+      }),
+      prisma.user.count({ where })
+    ]);
+
+    // 返回成功響應
+    return NextResponse.json({
+      success: true,
+      data: users,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+        hasNext: page * limit < total,
+        hasPrev: page > 1
+      },
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    // 返回錯誤響應
+    return NextResponse.json({
+      success: false,
+      error: {
+        code: 'SERVER_INTERNAL_ERROR',
+        message: 'Failed to fetch users',
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      },
+      timestamp: new Date().toISOString()
+    }, { status: 500 });
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json();
+
+    // 驗證輸入
+    if (!body.email) {
+      return NextResponse.json({
+        success: false,
+        error: {
+          code: 'VALIDATION_REQUIRED_FIELD',
+          message: 'Email is required',
+          field: 'email'
+        },
+        timestamp: new Date().toISOString()
+      }, { status: 400 });
+    }
+
+    // 創建用戶
+    const user = await prisma.user.create({
+      data: body
+    });
+
+    // 返回成功響應
+    return NextResponse.json({
+      success: true,
+      data: user,
+      message: 'User created successfully',
+      timestamp: new Date().toISOString()
+    }, { status: 201 });
+
+  } catch (error) {
+    return NextResponse.json({
+      success: false,
+      error: {
+        code: 'SERVER_INTERNAL_ERROR',
+        message: 'Failed to create user',
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      },
+      timestamp: new Date().toISOString()
+    }, { status: 500 });
+  }
+}
+```
+
+---
+
+## 📚 參考資源
+
+- [REST API 設計指南](https://restfulapi.net/)
+- [HTTP 狀態碼](https://developer.mozilla.org/en-US/docs/Web/HTTP/Status)
+- [JSON API 規範](https://jsonapi.org/)
+- [OpenAPI 規範](https://swagger.io/specification/)
+
+---
+
+**📝 提示**: 保持 API 設計的一致性和可預測性，可以大大提升開發效率和用戶體驗。

@@ -1,0 +1,140 @@
+/**
+ * Security & RBAC Module
+ *
+ * Enterprise-grade security and access control system
+ *
+ * @module Security
+ */
+
+// RBAC Core
+export {
+  Role,
+  Permission,
+  type Action,
+  type Resource,
+  type PermissionCheck,
+  type RoleDefinition,
+  getUserRole,
+  getRolePermissions,
+  roleHasPermission,
+  userHasPermission,
+  checkPermission,
+  requireRole,
+  requirePermission,
+  getRolesWithPermission,
+  roleInheritsFrom,
+  getRoleHierarchy,
+  createRoleMiddleware,
+  createPermissionMiddleware,
+  getRoleName,
+  getAllRoles,
+  parsePermission,
+} from './rbac';
+
+// Permission Middleware
+export {
+  type RouteHandler,
+  type MiddlewareOptions,
+  withPermission,
+  withRole,
+  withResourcePermission,
+  withAll,
+  withAny,
+  requireAdmin,
+  requireManager,
+  requireAuth,
+  resourceMiddleware,
+  getParamId,
+  getQueryId,
+  getBodyId,
+} from './permission-middleware';
+
+// Audit Log
+export {
+  type AuditLogEntry,
+  type AuditLogQuery,
+  type AuditLogStats,
+  logAuditEvent,
+  queryAuditLogs,
+  getAuditLogStats,
+  getUserAuditTrail,
+  getResourceAuditTrail,
+  getFailedAccessAttempts,
+  detectSuspiciousActivity,
+  exportUserAuditLogs,
+  anonymizeUserAuditLogs,
+  deleteOldAuditLogs,
+  logLogin,
+  logFailedLogin,
+  logLogout,
+  logDataAccess,
+  logPermissionDenied,
+  logSensitiveDataAccess,
+} from './audit-log';
+
+// Fine-Grained Permissions
+export {
+  type PermissionCondition,
+  type PermissionContext,
+  type PermissionRule,
+  isOwner,
+  isAssigned,
+  inState,
+  isPublic,
+  sameTeam,
+  duringBusinessHours,
+  registerPermissionRule,
+  checkFineGrainedPermission,
+  checkPermissionWithConditions,
+  getAllPermissionRules,
+  clearPermissionRules,
+  createCondition,
+} from './fine-grained-permissions';
+
+// Field-Level Permissions
+export {
+  type FieldPermissionRule,
+  type FieldPermissionConfig,
+  filterFieldsByPermission,
+  canAccessField,
+  getAccessibleFields,
+  registerFieldPermission,
+} from './field-level-permissions';
+
+// GDPR Compliance
+export {
+  type GDPRDataExport,
+  type GDPRDeletionResult,
+  type UserConsent,
+  exportUserData,
+  deleteUserData,
+  recordConsent,
+  hasConsent,
+  getUserConsents,
+  exportDataPortable,
+  generateComplianceReport,
+} from './gdpr';
+
+// Action Restrictions
+export {
+  type ActionRestriction,
+  type TimeWindow,
+  checkActionRestriction,
+  registerActionRestriction,
+} from './action-restrictions';
+
+// Resource Conditions
+export {
+  resourceHasStatus,
+  userOwnsResource,
+  userInSameTeam,
+  resourceNotExpired,
+} from './resource-conditions';
+
+// Sensitive Fields Configuration
+export {
+  type SensitiveFieldConfig,
+  SENSITIVE_FIELDS,
+  getSensitiveFields,
+  isFieldSensitive,
+} from './sensitive-fields-config';

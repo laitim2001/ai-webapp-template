@@ -1,0 +1,59 @@
+# 📌 索引提醒設置指南
+
+> **目的**: 設置自動提醒機制，確保不忘記更新項目索引
+> **適用**: 使用 Git hooks 和自動化腳本
+
+---
+
+## 🔧 設置步驟
+
+### 1. Git Pre-commit Hook
+
+創建 `.git/hooks/pre-commit` 文件：
+
+```bash
+#!/bin/sh
+
+# 檢查是否有新增的重要文件
+NEW_FILES=$(git diff --cached --name-only --diff-filter=A | grep -E '\.(ts|tsx|md)$' | grep -E 'lib/|components/|app/api/|app/dashboard/')
+
+if [ ! -z "$NEW_FILES" ]; then
+  echo "⚠️  偵測到新增的重要文件，請記得更新 PROJECT-INDEX.md"
+  echo "$NEW_FILES"
+  echo ""
+  read -p "是否已更新索引？ (y/n) " -n 1 -r
+  echo
+  if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+    echo "❌ 請先更新 PROJECT-INDEX.md 再提交"
+    exit 1
+  fi
+fi
+```
+
+### 2. 自動檢查腳本
+
+使用 `scripts/check-index-sync.js` 進行自動檢查。
+
+### 3. NPM Script
+
+在 `package.json` 添加：
+
+```json
+{
+  "scripts": {
+    "check:index": "node scripts/check-index-sync.js"
+  }
+}
+```
+
+---
+
+## ✅ 使用方式
+
+- **提交前檢查**: Git hook 會自動運行
+- **手動檢查**: 運行 `npm run check:index`
+- **CI/CD 整合**: 在 CI 流程中運行檢查
+
+---
+
+**📝 提示**: 自動化提醒可以有效防止忘記更新索引！

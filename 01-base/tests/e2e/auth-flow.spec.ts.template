@@ -1,0 +1,289 @@
+/**
+ * {{PROJECT_NAME}} - 認證流程 E2E 測試
+ * 使用 Playwright 測試完整的用戶認證流程
+ *
+ * 注意：此測試需要 module-auth 模組
+ */
+
+import { test, expect } from '@playwright/test';
+
+// 測試配置
+const BASE_URL = process.env.BASE_URL || 'http://localhost:3000';
+const TEST_USER = {
+  email: 'test@example.com',
+  password: 'Test123456!',
+  name: 'Test User',
+};
+
+describe('認證流程 E2E 測試', () => {
+  test.beforeEach(async ({ page }) => {
+    // 每個測試前訪問首頁
+    await page.goto(BASE_URL);
+  });
+
+  describe('用戶註冊流程', () => {
+    test('應該成功完成新用戶註冊', async ({ page }) => {
+      // 1. 導航到註冊頁面
+      await page.click('a[href="/auth/register"]');
+      await expect(page).toHaveURL(/\/auth\/register/);
+
+      // 2. 填寫註冊表單
+      await page.fill('input[name="name"]', TEST_USER.name);
+      await page.fill('input[name="email"]', `test-${Date.now()}@example.com`);
+      await page.fill('input[name="password"]', TEST_USER.password);
+      await page.fill('input[name="confirmPassword"]', TEST_USER.password);
+
+      // 3. 提交表單
+      await page.click('button[type="submit"]');
+
+      // 4. 驗證註冊成功
+      await expect(page).toHaveURL(/\/dashboard/, { timeout: 5000 });
+      await expect(page.locator('text=歡迎')).toBeVisible();
+    });
+
+    test('應該顯示密碼不匹配錯誤', async ({ page }) => {
+      await page.click('a[href="/auth/register"]');
+
+      await page.fill('input[name="name"]', TEST_USER.name);
+      await page.fill('input[name="email"]', TEST_USER.email);
+      await page.fill('input[name="password"]', TEST_USER.password);
+      await page.fill('input[name="confirmPassword"]', 'DifferentPassword123!');
+
+      await page.click('button[type="submit"]');
+
+      // 驗證錯誤消息
+      await expect(page.locator('text=密碼不匹配')).toBeVisible();
+    });
+
+    test('應該顯示 Email 格式錯誤', async ({ page }) => {
+      await page.click('a[href="/auth/register"]');
+
+      await page.fill('input[name="name"]', TEST_USER.name);
+      await page.fill('input[name="email"]', 'invalid-email');
+      await page.fill('input[name="password"]', TEST_USER.password);
+      await page.fill('input[name="confirmPassword"]', TEST_USER.password);
+
+      await page.click('button[type="submit"]');
+
+      // 驗證錯誤消息
+      await expect(page.locator('text=無效的 email 格式')).toBeVisible();
+    });
+
+    test('應該顯示弱密碼錯誤', async ({ page }) => {
+      await page.click('a[href="/auth/register"]');
+
+      await page.fill('input[name="name"]', TEST_USER.name);
+      await page.fill('input[name="email"]', TEST_USER.email);
+      await page.fill('input[name="password"]', '123'); // 弱密碼
+      await page.fill('input[name="confirmPassword"]', '123');
+
+      await page.click('button[type="submit"]');
+
+      // 驗證錯誤消息
+      await expect(page.locator('text=密碼強度不足')).toBeVisible();
+    });
+  });
+
+  describe('用戶登入流程', () => {
+    test('應該成功登入已註冊用戶', async ({ page }) => {
+      // 1. 導航到登入頁面
+      await page.click('a[href="/auth/login"]');
+      await expect(page).toHaveURL(/\/auth\/login/);
+
+      // 2. 填寫登入表單
+      await page.fill('input[name="email"]', TEST_USER.email);
+      await page.fill('input[name="password"]', TEST_USER.password);
+
+      // 3. 提交表單
+      await page.click('button[type="submit"]');
+
+      // 4. 驗證登入成功
+      await expect(page).toHaveURL(/\/dashboard/, { timeout: 5000 });
+      await expect(page.locator(`text=${TEST_USER.name}`)).toBeVisible();
+    });
+
+    test('應該顯示錯誤密碼提示', async ({ page }) => {
+      await page.click('a[href="/auth/login"]');
+
+      await page.fill('input[name="email"]', TEST_USER.email);
+      await page.fill('input[name="password"]', 'WrongPassword123!');
+
+      await page.click('button[type="submit"]');
+
+      // 驗證錯誤消息
+      await expect(page.locator('text=密碼錯誤')).toBeVisible();
+    });
+
+    test('應該顯示用戶不存在提示', async ({ page }) => {
+      await page.click('a[href="/auth/login"]');
+
+      await page.fill('input[name="email"]', 'nonexistent@example.com');
+      await page.fill('input[name="password"]', TEST_USER.password);
+
+      await page.click('button[type="submit"]');
+
+      // 驗證錯誤消息
+      await expect(page.locator('text=用戶不存在')).toBeVisible();
+    });
+
+    test('應該記住我功能正常工作', async ({ page }) => {
+      await page.click('a[href="/auth/login"]');
+
+      await page.fill('input[name="email"]', TEST_USER.email);
+      await page.fill('input[name="password"]', TEST_USER.password);
+      await page.check('input[name="remember"]');
+
+      await page.click('button[type="submit"]');
+
+      // 驗證 Cookie 設置
+      const cookies = await page.context().cookies();
+      const rememberCookie = cookies.find(c => c.name === 'remember-token');
+      expect(rememberCookie).toBeDefined();
+    });
+  });
+
+  describe('登出流程', () => {
+    test('應該成功登出用戶', async ({ page }) => {
+      // 先登入
+      await page.goto(`${BASE_URL}/auth/login`);
+      await page.fill('input[name="email"]', TEST_USER.email);
+      await page.fill('input[name="password"]', TEST_USER.password);
+      await page.click('button[type="submit"]');
+      await expect(page).toHaveURL(/\/dashboard/);
+
+      // 執行登出
+      await page.click('button[aria-label="用戶菜單"]');
+      await page.click('text=登出');
+
+      // 驗證登出成功
+      await expect(page).toHaveURL(/\/auth\/login/);
+      await expect(page.locator('text=登入')).toBeVisible();
+
+      // 驗證 Cookie 已清除
+      const cookies = await page.context().cookies();
+      const sessionCookie = cookies.find(c => c.name === 'session');
+      expect(sessionCookie).toBeUndefined();
+    });
+  });
+
+  describe('受保護路由', () => {
+    test('應該重定向未認證用戶到登入頁面', async ({ page }) => {
+      // 嘗試訪問受保護的儀表板
+      await page.goto(`${BASE_URL}/dashboard`);
+
+      // 驗證重定向到登入頁面
+      await expect(page).toHaveURL(/\/auth\/login/);
+      await expect(page.locator('text=請先登入')).toBeVisible();
+    });
+
+    test('應該允許已認證用戶訪問受保護路由', async ({ page }) => {
+      // 先登入
+      await page.goto(`${BASE_URL}/auth/login`);
+      await page.fill('input[name="email"]', TEST_USER.email);
+      await page.fill('input[name="password"]', TEST_USER.password);
+      await page.click('button[type="submit"]');
+
+      // 訪問受保護路由
+      await page.goto(`${BASE_URL}/dashboard/settings`);
+
+      // 驗證可以訪問
+      await expect(page).toHaveURL(/\/dashboard\/settings/);
+      await expect(page.locator('text=設置')).toBeVisible();
+    });
+  });
+
+  describe('密碼重置流程', () => {
+    test('應該發送密碼重置郵件', async ({ page }) => {
+      await page.goto(`${BASE_URL}/auth/forgot-password`);
+
+      await page.fill('input[name="email"]', TEST_USER.email);
+      await page.click('button[type="submit"]');
+
+      // 驗證成功消息
+      await expect(page.locator('text=重置鏈接已發送到您的郵箱')).toBeVisible();
+    });
+
+    test('應該成功重置密碼', async ({ page }) => {
+      // 注意：這需要有效的重置令牌，通常需要 mock 或從測試數據庫獲取
+      const resetToken = 'test-reset-token';
+
+      await page.goto(`${BASE_URL}/auth/reset-password?token=${resetToken}`);
+
+      const newPassword = 'NewPassword123!';
+      await page.fill('input[name="password"]', newPassword);
+      await page.fill('input[name="confirmPassword"]', newPassword);
+      await page.click('button[type="submit"]');
+
+      // 驗證成功消息
+      await expect(page.locator('text=密碼已成功重置')).toBeVisible();
+
+      // 驗證可以使用新密碼登入
+      await page.goto(`${BASE_URL}/auth/login`);
+      await page.fill('input[name="email"]', TEST_USER.email);
+      await page.fill('input[name="password"]', newPassword);
+      await page.click('button[type="submit"]');
+      await expect(page).toHaveURL(/\/dashboard/);
+    });
+  });
+
+  describe('Session 管理', () => {
+    test('應該在 Token 過期後重定向到登入頁', async ({ page, context }) => {
+      // 先登入
+      await page.goto(`${BASE_URL}/auth/login`);
+      await page.fill('input[name="email"]', TEST_USER.email);
+      await page.fill('input[name="password"]', TEST_USER.password);
+      await page.click('button[type="submit"]');
+      await expect(page).toHaveURL(/\/dashboard/);
+
+      // 模擬 Token 過期（清除 Cookie）
+      await context.clearCookies();
+
+      // 刷新頁面
+      await page.reload();
+
+      // 驗證重定向到登入頁
+      await expect(page).toHaveURL(/\/auth\/login/);
+    });
+
+    test('應該自動刷新 Token', async ({ page }) => {
+      // 先登入
+      await page.goto(`${BASE_URL}/auth/login`);
+      await page.fill('input[name="email"]', TEST_USER.email);
+      await page.fill('input[name="password"]', TEST_USER.password);
+      await page.click('button[type="submit"]');
+
+      // 獲取初始 Token
+      const initialCookies = await page.context().cookies();
+      const initialToken = initialCookies.find(c => c.name === 'access-token')?.value;
+
+      // 等待 Token 刷新（假設刷新間隔為 30 秒）
+      await page.waitForTimeout(31000);
+      await page.reload();
+
+      // 獲取新 Token
+      const newCookies = await page.context().cookies();
+      const newToken = newCookies.find(c => c.name === 'access-token')?.value;
+
+      // 驗證 Token 已更新
+      expect(newToken).not.toBe(initialToken);
+    });
+  });
+
+  describe('無障礙性測試', () => {
+    test('登入頁面應該符合無障礙標準', async ({ page }) => {
+      await page.goto(`${BASE_URL}/auth/login`);
+
+      // 檢查表單標籤
+      await expect(page.locator('label[for="email"]')).toBeVisible();
+      await expect(page.locator('label[for="password"]')).toBeVisible();
+
+      // 檢查 ARIA 屬性
+      const emailInput = page.locator('input[name="email"]');
+      await expect(emailInput).toHaveAttribute('aria-label');
+
+      // 檢查鍵盤導航
+      await page.keyboard.press('Tab');
+      await expect(emailInput).toBeFocused();
+    });
+  });
+});

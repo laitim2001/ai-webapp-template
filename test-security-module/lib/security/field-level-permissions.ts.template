@@ -1,0 +1,154 @@
+/**
+ * Field-Level Permissions
+ *
+ * Control access to specific fields based on user role and context
+ * - Sensitive field protection
+ * - Role-based field visibility
+ * - Dynamic field masking
+ *
+ * @module Security/FieldLevelPermissions
+ */
+
+import { Role, getUserRole } from './rbac';
+
+// ============================================================================
+// Types
+// ============================================================================
+
+export interface FieldPermissionRule {
+  field: string;
+  allowedRoles: Role[];
+  readOnly?: boolean;
+  maskValue?: (value: any) => any;
+}
+
+export interface FieldPermissionConfig {
+  resource: string;
+  rules: FieldPermissionRule[];
+}
+
+// ============================================================================
+// Sensitive Fields Configuration
+// ============================================================================
+
+const sensitiveFieldsConfig: Map<string, FieldPermissionRule[]> = new Map();
+
+// Customer sensitive fields
+sensitiveFieldsConfig.set('customer', [
+  {
+    field: 'revenue',
+    allowedRoles: [Role.ADMIN, Role.SALES_MANAGER],
+  },
+  {
+    field: 'creditScore',
+    allowedRoles: [Role.ADMIN, Role.SALES_MANAGER],
+  },
+  {
+    field: 'internalNotes',
+    allowedRoles: [Role.ADMIN, Role.SALES_MANAGER],
+  },
+]);
+
+// User sensitive fields
+sensitiveFieldsConfig.set('user', [
+  {
+    field: 'email',
+    allowedRoles: [Role.ADMIN],
+    maskValue: (email: string) => email.replace(/(.{2})(.*)(@.*)/, '$1***$3'),
+  },
+  {
+    field: 'phone',
+    allowedRoles: [Role.ADMIN, Role.SALES_MANAGER],
+    maskValue: (phone: string) => phone.replace(/(\d{3})(\d{3})(\d{4})/, '$1-***-$3'),
+  },
+  {
+    field: 'salary',
+    allowedRoles: [Role.ADMIN],
+  },
+]);
+
+// ============================================================================
+// Core Functions
+// ============================================================================
+
+/**
+ * Filter object fields based on user permissions
+ */
+export async function filterFieldsByPermission<T extends Record<string, any>>(
+  userId: string,
+  resource: string,
+  data: T
+): Promise<Partial<T>> {
+  const userRole = await getUserRole(userId);
+  if (!userRole) return {};
+
+  const rules = sensitiveFieldsConfig.get(resource) || [];
+  const filtered: any = { ...data };
+
+  for (const rule of rules) {
+    if (filtered[rule.field] !== undefined) {
+      if (!rule.allowedRoles.includes(userRole)) {
+        // Remove field or mask it
+        if (rule.maskValue) {
+          filtered[rule.field] = rule.maskValue(filtered[rule.field]);
+        } else {
+          delete filtered[rule.field];
+        }
+      }
+    }
+  }
+
+  return filtered;
+}
+
+/**
+ * Check if user can access a specific field
+ */
+export async function canAccessField(
+  userId: string,
+  resource: string,
+  field: string
+): Promise<boolean> {
+  const userRole = await getUserRole(userId);
+  if (!userRole) return false;
+
+  const rules = sensitiveFieldsConfig.get(resource) || [];
+  const rule = rules.find(r => r.field === field);
+
+  if (!rule) return true; // Field not restricted
+
+  return rule.allowedRoles.includes(userRole);
+}
+
+/**
+ * Get list of accessible fields for user
+ */
+export async function getAccessibleFields(
+  userId: string,
+  resource: string,
+  allFields: string[]
+): Promise<string[]> {
+  const userRole = await getUserRole(userId);
+  if (!userRole) return [];
+
+  const rules = sensitiveFieldsConfig.get(resource) || [];
+  const restrictedFields = rules.map(r => r.field);
+
+  return allFields.filter(field => {
+    const rule = rules.find(r => r.field === field);
+    if (!rule) return true; // Not restricted
+    return rule.allowedRoles.includes(userRole);
+  });
+}
+
+/**
+ * Register field permission rule
+ */
+export function registerFieldPermission(
+  resource: string,
+  rule: FieldPermissionRule
+): void {
+  const rules = sensitiveFieldsConfig.get(resource) || [];
+  rules.push(rule);
+  sensitiveFieldsConfig.set(resource, rules);
+}
