@@ -1,53 +1,53 @@
-# Performance Module
+# 性能監控模組 (Performance Module)
 
-**Version**: 5.0
-**Status**: Production Ready
-**Created**: 2025-10-10
+**版本**: 5.0
+**狀態**: 生產就緒
+**創建日期**: 2025-10-10
 
-## 📋 Overview
+## 📋 概述
 
-The Performance Module provides comprehensive performance monitoring, query optimization, and response caching capabilities for your Next.js application. Extracted from the AI Sales Enablement Platform with proven production usage.
+性能監控模組為您的 Next.js 應用提供全面的性能監控、查詢優化和響應緩存功能。從 AI 銷售賦能平台提取，經過生產環境驗證。
 
-## 🎯 Features
+## 🎯 功能特性
 
-### 1. Performance Monitoring (`lib/performance/monitor.ts`)
-- **API Performance Tracking**: Record response time, status codes, and resource usage for all API requests
-- **Database Persistence**: Batch write metrics to PostgreSQL for long-term storage
-- **Real-time Alerts**: Detect slow queries, large responses, and server errors
-- **Performance Reports**: SQL-based detailed performance analysis with percentiles
-- **Middleware Integration**: Easy-to-use `withPerformanceTracking` middleware
-- **Core Web Vitals**: Track frontend performance metrics with Google Analytics integration
-- **Resource Monitoring**: Monitor Node.js memory and CPU usage
-- **Auto Cleanup**: Automatic cleanup of expired performance data
+### 1. 性能監控 (`lib/performance/monitor.ts`)
+- **API 性能追蹤**: 記錄所有 API 請求的響應時間、狀態碼和資源使用情況
+- **數據庫持久化**: 批次寫入指標到 PostgreSQL 進行長期存儲
+- **實時警報**: 檢測慢查詢、大響應和服務器錯誤
+- **性能報告**: 基於 SQL 的詳細性能分析報告，含百分位數
+- **中間件整合**: 易用的 `withPerformanceTracking` 中間件
+- **Core Web Vitals**: 追蹤前端性能指標，整合 Google Analytics
+- **資源監控**: 監控 Node.js 內存和 CPU 使用量
+- **自動清理**: 自動清理過期的性能數據
 
-### 2. Query Optimization (`lib/performance/query-optimizer.ts`)
-- **N+1 Query Detection**: Identify and prevent N+1 query problems
-- **DataLoader Integration**: Batch loading with automatic deduplication
-- **Batch Query Optimization**: Execute multiple queries in parallel
-- **Query Analysis**: Track query performance and identify bottlenecks
-- **Smart Caching**: Built-in query result caching
-- **Performance Recommendations**: Automatic optimization suggestions
+### 2. 查詢優化 (`lib/performance/query-optimizer.ts`)
+- **N+1 查詢檢測**: 識別並防止 N+1 查詢問題
+- **DataLoader 整合**: 批次加載並自動去重
+- **批量查詢優化**: 並行執行多個查詢
+- **查詢分析**: 追蹤查詢性能並識別瓶頸
+- **智能緩存**: 內建查詢結果緩存
+- **性能建議**: 自動生成優化建議
 
-### 3. Response Caching (`lib/performance/response-cache.ts`)
-- **HTTP Response Caching**: Intelligent API response caching
-- **ETag Support**: HTTP ETag for conditional requests (304 responses)
-- **Tag-based Invalidation**: Batch invalidate caches by tags
-- **Cache Statistics**: Detailed hit rate and memory usage tracking
-- **Flexible Configuration**: TTL, cache keys, vary-by factors
-- **Automatic Cleanup**: Periodic removal of expired cache entries
+### 3. 響應緩存 (`lib/performance/response-cache.ts`)
+- **HTTP 響應緩存**: 智能 API 響應緩存
+- **ETag 支持**: 支持條件請求（304 響應）
+- **標籤失效**: 按標籤批量失效緩存
+- **緩存統計**: 詳細的命中率和內存使用追蹤
+- **靈活配置**: TTL、緩存鍵、變化因子
+- **自動清理**: 定期清理過期的緩存條目
 
-## 📦 Installation
+## 📦 安裝配置
 
-### 1. Module Integration
+### 1. 模組整合
 
-Copy the module to your project:
+複製模組到您的項目：
 ```bash
 cp -r 02-modules/module-performance/lib/performance lib/
 ```
 
 ### 2. Prisma Schema
 
-The performance monitoring uses a PostgreSQL table. Add this to your `prisma/schema.prisma` (optional if using database persistence):
+性能監控使用 PostgreSQL 表格。添加到您的 `prisma/schema.prisma`（如果使用數據庫持久化）：
 
 ```prisma
 model PerformanceMetric {
@@ -71,28 +71,28 @@ model PerformanceMetric {
 }
 ```
 
-Then run:
+然後執行：
 ```bash
 npx prisma migrate dev --name add-performance-metrics
 npx prisma generate
 ```
 
-### 3. Environment Variables
+### 3. 環境變量
 
-Add to your `.env.local`:
+添加到您的 `.env.local`：
 ```bash
-# Performance Module Configuration (Optional)
+# 性能模組配置（可選）
 ENABLE_PERFORMANCE_MONITORING=true
 PERFORMANCE_BATCH_SIZE=100
 PERFORMANCE_FLUSH_INTERVAL=30000
 PERFORMANCE_RETENTION_DAYS=30
 ```
 
-## 🚀 Usage
+## 🚀 使用方法
 
-### Performance Monitoring
+### 性能監控
 
-#### Basic API Tracking
+#### 基本 API 追蹤
 
 ```typescript
 // app/api/users/route.ts
@@ -104,7 +104,7 @@ export const GET = withPerformanceTracking(async (request: NextRequest) => {
 });
 ```
 
-#### Manual Metric Tracking
+#### 手動指標追蹤
 
 ```typescript
 import { PerformanceMonitor } from '@/lib/performance/monitor';
@@ -122,56 +122,56 @@ await monitor.trackMetric({
 });
 ```
 
-#### Performance Reports
+#### 性能報告
 
 ```typescript
-// Get performance report for last 24 hours
+// 獲取最近 24 小時的性能報告
 const report = await monitor.getPerformanceReport('24h');
 
-// Get real-time metrics (last 5 minutes)
+// 獲取實時指標（最近 5 分鐘）
 const realtime = await monitor.getRealTimeMetrics();
 
-// Cleanup old data (older than 30 days)
+// 清理舊數據（30 天前）
 await monitor.cleanup(30);
 ```
 
-#### Core Web Vitals Tracking
+#### Core Web Vitals 追蹤
 
 ```typescript
-// app/layout.tsx or components
+// app/layout.tsx 或組件中
 import { CoreWebVitalsTracker } from '@/lib/performance/monitor';
 
-// Track LCP (Largest Contentful Paint)
+// 追蹤 LCP（最大內容繪製）
 CoreWebVitalsTracker.trackMetric('LCP', 2500, 'unique-id');
 
-// Track FID (First Input Delay)
+// 追蹤 FID（首次輸入延遲）
 CoreWebVitalsTracker.trackMetric('FID', 100, 'unique-id');
 
-// Track CLS (Cumulative Layout Shift)
+// 追蹤 CLS（累積佈局偏移）
 CoreWebVitalsTracker.trackMetric('CLS', 0.1, 'unique-id');
 ```
 
-### Query Optimization
+### 查詢優化
 
-#### DataLoader for N+1 Prevention
+#### 使用 DataLoader 防止 N+1 查詢
 
 ```typescript
 import { createDataLoader } from '@/lib/performance/query-optimizer';
 
-// Create a DataLoader for users
+// 為用戶創建 DataLoader
 const userLoader = createDataLoader('users', async (ids) => {
   return await db.users.findMany({
     where: { id: { in: ids } }
   });
 });
 
-// Load multiple users efficiently (batched)
+// 高效加載多個用戶（批次處理）
 const users = await Promise.all(
   userIds.map(id => userLoader.load(id))
 );
 ```
 
-#### Batch Query Execution
+#### 批量查詢執行
 
 ```typescript
 import { batchQuery } from '@/lib/performance/query-optimizer';
@@ -183,7 +183,7 @@ const results = await batchQuery([
 ]);
 ```
 
-#### Query Performance Tracking
+#### 查詢性能追蹤
 
 ```typescript
 import { trackQuery } from '@/lib/performance/query-optimizer';
@@ -196,27 +196,27 @@ const result = await trackQuery('getUserProfile', async () => {
 });
 ```
 
-#### Performance Analysis
+#### 性能分析
 
 ```typescript
 import { QueryOptimizer } from '@/lib/performance/query-optimizer';
 
-// Get query statistics
+// 獲取查詢統計
 const stats = QueryOptimizer.getQueryStats();
 
-// Detect N+1 query problems
+// 檢測 N+1 查詢問題
 const nPlusOneIssues = QueryOptimizer.detectNPlusOne();
 
-// Find slow queries
-const slowQueries = QueryOptimizer.getSlowQueries(1000); // > 1 second
+// 查找慢查詢
+const slowQueries = QueryOptimizer.getSlowQueries(1000); // > 1 秒
 
-// Generate optimization report
+// 生成優化報告
 const report = QueryOptimizer.generateOptimizationReport();
 ```
 
-### Response Caching
+### 響應緩存
 
-#### API Route Caching
+#### API 路由緩存
 
 ```typescript
 // app/api/products/route.ts
@@ -228,14 +228,14 @@ export const GET = withCache(
     return NextResponse.json(products);
   },
   {
-    ttl: 300,  // 5 minutes
+    ttl: 300,  // 5 分鐘
     tags: ['products'],
     varyBy: ['userId']
   }
 );
 ```
 
-#### Data Caching Function
+#### 數據緩存函數
 
 ```typescript
 import { cacheResponse } from '@/lib/performance/response-cache';
@@ -249,7 +249,7 @@ const cachedData = await cacheResponse(
 );
 ```
 
-#### Cache Management
+#### 緩存管理
 
 ```typescript
 import {
@@ -259,26 +259,26 @@ import {
   getCacheStats
 } from '@/lib/performance/response-cache';
 
-// Invalidate specific cache key
+// 失效特定緩存鍵
 invalidateCache('products-list');
 
-// Invalidate all caches with tag
+// 按標籤失效所有緩存
 invalidateCacheByTag('products');
 
-// Clear all caches
+// 清空所有緩存
 clearCache();
 
-// Get cache statistics
+// 獲取緩存統計
 const stats = getCacheStats();
-console.log(`Hit Rate: ${stats.hitRate * 100}%`);
-console.log(`Memory Usage: ${stats.memoryUsage} bytes`);
+console.log(`命中率: ${stats.hitRate * 100}%`);
+console.log(`內存使用: ${stats.memoryUsage} 字節`);
 ```
 
-## 📊 Monitoring & Dashboards
+## 📊 監控與儀表板
 
-### Performance Metrics Dashboard
+### 性能指標儀表板
 
-Create an admin dashboard to visualize performance data:
+創建管理儀表板來可視化性能數據：
 
 ```typescript
 // app/admin/performance/page.tsx
@@ -291,23 +291,23 @@ export default async function PerformanceDashboard() {
 
   return (
     <div>
-      <h1>Performance Monitoring</h1>
+      <h1>性能監控儀表板</h1>
 
       <div className="realtime-metrics">
-        <div>Avg Response Time: {realtime.avg_response_time}ms</div>
-        <div>Total Requests: {realtime.total_requests}</div>
-        <div>Cache Hit Rate: {realtime.cache_hit_rate}%</div>
-        <div>Error Rate: {realtime.error_rate}%</div>
+        <div>平均響應時間: {realtime.avg_response_time}ms</div>
+        <div>總請求數: {realtime.total_requests}</div>
+        <div>緩存命中率: {realtime.cache_hit_rate}%</div>
+        <div>錯誤率: {realtime.error_rate}%</div>
       </div>
 
       <table>
         <thead>
           <tr>
-            <th>Endpoint</th>
-            <th>Requests</th>
-            <th>Avg Duration</th>
-            <th>P95 Duration</th>
-            <th>Error Rate</th>
+            <th>端點</th>
+            <th>請求數</th>
+            <th>平均耗時</th>
+            <th>P95 耗時</th>
+            <th>錯誤率</th>
           </tr>
         </thead>
         <tbody>
@@ -327,46 +327,46 @@ export default async function PerformanceDashboard() {
 }
 ```
 
-## 🧪 Testing
+## 🧪 測試
 
-The module includes comprehensive test suites with 120+ tests:
+模組包含 120+ 測試的完整測試套件：
 
 ```bash
-# Run all performance module tests
+# 運行所有性能模組測試
 npm test -- lib/performance
 
-# Run specific test file
+# 運行特定測試文件
 npm test -- lib/performance/__tests__/monitor.test.ts
 
-# Run with coverage
+# 運行測試覆蓋率
 npm test -- --coverage lib/performance
 ```
 
-Test coverage includes:
-- ✅ Singleton pattern validation
-- ✅ Performance metric tracking
-- ✅ Batch write mechanisms
-- ✅ Alert system
-- ✅ Report generation
-- ✅ Middleware integration
-- ✅ DataLoader functionality
-- ✅ Query optimization
-- ✅ Response caching
-- ✅ Cache invalidation
-- ✅ Error handling
+測試覆蓋包括：
+- ✅ 單例模式驗證
+- ✅ 性能指標追蹤
+- ✅ 批次寫入機制
+- ✅ 警報系統
+- ✅ 報告生成
+- ✅ 中間件整合
+- ✅ DataLoader 功能
+- ✅ 查詢優化
+- ✅ 響應緩存
+- ✅ 緩存失效
+- ✅ 錯誤處理
 
-## ⚙️ Configuration
+## ⚙️ 配置選項
 
-### Performance Monitor Options
+### 性能監控選項
 
 ```typescript
-// Customize batch size and flush interval
+// 自定義批次大小和刷新間隔
 const monitor = PerformanceMonitor.getInstance();
-// Access private properties for configuration (if needed)
-// Note: This is internal API, prefer environment variables
+// 訪問私有屬性進行配置（如需要）
+// 注意：這是內部 API，建議使用環境變量
 ```
 
-### Query Optimizer Options
+### 查詢優化器選項
 
 ```typescript
 import { QueryOptimizer } from '@/lib/performance/query-optimizer';
@@ -377,29 +377,29 @@ QueryOptimizer.configure({
   maxBatchSize: 100,
   batchDelay: 10,
   cacheMaxSize: 1000,
-  cacheTTL: 300000  // 5 minutes
+  cacheTTL: 300000  // 5 分鐘
 });
 ```
 
-### Response Cache Options
+### 響應緩存選項
 
 ```typescript
 import { ResponseCache } from '@/lib/performance/response-cache';
 
-// Enable/disable caching globally
+// 全局啟用/禁用緩存
 ResponseCache.enable();
 ResponseCache.disable();
 
-// Check if caching is enabled
+// 檢查緩存是否啟用
 const isEnabled = ResponseCache.isEnabled();
 
-// Cleanup expired caches manually
+// 手動清理過期緩存
 const removedCount = ResponseCache.cleanup();
 ```
 
-## 🔧 Advanced Usage
+## 🔧 高級用法
 
-### Custom Performance Alerts
+### 自定義性能警報
 
 ```typescript
 import { PerformanceMonitor, PerformanceMetric } from '@/lib/performance/monitor';
@@ -408,21 +408,21 @@ class CustomMonitor extends PerformanceMonitor {
   protected checkPerformanceAlerts(metric: PerformanceMetric) {
     super.checkPerformanceAlerts(metric);
 
-    // Custom alert logic
+    // 自定義警報邏輯
     if (metric.duration > 5000) {
-      // Send alert to Slack, PagerDuty, etc.
-      sendAlert(`Critical: ${metric.endpoint} took ${metric.duration}ms`);
+      // 發送警報到 Slack、PagerDuty 等
+      sendAlert(`嚴重: ${metric.endpoint} 耗時 ${metric.duration}ms`);
     }
   }
 }
 ```
 
-### Multi-Database Query Optimization
+### 多數據庫查詢優化
 
 ```typescript
 import { QueryOptimizer } from '@/lib/performance/query-optimizer';
 
-// Configure for different database adapters
+// 為不同數據庫適配器配置
 const postgresLoader = QueryOptimizer.createLoader('postgres-users', async (ids) => {
   return await postgresDb.users.findMany({ where: { id: { in: ids } } });
 });
@@ -432,19 +432,19 @@ const mongoLoader = QueryOptimizer.createLoader('mongo-logs', async (ids) => {
 });
 ```
 
-### Conditional Caching
+### 條件緩存
 
 ```typescript
 import { withCache } from '@/lib/performance/response-cache';
 
 export const GET = withCache(
   async (request) => {
-    // Your API logic
+    // 您的 API 邏輯
   },
   {
     ttl: 300,
     condition: (request) => {
-      // Only cache for non-admin users
+      // 只為非管理員用戶緩存
       const userRole = request.headers.get('x-user-role');
       return userRole !== 'admin';
     }
@@ -452,12 +452,12 @@ export const GET = withCache(
 );
 ```
 
-## 📈 Performance Optimization Tips
+## 📈 性能優化技巧
 
-### 1. N+1 Query Prevention
-**Bad**:
+### 1. 防止 N+1 查詢
+**錯誤示例**:
 ```typescript
-// N+1 query problem
+// N+1 查詢問題
 const posts = await db.posts.findMany();
 for (const post of posts) {
   const author = await db.users.findUnique({ where: { id: post.authorId } });
@@ -465,9 +465,9 @@ for (const post of posts) {
 }
 ```
 
-**Good**:
+**正確示例**:
 ```typescript
-// Use DataLoader
+// 使用 DataLoader
 const userLoader = createDataLoader('users', async (ids) => {
   return await db.users.findMany({ where: { id: { in: ids } } });
 });
@@ -478,23 +478,23 @@ const authors = await Promise.all(
 );
 ```
 
-### 2. Response Caching Strategy
-- Cache stable data (product catalogs, configurations) with long TTL (hours/days)
-- Cache frequently accessed data (user profiles) with moderate TTL (minutes)
-- Don't cache personalized or sensitive data without proper vary-by factors
-- Use tags for related cache entries that need to be invalidated together
+### 2. 響應緩存策略
+- 穩定數據（產品目錄、配置）使用長 TTL（小時/天）
+- 頻繁訪問數據（用戶資料）使用適中 TTL（分鐘）
+- 個性化或敏感數據不緩存，或使用適當的 vary-by 因子
+- 使用標籤將需要一起失效的相關緩存分組
 
-### 3. Query Tracking
-- Always track slow queries (>1 second) for optimization
-- Monitor cache hit rates to validate caching effectiveness
-- Use batch queries for related data fetching
-- Regularly review query statistics and optimization reports
+### 3. 查詢追蹤
+- 始終追蹤慢查詢（>1 秒）以進行優化
+- 監控緩存命中率以驗證緩存效果
+- 對相關數據獲取使用批量查詢
+- 定期查看查詢統計和優化報告
 
-## 🔗 Integration with Other Modules
+## 🔗 與其他模組整合
 
-### With API Gateway Module
+### 與 API Gateway 模組整合
 ```typescript
-// Combine with rate limiting and authentication
+// 結合速率限制和認證
 import { withPerformanceTracking } from '@/lib/performance/monitor';
 import { withRateLimit } from '@/lib/api/rate-limiter';
 import { withAuth } from '@/lib/auth/middleware';
@@ -502,15 +502,15 @@ import { withAuth } from '@/lib/auth/middleware';
 export const GET = withPerformanceTracking(
   withRateLimit(
     withAuth(async (request) => {
-      // Your API logic
+      // 您的 API 邏輯
     })
   )
 );
 ```
 
-### With Caching Module
+### 與緩存模組整合
 ```typescript
-// Use Redis for distributed caching
+// 使用 Redis 進行分佈式緩存
 import { cacheResponse } from '@/lib/performance/response-cache';
 import { redisCache } from '@/lib/cache/redis-adapter';
 
@@ -523,69 +523,69 @@ const data = await cacheResponse(
 );
 ```
 
-## 📚 API Reference
+## 📚 API 參考
 
 ### PerformanceMonitor
 
-- `getInstance()`: Get singleton instance
-- `trackMetric(metric)`: Record performance metric
-- `getPerformanceReport(timeRange)`: Generate performance report
-- `getRealTimeMetrics()`: Get real-time metrics
-- `cleanup(retentionDays)`: Clean up old metrics
+- `getInstance()`: 獲取單例實例
+- `trackMetric(metric)`: 記錄性能指標
+- `getPerformanceReport(timeRange)`: 生成性能報告
+- `getRealTimeMetrics()`: 獲取實時指標
+- `cleanup(retentionDays)`: 清理舊指標
 
 ### QueryOptimizer
 
-- `createLoader(name, batchLoadFn, config)`: Create DataLoader
-- `batchQuery(requests)`: Execute batch queries
-- `trackQuery(name, queryFn)`: Track query performance
-- `detectNPlusOne(threshold)`: Detect N+1 problems
-- `getSlowQueries(thresholdMs)`: Find slow queries
-- `generateOptimizationReport()`: Generate optimization report
+- `createLoader(name, batchLoadFn, config)`: 創建 DataLoader
+- `batchQuery(requests)`: 執行批量查詢
+- `trackQuery(name, queryFn)`: 追蹤查詢性能
+- `detectNPlusOne(threshold)`: 檢測 N+1 問題
+- `getSlowQueries(thresholdMs)`: 查找慢查詢
+- `generateOptimizationReport()`: 生成優化報告
 
 ### ResponseCache
 
-- `cache(key, getData, config)`: Cache data
-- `wrap(handler, config)`: Wrap API handler with caching
-- `invalidate(key)`: Invalidate specific cache
-- `invalidateByTag(tag)`: Invalidate by tag
-- `clear()`: Clear all caches
-- `getStats()`: Get cache statistics
+- `cache(key, getData, config)`: 緩存數據
+- `wrap(handler, config)`: 包裝 API 處理器並緩存
+- `invalidate(key)`: 失效特定緩存
+- `invalidateByTag(tag)`: 按標籤失效
+- `clear()`: 清空所有緩存
+- `getStats()`: 獲取緩存統計
 
-## 🐛 Troubleshooting
+## 🐛 故障排除
 
-### Performance Metrics Not Being Saved
-- Ensure Prisma schema includes `performance_metrics` table
-- Check database connection and permissions
-- Verify batch size and flush interval settings
-- Check console for error messages
+### 性能指標未被保存
+- 確保 Prisma schema 包含 `performance_metrics` 表
+- 檢查數據庫連接和權限
+- 驗證批次大小和刷新間隔設置
+- 檢查控制台錯誤消息
 
-### DataLoader Not Batching Queries
-- Ensure DataLoader is reused across requests (not recreated each time)
-- Check that load() calls are made within the same event loop tick
-- Verify batchLoadFn returns array matching keys length
+### DataLoader 未批處理查詢
+- 確保 DataLoader 在請求間重用（不是每次都重新創建）
+- 檢查 load() 調用在同一事件循環內進行
+- 驗證 batchLoadFn 返回的數組長度與鍵匹配
 
-### Cache Not Working
-- Check if caching is enabled: `ResponseCache.isEnabled()`
-- Verify cache keys are consistent
-- Check TTL values are appropriate
-- Review cache statistics for hit/miss rates
+### 緩存未工作
+- 檢查緩存是否啟用: `ResponseCache.isEnabled()`
+- 驗證緩存鍵一致
+- 檢查 TTL 值是否合適
+- 查看緩存統計的命中/未命中率
 
-### High Memory Usage
-- Reduce cache TTL and max size
-- Adjust batch sizes for monitoring
-- Enable automatic cleanup
-- Review DataLoader cache maps
+### 高內存使用
+- 減少緩存 TTL 和最大大小
+- 調整監控的批次大小
+- 啟用自動清理
+- 查看 DataLoader 緩存映射
 
-## 📄 License
+## 📄 授權
 
-MIT License - See root LICENSE file
+MIT 授權 - 查看根目錄 LICENSE 文件
 
-## 🤝 Contributing
+## 🤝 貢獻
 
-This module was extracted from the AI Sales Enablement Platform. For issues or improvements, please submit to the main repository.
+此模組從 AI 銷售賦能平台提取。如有問題或改進建議，請提交到主倉庫。
 
-## 📞 Support
+## 📞 支持
 
-For issues, questions, or contributions:
+如有問題、疑問或貢獻：
 - GitHub Issues: https://github.com/laitim2001/ai-webapp-template/issues
-- Documentation: See `/docs` directory in main project
+- 文檔：查看主項目的 `/docs` 目錄
