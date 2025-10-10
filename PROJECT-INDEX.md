@@ -3,8 +3,8 @@
 > **快速導航**: 理解項目整體結構和模組概覽
 
 **版本**: 5.0-alpha
-**狀態**: 部分實現 (~48%完成)
-**最後更新**: 2025-10-09
+**狀態**: 階段性完成 (~60%完成)
+**最後更新**: 2025-10-10
 
 ---
 
@@ -76,10 +76,13 @@ ai-webapp-template/
 
 **內容**:
 - Next.js 14 App Router 結構
-- 23個基礎 Radix UI 組件
+- 26個基礎 Radix UI 組件 (新增 form, table, pagination)
 - 數據庫適配器層（支持4種數據庫）
 - 4種 Prisma Schema（5個基礎模型）
 - UI 設計系統完整文檔
+- **新增**: 8個文檔模板（PROJECT-INDEX, DEPLOYMENT-GUIDE等）
+- **新增**: 9個部署配置（Docker, nginx, 備份腳本等）
+- **新增**: 4個測試模板（unit + e2e）
 
 **詳細索引**: 參考 [TEMPLATE-INDEX.md](TEMPLATE-INDEX.md) 第2節
 
