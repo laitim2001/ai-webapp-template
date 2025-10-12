@@ -1,0 +1,8 @@
+/**
+ * Toast Hook - UI Component Alias
+ * Re-exports the main toast hook from hooks directory for backward compatibility
+ */
+
+export { useToast } from '@/hooks/use-toast'
+export type { Toast } from '@/hooks/use-toast'
+

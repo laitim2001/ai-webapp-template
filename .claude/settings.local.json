@@ -2,7 +2,29 @@
   "permissions": {
     "allow": [
       "Bash(do echo \"=== $dir ===\")",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(node:*)",
+      "Bash(while read file)",
+      "Bash(done)",
+      "Bash(tree:*)",
+      "Read(//c/Users/Chris/**)",
+      "Bash(cat:*)",
+      "Bash(chmod:*)",
+      "Bash(npm install)",
+      "Bash(npm link:*)",
+      "Bash(npm login:*)",
+      "Bash(npm whoami:*)",
+      "Bash(npm view:*)",
+      "Read(//c//**)",
+      "Bash(npm version:*)",
+      "Bash(npm publish:*)",
+      "Bash(copy:*)",
+      "Read(//c/test-ai-webapp/test-ai-webapp-new/prisma/**)",
+      "Read(//c/test-ai-webapp/test-ai-webapp-new/**)",
+      "Bash(npm install:*)",
+      "Read(//c/ai-sales-enablement-webapp/components/**)",
+      "Bash(npm run dev:*)",
+      "Bash(git add:*)"
     ],
     "deny": [],
     "ask": []

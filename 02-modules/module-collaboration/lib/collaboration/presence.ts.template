@@ -1,0 +1,417 @@
+/**
+ * User Presence Service
+ *
+ * Real-time user presence tracking for collaborative editing.
+ * Manages online status, cursor positions, selections, and user awareness.
+ *
+ * @module presence
+ */
+
+import type { Awareness } from 'y-protocols/awareness'
+import { WebsocketProvider } from 'y-websocket'
+import type {
+  UserPresence,
+  CursorPosition,
+  UserSelection,
+  PresenceState,
+  AwarenessUpdate
+} from '@/types/collaboration'
+
+/**
+ * User Presence Manager
+ *
+ * Manages real-time user presence with:
+ * - Online/offline status tracking
+ * - Cursor position broadcasting
+ * - User selection tracking
+ * - Heartbeat mechanism for timeout detection
+ * - Presence channel management
+ */
+export class PresenceService {
+  private presences: Map<string, UserPresence> = new Map()
+  private heartbeatIntervals: Map<string, NodeJS.Timeout> = new Map()
+  private awarenessStates: Map<string, Awareness> = new Map()
+  private readonly heartbeatInterval = 30000 // 30 seconds
+  private readonly presenceTimeout = 60000 // 60 seconds
+
+  /**
+   * Initialize presence for a user in a document
+   */
+  initializePresence(
+    userId: string,
+    documentId: string,
+    provider: WebsocketProvider,
+    userData?: {
+      name?: string
+      email?: string
+      avatar?: string
+      color?: string
+    }
+  ): UserPresence {
+    const awareness = provider.awareness
+
+    // Create presence record
+    const presence: UserPresence = {
+      userId,
+      documentId,
+      name: userData?.name || `User ${userId}`,
+      email: userData?.email,
+      avatar: userData?.avatar,
+      color: userData?.color || this.generateUserColor(userId),
+      isOnline: true,
+      lastSeen: new Date(),
+      cursor: null,
+      selection: null,
+      isTyping: false,
+      joinedAt: new Date()
+    }
+
+    this.presences.set(userId, presence)
+
+    // Set awareness state
+    awareness.setLocalStateField('user', {
+      id: userId,
+      name: presence.name,
+      email: presence.email,
+      avatar: presence.avatar,
+      color: presence.color
+    })
+
+    this.awarenessStates.set(documentId, awareness)
+
+    // Setup awareness event handlers
+    this.setupAwarenessHandlers(documentId, awareness)
+
+    // Start heartbeat
+    this.startHeartbeat(userId, documentId)
+
+    return presence
+  }
+
+  /**
+   * Update user cursor position
+   */
+  updateCursor(
+    userId: string,
+    cursor: CursorPosition | null
+  ): void {
+    const presence = this.presences.get(userId)
+    if (!presence) {
+      console.warn(`Presence not found for user ${userId}`)
+      return
+    }
+
+    presence.cursor = cursor
+    presence.lastSeen = new Date()
+
+    // Update awareness
+    const awareness = this.awarenessStates.get(presence.documentId)
+    if (awareness) {
+      awareness.setLocalStateField('cursor', cursor)
+    }
+  }
+
+  /**
+   * Update user selection
+   */
+  updateSelection(
+    userId: string,
+    selection: UserSelection | null
+  ): void {
+    const presence = this.presences.get(userId)
+    if (!presence) {
+      console.warn(`Presence not found for user ${userId}`)
+      return
+    }
+
+    presence.selection = selection
+    presence.lastSeen = new Date()
+
+    // Update awareness
+    const awareness = this.awarenessStates.get(presence.documentId)
+    if (awareness) {
+      awareness.setLocalStateField('selection', selection)
+    }
+  }
+
+  /**
+   * Update typing status
+   */
+  updateTypingStatus(
+    userId: string,
+    isTyping: boolean
+  ): void {
+    const presence = this.presences.get(userId)
+    if (!presence) return
+
+    presence.isTyping = isTyping
+    presence.lastSeen = new Date()
+
+    // Update awareness
+    const awareness = this.awarenessStates.get(presence.documentId)
+    if (awareness) {
+      awareness.setLocalStateField('isTyping', isTyping)
+    }
+  }
+
+  /**
+   * Get all active users for a document
+   */
+  getActiveUsers(documentId: string): UserPresence[] {
+    return Array.from(this.presences.values()).filter(
+      p => p.documentId === documentId && p.isOnline
+    )
+  }
+
+  /**
+   * Get specific user presence
+   */
+  getUserPresence(userId: string): UserPresence | null {
+    return this.presences.get(userId) || null
+  }
+
+  /**
+   * Get presence state for document
+   */
+  getPresenceState(documentId: string): PresenceState {
+    const activeUsers = this.getActiveUsers(documentId)
+
+    return {
+      documentId,
+      activeUsers,
+      userCount: activeUsers.length,
+      cursors: activeUsers
+        .filter(u => u.cursor !== null)
+        .map(u => ({ userId: u.userId, cursor: u.cursor! })),
+      selections: activeUsers
+        .filter(u => u.selection !== null)
+        .map(u => ({ userId: u.userId, selection: u.selection! })),
+      typingUsers: activeUsers.filter(u => u.isTyping).map(u => u.userId)
+    }
+  }
+
+  /**
+   * Remove user presence
+   */
+  removePresence(userId: string): void {
+    const presence = this.presences.get(userId)
+    if (!presence) return
+
+    // Mark as offline
+    presence.isOnline = false
+    presence.lastSeen = new Date()
+
+    // Stop heartbeat
+    this.stopHeartbeat(userId)
+
+    // Update awareness
+    const awareness = this.awarenessStates.get(presence.documentId)
+    if (awareness) {
+      awareness.setLocalStateField('user', null)
+    }
+
+    // Remove from map after delay (for offline display)
+    setTimeout(() => {
+      this.presences.delete(userId)
+    }, 5000)
+  }
+
+  /**
+   * Setup awareness event handlers
+   */
+  private setupAwarenessHandlers(
+    documentId: string,
+    awareness: Awareness
+  ): void {
+    awareness.on('change', (changes: AwarenessUpdate) => {
+      // Handle added users
+      changes.added.forEach((clientId) => {
+        const state = awareness.getStates().get(clientId)
+        if (state?.user) {
+          this.handleUserJoined(documentId, state.user)
+        }
+      })
+
+      // Handle updated users
+      changes.updated.forEach((clientId) => {
+        const state = awareness.getStates().get(clientId)
+        if (state?.user) {
+          this.handleUserUpdated(state.user, state)
+        }
+      })
+
+      // Handle removed users
+      changes.removed.forEach((clientId) => {
+        // User disconnected
+        const userId = this.findUserIdByClientId(clientId)
+        if (userId) {
+          this.removePresence(userId)
+        }
+      })
+    })
+  }
+
+  /**
+   * Handle user joined event
+   */
+  private handleUserJoined(documentId: string, user: any): void {
+    const presence = this.presences.get(user.id)
+    if (presence) {
+      presence.isOnline = true
+      presence.lastSeen = new Date()
+    }
+  }
+
+  /**
+   * Handle user updated event
+   */
+  private handleUserUpdated(user: any, state: any): void {
+    const presence = this.presences.get(user.id)
+    if (!presence) return
+
+    presence.lastSeen = new Date()
+
+    if (state.cursor !== undefined) {
+      presence.cursor = state.cursor
+    }
+
+    if (state.selection !== undefined) {
+      presence.selection = state.selection
+    }
+
+    if (state.isTyping !== undefined) {
+      presence.isTyping = state.isTyping
+    }
+  }
+
+  /**
+   * Start heartbeat for user
+   */
+  private startHeartbeat(userId: string, documentId: string): void {
+    // Clear existing heartbeat if any
+    this.stopHeartbeat(userId)
+
+    const interval = setInterval(() => {
+      const presence = this.presences.get(userId)
+      if (!presence) {
+        this.stopHeartbeat(userId)
+        return
+      }
+
+      // Check if user has timed out
+      const timeSinceLastSeen = Date.now() - presence.lastSeen.getTime()
+      if (timeSinceLastSeen > this.presenceTimeout) {
+        this.removePresence(userId)
+        return
+      }
+
+      // Send heartbeat
+      const awareness = this.awarenessStates.get(documentId)
+      if (awareness) {
+        awareness.setLocalStateField('heartbeat', Date.now())
+      }
+    }, this.heartbeatInterval)
+
+    this.heartbeatIntervals.set(userId, interval)
+  }
+
+  /**
+   * Stop heartbeat for user
+   */
+  private stopHeartbeat(userId: string): void {
+    const interval = this.heartbeatIntervals.get(userId)
+    if (interval) {
+      clearInterval(interval)
+      this.heartbeatIntervals.delete(userId)
+    }
+  }
+
+  /**
+   * Find user ID by client ID
+   */
+  private findUserIdByClientId(clientId: number): string | null {
+    // Note: In a real implementation, you would maintain a mapping
+    // between awareness client IDs and user IDs
+    // For now, return null
+    return null
+  }
+
+  /**
+   * Generate consistent color for user
+   */
+  private generateUserColor(userId: string): string {
+    const colors = [
+      '#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A',
+      '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E2',
+      '#F8B739', '#52B788', '#E76F51', '#2A9D8F'
+    ]
+
+    // Generate consistent hash from userId
+    let hash = 0
+    for (let i = 0; i < userId.length; i++) {
+      hash = ((hash << 5) - hash) + userId.charCodeAt(i)
+      hash = hash & hash // Convert to 32-bit integer
+    }
+
+    return colors[Math.abs(hash) % colors.length]
+  }
+
+  /**
+   * Cleanup all presences for a document
+   */
+  cleanupDocument(documentId: string): void {
+    const documentPresences = Array.from(this.presences.values()).filter(
+      p => p.documentId === documentId
+    )
+
+    documentPresences.forEach(presence => {
+      this.removePresence(presence.userId)
+    })
+
+    this.awarenessStates.delete(documentId)
+  }
+
+  /**
+   * Cleanup expired presences
+   */
+  cleanupExpiredPresences(): number {
+    const now = Date.now()
+    let cleanedCount = 0
+
+    this.presences.forEach((presence, userId) => {
+      const timeSinceLastSeen = now - presence.lastSeen.getTime()
+      if (timeSinceLastSeen > this.presenceTimeout && !presence.isOnline) {
+        this.presences.delete(userId)
+        cleanedCount++
+      }
+    })
+
+    return cleanedCount
+  }
+
+  /**
+   * Get presence statistics
+   */
+  getPresenceStats(documentId: string): {
+    totalUsers: number
+    onlineUsers: number
+    typingUsers: number
+    activeCursors: number
+  } {
+    const presences = Array.from(this.presences.values()).filter(
+      p => p.documentId === documentId
+    )
+
+    return {
+      totalUsers: presences.length,
+      onlineUsers: presences.filter(p => p.isOnline).length,
+      typingUsers: presences.filter(p => p.isTyping).length,
+      activeCursors: presences.filter(p => p.cursor !== null).length
+    }
+  }
+}
+
+/**
+ * Singleton instance
+ */
+export const presenceService = new PresenceService()

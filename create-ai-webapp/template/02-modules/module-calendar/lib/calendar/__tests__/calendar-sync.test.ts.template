@@ -1,0 +1,585 @@
+/**
+ * Calendar Sync Service Tests
+ *
+ * Comprehensive test suite for bi-directional calendar synchronization.
+ *
+ * @module lib/calendar/__tests__/calendar-sync.test
+ */
+
+import { CalendarSyncService } from '../calendar-sync';
+import { GoogleCalendarService } from '../google-calendar';
+import { OutlookCalendarService } from '../outlook-calendar';
+import type { SyncOptions, CalendarEvent } from '@/types/calendar';
+
+// Mock services
+jest.mock('../google-calendar');
+jest.mock('../outlook-calendar');
+
+// Mock database adapter
+jest.mock('@/lib/db/database-adapter', () => ({
+  databaseAdapter: {
+    findFirst: jest.fn(),
+    create: jest.fn(),
+    update: jest.fn(),
+    deleteMany: jest.fn(),
+    findMany: jest.fn(),
+    findUnique: jest.fn(),
+  },
+}));
+
+const { databaseAdapter } = require('@/lib/db/database-adapter');
+
+describe('CalendarSyncService', () => {
+  let syncService: CalendarSyncService;
+  let googleCalendar: jest.Mocked<GoogleCalendarService>;
+  let outlookCalendar: jest.Mocked<OutlookCalendarService>;
+
+  const mockGoogleEvent: CalendarEvent = {
+    id: 'google-123',
+    provider: 'google',
+    calendarId: 'primary',
+    summary: 'Test Event',
+    start: { dateTime: '2025-10-15T14:00:00', timeZone: 'Asia/Taipei' },
+    end: { dateTime: '2025-10-15T15:00:00', timeZone: 'Asia/Taipei' },
+    updated: '2025-10-10T10:00:00Z',
+  };
+
+  const mockOutlookEvent: CalendarEvent = {
+    id: 'outlook-456',
+    provider: 'outlook',
+    calendarId: 'primary',
+    summary: 'Test Event',
+    start: { dateTime: '2025-10-15T14:00:00', timeZone: 'Asia/Taipei' },
+    end: { dateTime: '2025-10-15T15:00:00', timeZone: 'Asia/Taipei' },
+    updated: '2025-10-10T10:00:00Z',
+  };
+
+  beforeEach(() => {
+    googleCalendar = new GoogleCalendarService({
+      clientId: 'test',
+      clientSecret: 'test',
+      redirectUri: 'test',
+    }) as jest.Mocked<GoogleCalendarService>;
+
+    outlookCalendar = new OutlookCalendarService({
+      clientId: 'test',
+      clientSecret: 'test',
+      tenantId: 'test',
+      redirectUri: 'test',
+    }) as jest.Mocked<OutlookCalendarService>;
+
+    syncService = new CalendarSyncService(googleCalendar, outlookCalendar);
+
+    jest.clearAllMocks();
+  });
+
+  afterEach(() => {
+    // Clear all timers
+    jest.clearAllTimers();
+  });
+
+  // ==========================================================================
+  // Sync Configuration Tests
+  // ==========================================================================
+
+  describe('Sync Configuration', () => {
+    it('should create sync configuration', async () => {
+      const mockConnections = {
+        google: { id: 1, userId: 123, provider: 'google' },
+        outlook: { id: 2, userId: 123, provider: 'outlook' },
+      };
+
+      databaseAdapter.findFirst
+        .mockResolvedValueOnce(null) // No existing config
+        .mockResolvedValueOnce(mockConnections.google)
+        .mockResolvedValueOnce(mockConnections.outlook);
+
+      databaseAdapter.create.mockResolvedValueOnce({
+        id: 1,
+        userId: 123,
+        googleConnectionId: 1,
+        outlookConnectionId: 2,
+        direction: 'bidirectional',
+        conflictStrategy: 'latest',
+        syncInterval: 300000,
+        isEnabled: true,
+        status: 'idle',
+      });
+
+      googleCalendar.listEvents = jest.fn().mockResolvedValue([]);
+      outlookCalendar.listEvents = jest.fn().mockResolvedValue([]);
+
+      const options: SyncOptions = {
+        userId: 123,
+        googleCalendarId: 'primary',
+        outlookCalendarId: 'primary',
+      };
+
+      await syncService.syncNow(options);
+
+      expect(databaseAdapter.create).toHaveBeenCalledWith(
+        'calendarSyncConfig',
+        expect.objectContaining({
+          data: expect.objectContaining({
+            userId: 123,
+            direction: 'bidirectional',
+          }),
+        })
+      );
+    });
+
+    it('should get sync status', async () => {
+      const mockConfig = {
+        id: 1,
+        userId: 123,
+        status: 'idle',
+        lastSync: new Date(),
+      };
+
+      databaseAdapter.findFirst.mockResolvedValueOnce(mockConfig);
+
+      const status = await syncService.getSyncStatus(123);
+
+      expect(status).toEqual(mockConfig);
+    });
+  });
+
+  // ==========================================================================
+  // Automatic Sync Tests
+  // ==========================================================================
+
+  describe('Automatic Sync', () => {
+    beforeEach(() => {
+      jest.useFakeTimers();
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('should start automatic sync', async () => {
+      const mockConfig = {
+        id: 1,
+        userId: 123,
+        syncInterval: 300000, // 5 minutes
+        status: 'idle',
+      };
+
+      databaseAdapter.findFirst.mockResolvedValue(mockConfig);
+      googleCalendar.listEvents = jest.fn().mockResolvedValue([]);
+      outlookCalendar.listEvents = jest.fn().mockResolvedValue([]);
+
+      const options: SyncOptions = {
+        userId: 123,
+        googleCalendarId: 'primary',
+        outlookCalendarId: 'primary',
+      };
+
+      await syncService.startSync(options);
+
+      // Advance timer to trigger sync
+      jest.advanceTimersByTime(300000);
+
+      // Wait for async operations
+      await Promise.resolve();
+
+      expect(googleCalendar.listEvents).toHaveBeenCalled();
+      expect(outlookCalendar.listEvents).toHaveBeenCalled();
+    });
+
+    it('should stop automatic sync', async () => {
+      const mockConfig = {
+        id: 1,
+        userId: 123,
+        syncInterval: 300000,
+        status: 'idle',
+      };
+
+      databaseAdapter.findFirst.mockResolvedValue(mockConfig);
+      googleCalendar.listEvents = jest.fn().mockResolvedValue([]);
+      outlookCalendar.listEvents = jest.fn().mockResolvedValue([]);
+
+      const options: SyncOptions = {
+        userId: 123,
+        googleCalendarId: 'primary',
+        outlookCalendarId: 'primary',
+      };
+
+      await syncService.startSync(options);
+      await syncService.stopSync(123);
+
+      expect(databaseAdapter.update).toHaveBeenCalledWith(
+        'calendarSyncConfig',
+        expect.objectContaining({
+          data: expect.objectContaining({
+            status: 'paused',
+          }),
+        })
+      );
+    });
+  });
+
+  // ==========================================================================
+  // Bidirectional Sync Tests
+  // ==========================================================================
+
+  describe('Bidirectional Sync', () => {
+    it('should sync new Google event to Outlook', async () => {
+      const mockConfig = {
+        id: 1,
+        userId: 123,
+        googleConnectionId: 1,
+        outlookConnectionId: 2,
+        syncInterval: 300000,
+        conflictStrategy: 'latest',
+      };
+
+      databaseAdapter.findFirst.mockResolvedValue(mockConfig);
+      databaseAdapter.findMany.mockResolvedValue([]); // No existing mappings
+
+      googleCalendar.listEvents = jest.fn().mockResolvedValue([mockGoogleEvent]);
+      outlookCalendar.listEvents = jest.fn().mockResolvedValue([]);
+      outlookCalendar.createEvent = jest.fn().mockResolvedValue(mockOutlookEvent);
+
+      const options: SyncOptions = {
+        userId: 123,
+        googleCalendarId: 'primary',
+        outlookCalendarId: 'primary',
+      };
+
+      const result = await syncService.syncNow(options);
+
+      expect(result.created).toBe(1);
+      expect(outlookCalendar.createEvent).toHaveBeenCalled();
+    });
+
+    it('should sync new Outlook event to Google', async () => {
+      const mockConfig = {
+        id: 1,
+        userId: 123,
+        googleConnectionId: 1,
+        outlookConnectionId: 2,
+        syncInterval: 300000,
+        conflictStrategy: 'latest',
+      };
+
+      databaseAdapter.findFirst.mockResolvedValue(mockConfig);
+      databaseAdapter.findMany.mockResolvedValue([]);
+
+      googleCalendar.listEvents = jest.fn().mockResolvedValue([]);
+      outlookCalendar.listEvents = jest.fn().mockResolvedValue([mockOutlookEvent]);
+      googleCalendar.createEvent = jest.fn().mockResolvedValue(mockGoogleEvent);
+
+      const options: SyncOptions = {
+        userId: 123,
+        googleCalendarId: 'primary',
+        outlookCalendarId: 'primary',
+      };
+
+      const result = await syncService.syncNow(options);
+
+      expect(result.created).toBe(1);
+      expect(googleCalendar.createEvent).toHaveBeenCalled();
+    });
+
+    it('should update existing event', async () => {
+      const updatedGoogleEvent = {
+        ...mockGoogleEvent,
+        summary: 'Updated Event',
+        updated: '2025-10-11T10:00:00Z',
+      };
+
+      const mockMapping = {
+        id: 1,
+        syncConfigId: 1,
+        googleEventId: 'google-123',
+        outlookEventId: 'outlook-456',
+        lastSynced: new Date('2025-10-10T10:00:00Z'),
+        googleLastModified: new Date('2025-10-10T10:00:00Z'),
+        outlookLastModified: new Date('2025-10-10T10:00:00Z'),
+      };
+
+      const mockConfig = {
+        id: 1,
+        userId: 123,
+        googleConnectionId: 1,
+        outlookConnectionId: 2,
+        syncInterval: 300000,
+        conflictStrategy: 'latest',
+      };
+
+      databaseAdapter.findFirst.mockResolvedValue(mockConfig);
+      databaseAdapter.findMany.mockResolvedValue([mockMapping]);
+
+      googleCalendar.listEvents = jest.fn().mockResolvedValue([updatedGoogleEvent]);
+      outlookCalendar.listEvents = jest.fn().mockResolvedValue([mockOutlookEvent]);
+      outlookCalendar.updateEvent = jest.fn().mockResolvedValue(mockOutlookEvent);
+
+      const options: SyncOptions = {
+        userId: 123,
+        googleCalendarId: 'primary',
+        outlookCalendarId: 'primary',
+      };
+
+      const result = await syncService.syncNow(options);
+
+      expect(result.updated).toBe(1);
+      expect(outlookCalendar.updateEvent).toHaveBeenCalled();
+    });
+  });
+
+  // ==========================================================================
+  // Conflict Detection Tests
+  // ==========================================================================
+
+  describe('Conflict Detection', () => {
+    it('should detect conflict when both events modified', async () => {
+      const updatedGoogleEvent = {
+        ...mockGoogleEvent,
+        summary: 'Google Updated',
+        updated: '2025-10-11T10:00:00Z',
+      };
+
+      const mockMapping = {
+        id: 1,
+        syncConfigId: 1,
+        googleEventId: 'google-123',
+        outlookEventId: 'outlook-456',
+        lastSynced: new Date('2025-10-10T09:00:00Z'),
+        googleLastModified: new Date('2025-10-10T09:00:00Z'),
+        outlookLastModified: new Date('2025-10-11T09:30:00Z'), // Also modified
+      };
+
+      const mockConfig = {
+        id: 1,
+        userId: 123,
+        googleConnectionId: 1,
+        outlookConnectionId: 2,
+        syncInterval: 300000,
+        conflictStrategy: 'manual',
+      };
+
+      databaseAdapter.findFirst.mockResolvedValue(mockConfig);
+      databaseAdapter.findMany.mockResolvedValue([mockMapping]);
+
+      googleCalendar.listEvents = jest.fn().mockResolvedValue([updatedGoogleEvent]);
+      outlookCalendar.listEvents = jest.fn().mockResolvedValue([mockOutlookEvent]);
+
+      const options: SyncOptions = {
+        userId: 123,
+        googleCalendarId: 'primary',
+        outlookCalendarId: 'primary',
+      };
+
+      const result = await syncService.syncNow(options);
+
+      expect(result.conflicts).toBe(1);
+      expect(databaseAdapter.create).toHaveBeenCalledWith(
+        'calendarConflict',
+        expect.any(Object)
+      );
+    });
+
+    it('should get conflicts for user', async () => {
+      const mockConflicts = [
+        {
+          id: 1,
+          syncConfigId: 1,
+          googleEventId: 'google-123',
+          outlookEventId: 'outlook-456',
+          conflictType: 'update_conflict',
+          isResolved: false,
+        },
+      ];
+
+      databaseAdapter.findFirst.mockResolvedValue({ id: 1, userId: 123 });
+      databaseAdapter.findMany.mockResolvedValue(mockConflicts);
+
+      const conflicts = await syncService.getConflicts(123);
+
+      expect(conflicts.length).toBe(1);
+      expect(conflicts[0].conflictType).toBe('update_conflict');
+    });
+  });
+
+  // ==========================================================================
+  // Conflict Resolution Tests
+  // ==========================================================================
+
+  describe('Conflict Resolution', () => {
+    it('should resolve conflict using Google version', async () => {
+      const mockConflict = {
+        id: 1,
+        syncConfigId: 1,
+        googleEventId: 'google-123',
+        outlookEventId: 'outlook-456',
+        googleEventData: mockGoogleEvent,
+        outlookEventData: mockOutlookEvent,
+        isResolved: false,
+      };
+
+      databaseAdapter.findUnique
+        .mockResolvedValueOnce(mockConflict)
+        .mockResolvedValueOnce({ id: 1, userId: 123 });
+
+      outlookCalendar.updateEvent = jest.fn().mockResolvedValue(mockOutlookEvent);
+
+      await syncService.resolveConflict({
+        conflictId: 1,
+        resolution: 'use_google',
+      });
+
+      expect(outlookCalendar.updateEvent).toHaveBeenCalledWith(
+        'outlook-456',
+        expect.any(Object)
+      );
+
+      expect(databaseAdapter.update).toHaveBeenCalledWith(
+        'calendarConflict',
+        expect.objectContaining({
+          data: expect.objectContaining({
+            isResolved: true,
+            resolution: 'use_google',
+          }),
+        })
+      );
+    });
+
+    it('should resolve conflict using Outlook version', async () => {
+      const mockConflict = {
+        id: 1,
+        syncConfigId: 1,
+        googleEventId: 'google-123',
+        outlookEventId: 'outlook-456',
+        googleEventData: mockGoogleEvent,
+        outlookEventData: mockOutlookEvent,
+        isResolved: false,
+      };
+
+      databaseAdapter.findUnique
+        .mockResolvedValueOnce(mockConflict)
+        .mockResolvedValueOnce({ id: 1, userId: 123 });
+
+      googleCalendar.updateEvent = jest.fn().mockResolvedValue(mockGoogleEvent);
+
+      await syncService.resolveConflict({
+        conflictId: 1,
+        resolution: 'use_outlook',
+      });
+
+      expect(googleCalendar.updateEvent).toHaveBeenCalledWith(
+        'google-123',
+        expect.any(Object)
+      );
+    });
+
+    it('should resolve conflict by merging', async () => {
+      const mockConflict = {
+        id: 1,
+        syncConfigId: 1,
+        googleEventId: 'google-123',
+        outlookEventId: 'outlook-456',
+        isResolved: false,
+      };
+
+      databaseAdapter.findUnique
+        .mockResolvedValueOnce(mockConflict)
+        .mockResolvedValueOnce({ id: 1, userId: 123 });
+
+      googleCalendar.updateEvent = jest.fn().mockResolvedValue(mockGoogleEvent);
+      outlookCalendar.updateEvent = jest.fn().mockResolvedValue(mockOutlookEvent);
+
+      const mergedData = {
+        summary: 'Merged Event Title',
+      };
+
+      await syncService.resolveConflict({
+        conflictId: 1,
+        resolution: 'merge',
+        mergedData,
+      });
+
+      expect(googleCalendar.updateEvent).toHaveBeenCalled();
+      expect(outlookCalendar.updateEvent).toHaveBeenCalled();
+    });
+
+    it('should skip conflict resolution', async () => {
+      const mockConflict = {
+        id: 1,
+        syncConfigId: 1,
+        isResolved: false,
+      };
+
+      databaseAdapter.findUnique
+        .mockResolvedValueOnce(mockConflict)
+        .mockResolvedValueOnce({ id: 1, userId: 123 });
+
+      await syncService.resolveConflict({
+        conflictId: 1,
+        resolution: 'skip',
+      });
+
+      // Should only update conflict status, not modify events
+      expect(databaseAdapter.update).toHaveBeenCalledWith(
+        'calendarConflict',
+        expect.objectContaining({
+          data: expect.objectContaining({
+            isResolved: true,
+            resolution: 'skip',
+          }),
+        })
+      );
+    });
+
+    it('should throw error if conflict already resolved', async () => {
+      const mockConflict = {
+        id: 1,
+        isResolved: true,
+      };
+
+      databaseAdapter.findUnique.mockResolvedValueOnce(mockConflict);
+
+      await expect(
+        syncService.resolveConflict({
+          conflictId: 1,
+          resolution: 'use_google',
+        })
+      ).rejects.toThrow('already resolved');
+    });
+  });
+
+  // ==========================================================================
+  // Error Handling Tests
+  // ==========================================================================
+
+  describe('Error Handling', () => {
+    it('should handle sync errors gracefully', async () => {
+      const mockConfig = {
+        id: 1,
+        userId: 123,
+        syncInterval: 300000,
+      };
+
+      databaseAdapter.findFirst.mockResolvedValue(mockConfig);
+      googleCalendar.listEvents = jest.fn().mockRejectedValue(new Error('API Error'));
+
+      const options: SyncOptions = {
+        userId: 123,
+        googleCalendarId: 'primary',
+        outlookCalendarId: 'primary',
+      };
+
+      await expect(syncService.syncNow(options)).rejects.toThrow('API Error');
+
+      expect(databaseAdapter.update).toHaveBeenCalledWith(
+        'calendarSyncConfig',
+        expect.objectContaining({
+          data: expect.objectContaining({
+            status: 'error',
+            errorMessage: 'API Error',
+          }),
+        })
+      );
+    });
+  });
+});

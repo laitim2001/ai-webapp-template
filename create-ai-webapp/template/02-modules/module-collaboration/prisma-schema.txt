@@ -1,0 +1,136 @@
+# Collaboration Module - Prisma Schema Additions
+
+Add these models to your Prisma schema file when using the Collaboration module.
+
+## PostgreSQL / MySQL / SQLite
+
+```prisma
+// Collaboration Session - tracks active collaborative editing sessions
+model CollaborationSession {
+  id            String    @id @default(cuid())
+  document_id   String
+  user_id       String
+  started_at    DateTime  @default(now())
+  ended_at      DateTime?
+  is_active     Boolean   @default(true)
+  sync_status   String    @default("disconnected") // synced, syncing, disconnected, connecting
+  last_sync_at  DateTime?
+  change_count  Int       @default(0)
+  version       Int       @default(1)
+  created_at    DateTime  @default(now())
+  updated_at    DateTime  @updatedAt
+
+  @@index([document_id])
+  @@index([user_id])
+  @@index([is_active])
+  @@map("collaboration_sessions")
+}
+
+// Document Change - tracks all changes made to documents
+model DocumentChange {
+  id          String   @id @default(cuid())
+  document_id String
+  user_id     String
+  type        String   // insert, delete, replace
+  position    Int
+  content     String   @db.Text
+  length      Int?
+  created_at  DateTime @default(now())
+
+  @@index([document_id])
+  @@index([user_id])
+  @@index([created_at])
+  @@map("document_changes")
+}
+
+// Document Version - stores document versions for version control
+model DocumentVersion {
+  id          String   @id @default(cuid())
+  document_id String
+  version     Int
+  content     String   @db.Text
+  created_by  String
+  created_at  DateTime @default(now())
+  comment     String?
+
+  @@unique([document_id, version])
+  @@index([document_id])
+  @@map("document_versions")
+}
+```
+
+## MongoDB
+
+```prisma
+// Collaboration Session
+model CollaborationSession {
+  id            String    @id @default(auto()) @map("_id") @db.ObjectId
+  document_id   String
+  user_id       String
+  started_at    DateTime  @default(now())
+  ended_at      DateTime?
+  is_active     Boolean   @default(true)
+  sync_status   String    @default("disconnected")
+  last_sync_at  DateTime?
+  change_count  Int       @default(0)
+  version       Int       @default(1)
+  created_at    DateTime  @default(now())
+  updated_at    DateTime  @updatedAt
+
+  @@map("collaboration_sessions")
+}
+
+// Document Change
+model DocumentChange {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  document_id String
+  user_id     String
+  type        String
+  position    Int
+  content     String
+  length      Int?
+  created_at  DateTime @default(now())
+
+  @@map("document_changes")
+}
+
+// Document Version
+model DocumentVersion {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  document_id String
+  version     Int
+  content     String
+  created_by  String
+  created_at  DateTime @default(now())
+  comment     String?
+
+  @@map("document_versions")
+}
+```
+
+## Migration Commands
+
+After adding the schema:
+
+```bash
+# For PostgreSQL, MySQL, SQLite
+npx prisma migrate dev --name add-collaboration-module
+
+# For MongoDB
+npx prisma db push
+```
+
+## Indexes for Performance
+
+Recommended additional indexes for production:
+
+```sql
+-- For high-traffic documents
+CREATE INDEX idx_collab_document_active ON collaboration_sessions(document_id, is_active);
+
+-- For change history queries
+CREATE INDEX idx_change_document_created ON document_changes(document_id, created_at DESC);
+
+-- For version lookups
+CREATE INDEX idx_version_lookup ON document_versions(document_id, version DESC);
+```

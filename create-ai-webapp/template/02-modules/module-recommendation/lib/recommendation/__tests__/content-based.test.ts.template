@@ -1,0 +1,612 @@
+/**
+ * Content-Based Filtering Tests
+ *
+ * Comprehensive test suite for content-based recommendation system
+ */
+
+import { ContentBasedRecommender } from '../content-based';
+import type {
+  RecommendationItem,
+  UserProfile,
+  SimilarItemsOptions,
+  RecommendOptions,
+} from '../content-based';
+
+describe('ContentBasedRecommender', () => {
+  let recommender: ContentBasedRecommender;
+
+  const sampleItems: RecommendationItem[] = [
+    {
+      id: 'item-1',
+      features: {
+        category: 'electronics',
+        brand: 'Apple',
+        tags: ['smartphone', 'iOS', '5G'],
+      },
+      metadata: {
+        name: 'iPhone 14 Pro',
+        description: 'Latest flagship smartphone with advanced camera',
+      },
+    },
+    {
+      id: 'item-2',
+      features: {
+        category: 'electronics',
+        brand: 'Samsung',
+        tags: ['smartphone', 'Android', '5G'],
+      },
+      metadata: {
+        name: 'Galaxy S23',
+        description: 'Premium Android smartphone with excellent display',
+      },
+    },
+    {
+      id: 'item-3',
+      features: {
+        category: 'electronics',
+        brand: 'Apple',
+        tags: ['tablet', 'iOS'],
+      },
+      metadata: {
+        name: 'iPad Pro',
+        description: 'Powerful tablet for creative professionals',
+      },
+    },
+    {
+      id: 'item-4',
+      features: {
+        category: 'clothing',
+        brand: 'Nike',
+        tags: ['shoes', 'sports', 'running'],
+      },
+      metadata: {
+        name: 'Air Max 2023',
+        description: 'Comfortable running shoes with air cushioning',
+      },
+    },
+    {
+      id: 'item-5',
+      features: {
+        category: 'electronics',
+        brand: 'Apple',
+        tags: ['laptop', 'macOS'],
+      },
+      metadata: {
+        name: 'MacBook Pro',
+        description: 'Professional laptop with M2 chip',
+      },
+    },
+  ];
+
+  beforeEach(() => {
+    recommender = new ContentBasedRecommender({
+      similarityThreshold: 0.0,
+      maxFeatures: 1000,
+    });
+  });
+
+  describe('Index Building', () => {
+    it('should build index from items', async () => {
+      await recommender.buildIndex(sampleItems);
+
+      const stats = recommender.getStats();
+      expect(stats.totalItems).toBe(5);
+      expect(stats.totalFeatures).toBeGreaterThan(0);
+    });
+
+    it('should handle empty item list', async () => {
+      await recommender.buildIndex([]);
+
+      const stats = recommender.getStats();
+      expect(stats.totalItems).toBe(0);
+    });
+
+    it('should rebuild index on multiple calls', async () => {
+      await recommender.buildIndex(sampleItems.slice(0, 3));
+      let stats = recommender.getStats();
+      expect(stats.totalItems).toBe(3);
+
+      await recommender.buildIndex(sampleItems);
+      stats = recommender.getStats();
+      expect(stats.totalItems).toBe(5);
+    });
+
+    it('should extract features from complex objects', async () => {
+      const complexItems: RecommendationItem[] = [
+        {
+          id: 'complex-1',
+          features: {
+            nested: {
+              deep: {
+                value: 'test',
+              },
+            },
+            array: ['a', 'b', 'c'],
+            number: 123,
+          },
+        },
+      ];
+
+      await recommender.buildIndex(complexItems);
+      const stats = recommender.getStats();
+      expect(stats.totalItems).toBe(1);
+      expect(stats.totalFeatures).toBeGreaterThan(0);
+    });
+  });
+
+  describe('Similar Items Recommendation', () => {
+    beforeEach(async () => {
+      await recommender.buildIndex(sampleItems);
+    });
+
+    it('should find similar items based on features', async () => {
+      const recommendations = await recommender.getSimilarItems('item-1', {
+        limit: 3,
+      });
+
+      expect(recommendations).toBeInstanceOf(Array);
+      expect(recommendations.length).toBeGreaterThan(0);
+      expect(recommendations.length).toBeLessThanOrEqual(3);
+
+      // item-2 (Samsung smartphone) should be similar to item-1 (iPhone)
+      const hasSmartphone = recommendations.some(rec =>
+        ['item-2', 'item-3'].includes(rec.itemId)
+      );
+      expect(hasSmartphone).toBe(true);
+    });
+
+    it('should not include the target item in results', async () => {
+      const recommendations = await recommender.getSimilarItems('item-1', {
+        limit: 5,
+      });
+
+      const hasSelf = recommendations.some(rec => rec.itemId === 'item-1');
+      expect(hasSelf).toBe(false);
+    });
+
+    it('should respect similarity threshold', async () => {
+      const recommendations = await recommender.getSimilarItems('item-1', {
+        limit: 10,
+        threshold: 0.5,
+      });
+
+      recommendations.forEach(rec => {
+        expect(rec.score).toBeGreaterThanOrEqual(0.5);
+      });
+    });
+
+    it('should limit results to specified count', async () => {
+      const recommendations = await recommender.getSimilarItems('item-1', {
+        limit: 2,
+      });
+
+      expect(recommendations.length).toBeLessThanOrEqual(2);
+    });
+
+    it('should include scores when requested', async () => {
+      const recommendations = await recommender.getSimilarItems('item-1', {
+        limit: 3,
+        includeScores: true,
+      });
+
+      recommendations.forEach(rec => {
+        expect(rec.score).toBeGreaterThanOrEqual(0);
+        expect(rec.score).toBeLessThanOrEqual(1);
+      });
+    });
+
+    it('should include metadata in results', async () => {
+      const recommendations = await recommender.getSimilarItems('item-1', {
+        limit: 3,
+      });
+
+      recommendations.forEach(rec => {
+        expect(rec.metadata).toBeDefined();
+      });
+    });
+
+    it('should sort results by similarity score descending', async () => {
+      const recommendations = await recommender.getSimilarItems('item-1', {
+        limit: 5,
+      });
+
+      for (let i = 1; i < recommendations.length; i++) {
+        expect(recommendations[i - 1].score).toBeGreaterThanOrEqual(
+          recommendations[i].score
+        );
+      }
+    });
+
+    it('should throw error for non-existent item', async () => {
+      await expect(
+        recommender.getSimilarItems('non-existent', { limit: 5 })
+      ).rejects.toThrow();
+    });
+  });
+
+  describe('User Profile Recommendations', () => {
+    beforeEach(async () => {
+      await recommender.buildIndex(sampleItems);
+    });
+
+    it('should recommend items based on user profile', async () => {
+      const profile: UserProfile = {
+        userId: 'user-1',
+        preferences: {
+          electronics: 1.0,
+          Apple: 0.8,
+        },
+        history: ['item-1'], // iPhone
+      };
+
+      const recommendations = await recommender.recommendForUserProfile(profile, {
+        limit: 3,
+      });
+
+      expect(recommendations).toBeInstanceOf(Array);
+      expect(recommendations.length).toBeGreaterThan(0);
+
+      // Should recommend other Apple products
+      const hasAppleProduct = recommendations.some(rec =>
+        ['item-3', 'item-5'].includes(rec.itemId)
+      );
+      expect(hasAppleProduct).toBe(true);
+    });
+
+    it('should exclude items from user history', async () => {
+      const profile: UserProfile = {
+        userId: 'user-1',
+        preferences: {},
+        history: ['item-1', 'item-2'],
+      };
+
+      const recommendations = await recommender.recommendForUserProfile(profile, {
+        limit: 5,
+        excludeIds: profile.history,
+      });
+
+      recommendations.forEach(rec => {
+        expect(profile.history).not.toContain(rec.itemId);
+      });
+    });
+
+    it('should respect minimum score threshold', async () => {
+      const profile: UserProfile = {
+        userId: 'user-1',
+        preferences: {},
+        history: ['item-1'],
+      };
+
+      const recommendations = await recommender.recommendForUserProfile(profile, {
+        limit: 10,
+        minScore: 0.3,
+      });
+
+      recommendations.forEach(rec => {
+        expect(rec.score).toBeGreaterThanOrEqual(0.3);
+      });
+    });
+
+    it('should handle empty user history', async () => {
+      const profile: UserProfile = {
+        userId: 'user-1',
+        preferences: { electronics: 1.0 },
+        history: [],
+      };
+
+      const recommendations = await recommender.recommendForUserProfile(profile, {
+        limit: 3,
+      });
+
+      // Should still return recommendations based on preferences
+      expect(recommendations).toBeInstanceOf(Array);
+    });
+
+    it('should weight recommendations by user preferences', async () => {
+      const profile: UserProfile = {
+        userId: 'user-1',
+        preferences: {
+          electronics: 2.0, // Strong preference
+        },
+        history: ['item-1'],
+      };
+
+      const recommendations = await recommender.recommendForUserProfile(profile, {
+        limit: 3,
+      });
+
+      // Most recommendations should be electronics
+      const electronicsCount = recommendations.filter(rec => {
+        const item = recommender.getItem(rec.itemId);
+        return item?.features.category === 'electronics';
+      }).length;
+
+      expect(electronicsCount).toBeGreaterThan(0);
+    });
+  });
+
+  describe('Item Management', () => {
+    beforeEach(async () => {
+      await recommender.buildIndex(sampleItems);
+    });
+
+    it('should update existing item', async () => {
+      const updatedItem: RecommendationItem = {
+        id: 'item-1',
+        features: {
+          category: 'electronics',
+          brand: 'Apple',
+          tags: ['smartphone', 'iOS', '5G', 'new-feature'],
+        },
+        metadata: {
+          name: 'iPhone 14 Pro (Updated)',
+          description: 'Updated description',
+        },
+      };
+
+      await recommender.updateItem(updatedItem);
+
+      const item = recommender.getItem('item-1');
+      expect(item?.metadata?.name).toBe('iPhone 14 Pro (Updated)');
+    });
+
+    it('should add new item to index', async () => {
+      const newItem: RecommendationItem = {
+        id: 'item-6',
+        features: {
+          category: 'electronics',
+          brand: 'Google',
+          tags: ['smartphone', 'Android'],
+        },
+        metadata: {
+          name: 'Pixel 7',
+        },
+      };
+
+      await recommender.updateItem(newItem);
+
+      const stats = recommender.getStats();
+      expect(stats.totalItems).toBe(6);
+
+      const item = recommender.getItem('item-6');
+      expect(item).toBeDefined();
+      expect(item?.id).toBe('item-6');
+    });
+
+    it('should remove item from index', async () => {
+      await recommender.removeItem('item-1');
+
+      const item = recommender.getItem('item-1');
+      expect(item).toBeUndefined();
+
+      const stats = recommender.getStats();
+      expect(stats.totalItems).toBe(4);
+    });
+
+    it('should get all items', () => {
+      const allItems = recommender.getAllItems();
+      expect(allItems).toBeInstanceOf(Array);
+      expect(allItems.length).toBe(5);
+    });
+
+    it('should get item by ID', () => {
+      const item = recommender.getItem('item-1');
+      expect(item).toBeDefined();
+      expect(item?.id).toBe('item-1');
+      expect(item?.metadata?.name).toBe('iPhone 14 Pro');
+    });
+
+    it('should return undefined for non-existent item', () => {
+      const item = recommender.getItem('non-existent');
+      expect(item).toBeUndefined();
+    });
+  });
+
+  describe('Cosine Similarity Calculation', () => {
+    beforeEach(async () => {
+      await recommender.buildIndex(sampleItems);
+    });
+
+    it('should calculate similarity between similar items', async () => {
+      // iPhone and Samsung Galaxy should be somewhat similar (both smartphones)
+      const recommendations = await recommender.getSimilarItems('item-1', {
+        limit: 10,
+      });
+
+      const galaxyRec = recommendations.find(rec => rec.itemId === 'item-2');
+      expect(galaxyRec).toBeDefined();
+      expect(galaxyRec!.score).toBeGreaterThan(0);
+    });
+
+    it('should have lower similarity for dissimilar items', async () => {
+      // iPhone and Nike shoes should have low similarity
+      const recommendations = await recommender.getSimilarItems('item-1', {
+        limit: 10,
+      });
+
+      const nikeRec = recommendations.find(rec => rec.itemId === 'item-4');
+
+      if (nikeRec) {
+        const electronicsRec = recommendations.find(rec =>
+          ['item-2', 'item-3', 'item-5'].includes(rec.itemId)
+        );
+
+        if (electronicsRec) {
+          expect(electronicsRec.score).toBeGreaterThan(nikeRec.score);
+        }
+      }
+    });
+  });
+
+  describe('TF-IDF Feature Extraction', () => {
+    it('should extract text features from various data types', async () => {
+      const items: RecommendationItem[] = [
+        {
+          id: 'test-1',
+          features: {
+            text: 'smartphone camera quality',
+            number: 5,
+            array: ['feature1', 'feature2'],
+            nested: { deep: 'value' },
+          },
+        },
+        {
+          id: 'test-2',
+          features: {
+            text: 'smartphone display screen',
+            number: 6,
+            array: ['feature1', 'feature3'],
+          },
+        },
+      ];
+
+      await recommender.buildIndex(items);
+
+      const recommendations = await recommender.getSimilarItems('test-1', {
+        limit: 1,
+      });
+
+      expect(recommendations.length).toBeGreaterThan(0);
+      expect(recommendations[0].itemId).toBe('test-2');
+      expect(recommendations[0].score).toBeGreaterThan(0);
+    });
+
+    it('should handle items with minimal features', async () => {
+      const items: RecommendationItem[] = [
+        {
+          id: 'minimal-1',
+          features: { tag: 'test' },
+        },
+        {
+          id: 'minimal-2',
+          features: { tag: 'test' },
+        },
+      ];
+
+      await recommender.buildIndex(items);
+      const stats = recommender.getStats();
+      expect(stats.totalItems).toBe(2);
+    });
+  });
+
+  describe('Index Statistics', () => {
+    it('should provide accurate statistics', async () => {
+      await recommender.buildIndex(sampleItems);
+
+      const stats = recommender.getStats();
+
+      expect(stats.totalItems).toBe(5);
+      expect(stats.totalFeatures).toBeGreaterThan(0);
+      expect(stats.avgFeaturesPerItem).toBeGreaterThan(0);
+      expect(stats.avgFeaturesPerItem).toBe(stats.totalFeatures / stats.totalItems);
+    });
+
+    it('should handle empty index statistics', async () => {
+      const stats = recommender.getStats();
+
+      expect(stats.totalItems).toBe(0);
+      expect(stats.totalFeatures).toBe(0);
+      expect(stats.avgFeaturesPerItem).toBe(0);
+    });
+  });
+
+  describe('Edge Cases', () => {
+    it('should handle items with identical features', async () => {
+      const items: RecommendationItem[] = [
+        {
+          id: 'identical-1',
+          features: { category: 'test', tag: 'same' },
+        },
+        {
+          id: 'identical-2',
+          features: { category: 'test', tag: 'same' },
+        },
+      ];
+
+      await recommender.buildIndex(items);
+      const recommendations = await recommender.getSimilarItems('identical-1', {
+        limit: 1,
+      });
+
+      expect(recommendations.length).toBe(1);
+      expect(recommendations[0].itemId).toBe('identical-2');
+      expect(recommendations[0].score).toBeCloseTo(1.0, 1); // Should be very similar
+    });
+
+    it('should handle items with no common features', async () => {
+      const items: RecommendationItem[] = [
+        {
+          id: 'unique-1',
+          features: { a: 'value1' },
+        },
+        {
+          id: 'unique-2',
+          features: { b: 'value2' },
+        },
+      ];
+
+      await recommender.buildIndex(items);
+      const recommendations = await recommender.getSimilarItems('unique-1', {
+        limit: 1,
+        threshold: 0.1,
+      });
+
+      // May or may not return results depending on threshold
+      expect(recommendations).toBeInstanceOf(Array);
+    });
+
+    it('should handle very large feature sets', async () => {
+      const largeFeatures: Record<string, any> = {};
+      for (let i = 0; i < 100; i++) {
+        largeFeatures[`feature${i}`] = `value${i}`;
+      }
+
+      const items: RecommendationItem[] = [
+        {
+          id: 'large-1',
+          features: largeFeatures,
+        },
+        {
+          id: 'large-2',
+          features: { ...largeFeatures, extra: 'new' },
+        },
+      ];
+
+      await recommender.buildIndex(items);
+      const recommendations = await recommender.getSimilarItems('large-1', {
+        limit: 1,
+      });
+
+      expect(recommendations.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe('Configuration Options', () => {
+    it('should respect similarity threshold from constructor', async () => {
+      const strictRecommender = new ContentBasedRecommender({
+        similarityThreshold: 0.7,
+      });
+
+      await strictRecommender.buildIndex(sampleItems);
+      const recommendations = await strictRecommender.getSimilarItems('item-1', {
+        limit: 10,
+      });
+
+      recommendations.forEach(rec => {
+        expect(rec.score).toBeGreaterThanOrEqual(0.7);
+      });
+    });
+
+    it('should respect max features limit', async () => {
+      const limitedRecommender = new ContentBasedRecommender({
+        maxFeatures: 10,
+      });
+
+      await limitedRecommender.buildIndex(sampleItems);
+      const stats = limitedRecommender.getStats();
+
+      // Stats should reflect the limitation
+      expect(stats.totalFeatures).toBeLessThanOrEqual(10);
+    });
+  });
+});

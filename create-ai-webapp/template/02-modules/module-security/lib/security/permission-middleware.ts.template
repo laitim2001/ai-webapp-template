@@ -1,0 +1,438 @@
+/**
+ * Permission Middleware
+ *
+ * Next.js API route middleware for enforcing RBAC permissions
+ *
+ * Usage:
+ * ```typescript
+ * export const GET = withPermission(Permission.READ_CUSTOMER)(async (req) => {
+ *   // Handler code
+ * });
+ *
+ * export const POST = withRole([Role.ADMIN, Role.SALES_MANAGER])(async (req) => {
+ *   // Handler code
+ * });
+ * ```
+ *
+ * @module Security/PermissionMiddleware
+ */
+
+import { NextRequest, NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import {
+  Role,
+  Permission,
+  checkPermission,
+  requireRole,
+  requirePermission,
+  getUserRole,
+  Action,
+  Resource,
+} from './rbac';
+import { logAuditEvent } from './audit-log';
+
+// ============================================================================
+// Types
+// ============================================================================
+
+export type RouteHandler = (
+  req: NextRequest,
+  context?: { params: Record<string, string> }
+) => Promise<NextResponse> | NextResponse;
+
+export interface MiddlewareOptions {
+  /**
+   * Whether to log access attempts (default: true)
+   */
+  auditLog?: boolean;
+
+  /**
+   * Custom error message for unauthorized access
+   */
+  errorMessage?: string;
+
+  /**
+   * Allow request to proceed even if permission check fails (default: false)
+   * When true, adds `hasPermission` boolean to request context
+   */
+  soft?: boolean;
+}
+
+// ============================================================================
+// Core Middleware Functions
+// ============================================================================
+
+/**
+ * Get authenticated user from session
+ */
+async function getAuthenticatedUser(req: NextRequest): Promise<string | null> {
+  try {
+    const session = await getServerSession(authOptions);
+    return session?.user?.id || null;
+  } catch (error) {
+    console.error('Error getting session:', error);
+    return null;
+  }
+}
+
+/**
+ * Wrap handler with permission check
+ */
+export function withPermission(
+  permission: Permission,
+  options: MiddlewareOptions = {}
+) {
+  const { auditLog = true, errorMessage, soft = false } = options;
+
+  return (handler: RouteHandler): RouteHandler => {
+    return async (req: NextRequest, context?: { params: Record<string, string> }) => {
+      try {
+        // Get authenticated user
+        const userId = await getAuthenticatedUser(req);
+
+        if (!userId) {
+          return NextResponse.json(
+            { error: errorMessage || 'Authentication required' },
+            { status: 401 }
+          );
+        }
+
+        // Check permission
+        const hasPermission = await requirePermission(userId, permission);
+
+        // Log audit event
+        if (auditLog) {
+          await logAuditEvent({
+            userId,
+            action: 'permission_check',
+            resource: permission,
+            success: true,
+            metadata: {
+              path: req.nextUrl.pathname,
+              method: req.method,
+            },
+          });
+        }
+
+        // Execute handler
+        return await handler(req, context);
+      } catch (error) {
+        // Log failed attempt
+        if (auditLog) {
+          const userId = await getAuthenticatedUser(req);
+          if (userId) {
+            await logAuditEvent({
+              userId,
+              action: 'permission_denied',
+              resource: permission,
+              success: false,
+              metadata: {
+                path: req.nextUrl.pathname,
+                method: req.method,
+                error: error instanceof Error ? error.message : String(error),
+              },
+            });
+          }
+        }
+
+        if (soft) {
+          // Soft mode: proceed with hasPermission = false
+          return await handler(req, context);
+        }
+
+        // Return forbidden response
+        return NextResponse.json(
+          { error: errorMessage || 'Insufficient permissions' },
+          { status: 403 }
+        );
+      }
+    };
+  };
+}
+
+/**
+ * Wrap handler with role check
+ */
+export function withRole(
+  allowedRoles: Role[],
+  options: MiddlewareOptions = {}
+) {
+  const { auditLog = true, errorMessage, soft = false } = options;
+
+  return (handler: RouteHandler): RouteHandler => {
+    return async (req: NextRequest, context?: { params: Record<string, string> }) => {
+      try {
+        // Get authenticated user
+        const userId = await getAuthenticatedUser(req);
+
+        if (!userId) {
+          return NextResponse.json(
+            { error: errorMessage || 'Authentication required' },
+            { status: 401 }
+          );
+        }
+
+        // Check role
+        await requireRole(userId, allowedRoles);
+
+        // Log audit event
+        if (auditLog) {
+          const userRole = await getUserRole(userId);
+          await logAuditEvent({
+            userId,
+            action: 'role_check',
+            resource: `roles:${allowedRoles.join(',')}`,
+            success: true,
+            metadata: {
+              path: req.nextUrl.pathname,
+              method: req.method,
+              userRole,
+              allowedRoles,
+            },
+          });
+        }
+
+        // Execute handler
+        return await handler(req, context);
+      } catch (error) {
+        // Log failed attempt
+        if (auditLog) {
+          const userId = await getAuthenticatedUser(req);
+          if (userId) {
+            const userRole = await getUserRole(userId);
+            await logAuditEvent({
+              userId,
+              action: 'role_denied',
+              resource: `roles:${allowedRoles.join(',')}`,
+              success: false,
+              metadata: {
+                path: req.nextUrl.pathname,
+                method: req.method,
+                userRole,
+                allowedRoles,
+                error: error instanceof Error ? error.message : String(error),
+              },
+            });
+          }
+        }
+
+        if (soft) {
+          // Soft mode: proceed with hasRole = false
+          return await handler(req, context);
+        }
+
+        // Return forbidden response
+        return NextResponse.json(
+          { error: errorMessage || 'Insufficient role' },
+          { status: 403 }
+        );
+      }
+    };
+  };
+}
+
+/**
+ * Wrap handler with resource-level permission check
+ */
+export function withResourcePermission(
+  action: Action,
+  resource: Resource,
+  getResourceId: (req: NextRequest, context?: { params: Record<string, string> }) => string,
+  options: MiddlewareOptions = {}
+) {
+  const { auditLog = true, errorMessage, soft = false } = options;
+
+  return (handler: RouteHandler): RouteHandler => {
+    return async (req: NextRequest, context?: { params: Record<string, string> }) => {
+      try {
+        // Get authenticated user
+        const userId = await getAuthenticatedUser(req);
+
+        if (!userId) {
+          return NextResponse.json(
+            { error: errorMessage || 'Authentication required' },
+            { status: 401 }
+          );
+        }
+
+        // Get resource ID from request
+        const resourceId = getResourceId(req, context);
+
+        // Check resource permission
+        const hasPermission = await checkPermission(userId, action, resource, resourceId);
+
+        if (!hasPermission) {
+          throw new Error('Access denied to resource');
+        }
+
+        // Log audit event
+        if (auditLog) {
+          await logAuditEvent({
+            userId,
+            action: `${action}:${resource}`,
+            resource: resourceId,
+            success: true,
+            metadata: {
+              path: req.nextUrl.pathname,
+              method: req.method,
+            },
+          });
+        }
+
+        // Execute handler
+        return await handler(req, context);
+      } catch (error) {
+        // Log failed attempt
+        if (auditLog) {
+          const userId = await getAuthenticatedUser(req);
+          if (userId) {
+            const resourceId = getResourceId(req, context);
+            await logAuditEvent({
+              userId,
+              action: `${action}:${resource}_denied`,
+              resource: resourceId,
+              success: false,
+              metadata: {
+                path: req.nextUrl.pathname,
+                method: req.method,
+                error: error instanceof Error ? error.message : String(error),
+              },
+            });
+          }
+        }
+
+        if (soft) {
+          // Soft mode: proceed with hasPermission = false
+          return await handler(req, context);
+        }
+
+        // Return forbidden response
+        return NextResponse.json(
+          { error: errorMessage || 'Access denied to resource' },
+          { status: 403 }
+        );
+      }
+    };
+  };
+}
+
+/**
+ * Combine multiple middleware checks (all must pass)
+ */
+export function withAll(...middlewares: Array<(handler: RouteHandler) => RouteHandler>) {
+  return (handler: RouteHandler): RouteHandler => {
+    // Apply middlewares in reverse order (innermost first)
+    return middlewares.reduceRight(
+      (wrappedHandler, middleware) => middleware(wrappedHandler),
+      handler
+    );
+  };
+}
+
+/**
+ * Combine multiple middleware checks (any can pass)
+ */
+export function withAny(...middlewares: Array<(handler: RouteHandler) => RouteHandler>) {
+  return (handler: RouteHandler): RouteHandler => {
+    return async (req: NextRequest, context?: { params: Record<string, string> }) => {
+      const errors: Error[] = [];
+
+      // Try each middleware
+      for (const middleware of middlewares) {
+        try {
+          const wrappedHandler = middleware(handler);
+          return await wrappedHandler(req, context);
+        } catch (error) {
+          errors.push(error instanceof Error ? error : new Error(String(error)));
+          continue;
+        }
+      }
+
+      // All middlewares failed
+      return NextResponse.json(
+        {
+          error: 'Insufficient permissions',
+          details: errors.map(e => e.message),
+        },
+        { status: 403 }
+      );
+    };
+  };
+}
+
+// ============================================================================
+// Convenience Middleware Creators
+// ============================================================================
+
+/**
+ * Require ADMIN role
+ */
+export const requireAdmin = () => withRole([Role.ADMIN]);
+
+/**
+ * Require ADMIN or SALES_MANAGER role
+ */
+export const requireManager = () => withRole([Role.ADMIN, Role.SALES_MANAGER]);
+
+/**
+ * Require authenticated user (any role)
+ */
+export const requireAuth = () => withRole(Object.values(Role));
+
+/**
+ * Common resource permission middleware
+ */
+export const resourceMiddleware = {
+  /**
+   * Require customer read permission
+   */
+  readCustomer: (getCustomerId: (req: NextRequest, context?: any) => string) =>
+    withResourcePermission('read', 'customer', getCustomerId),
+
+  /**
+   * Require customer update permission
+   */
+  updateCustomer: (getCustomerId: (req: NextRequest, context?: any) => string) =>
+    withResourcePermission('update', 'customer', getCustomerId),
+
+  /**
+   * Require workflow approval permission
+   */
+  approveWorkflow: (getWorkflowId: (req: NextRequest, context?: any) => string) =>
+    withResourcePermission('approve', 'workflow', getWorkflowId),
+};
+
+// ============================================================================
+// Utility Functions
+// ============================================================================
+
+/**
+ * Extract resource ID from URL params
+ */
+export function getParamId(paramName: string = 'id') {
+  return (_req: NextRequest, context?: { params: Record<string, string> }) => {
+    return context?.params?.[paramName] || '';
+  };
+}
+
+/**
+ * Extract resource ID from query string
+ */
+export function getQueryId(queryName: string = 'id') {
+  return (req: NextRequest) => {
+    return req.nextUrl.searchParams.get(queryName) || '';
+  };
+}
+
+/**
+ * Extract resource ID from request body
+ */
+export async function getBodyId(req: NextRequest, fieldName: string = 'id'): Promise<string> {
+  try {
+    const body = await req.json();
+    return body[fieldName] || '';
+  } catch {
+    return '';
+  }
+}

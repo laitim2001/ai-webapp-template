@@ -1,0 +1,501 @@
+/**
+ * Collaborative Editing Service
+ *
+ * Real-time collaborative editing using Yjs CRDT for conflict-free synchronization.
+ * Supports operational transformation, version control, and change tracking.
+ *
+ * @module collaborative-editing
+ */
+
+import * as Y from 'yjs'
+import { WebsocketProvider } from 'y-websocket'
+import { databaseAdapter } from '@/lib/db/database-adapter'
+import type {
+  CollaborationSession,
+  DocumentChange,
+  DocumentVersion,
+  ConflictResolution,
+  SyncStatus,
+  EditorState
+} from '@/types/collaboration'
+
+/**
+ * Collaborative Editing Manager
+ *
+ * Manages real-time collaborative editing sessions with:
+ * - CRDT-based conflict-free synchronization
+ * - Version control and change tracking
+ * - Automatic conflict resolution
+ * - WebSocket-based real-time sync
+ */
+export class CollaborativeEditingService {
+  private sessions: Map<string, CollaborationSession> = new Map()
+  private yDocs: Map<string, Y.Doc> = new Map()
+  private providers: Map<string, WebsocketProvider> = new Map()
+  private websocketUrl: string
+
+  constructor(websocketUrl: string = 'ws://localhost:1234') {
+    this.websocketUrl = websocketUrl
+  }
+
+  /**
+   * Create a new collaborative editing session
+   */
+  async createSession(
+    documentId: string,
+    userId: string,
+    initialContent?: string
+  ): Promise<CollaborationSession> {
+    // Create Yjs document
+    const yDoc = new Y.Doc()
+    const yText = yDoc.getText('content')
+
+    if (initialContent) {
+      yText.insert(0, initialContent)
+    }
+
+    // Create WebSocket provider
+    const provider = new WebsocketProvider(
+      this.websocketUrl,
+      documentId,
+      yDoc,
+      {
+        connect: true,
+        awareness: {
+          userId,
+          timestamp: Date.now()
+        }
+      }
+    )
+
+    // Create session record
+    const session: CollaborationSession = {
+      id: this.generateSessionId(),
+      documentId,
+      userId,
+      startedAt: new Date(),
+      isActive: true,
+      syncStatus: 'connecting' as SyncStatus,
+      lastSyncAt: null,
+      changeCount: 0,
+      version: 1
+    }
+
+    // Store session data
+    this.sessions.set(session.id, session)
+    this.yDocs.set(documentId, yDoc)
+    this.providers.set(documentId, provider)
+
+    // Save session to database
+    await this.saveSessionToDatabase(session)
+
+    // Set up sync event handlers
+    this.setupSyncHandlers(session.id, provider)
+
+    // Set up change tracking
+    this.setupChangeTracking(session.id, yDoc, userId)
+
+    return session
+  }
+
+  /**
+   * Join an existing collaborative editing session
+   */
+  async joinSession(
+    documentId: string,
+    userId: string
+  ): Promise<CollaborationSession> {
+    // Check if document already has a Yjs doc
+    let yDoc = this.yDocs.get(documentId)
+    let provider = this.providers.get(documentId)
+
+    if (!yDoc) {
+      // Create new Yjs document
+      yDoc = new Y.Doc()
+      this.yDocs.set(documentId, yDoc)
+    }
+
+    if (!provider) {
+      // Create new WebSocket provider
+      provider = new WebsocketProvider(
+        this.websocketUrl,
+        documentId,
+        yDoc,
+        {
+          connect: true,
+          awareness: {
+            userId,
+            timestamp: Date.now()
+          }
+        }
+      )
+      this.providers.set(documentId, provider)
+    }
+
+    // Create session record
+    const session: CollaborationSession = {
+      id: this.generateSessionId(),
+      documentId,
+      userId,
+      startedAt: new Date(),
+      isActive: true,
+      syncStatus: 'connecting' as SyncStatus,
+      lastSyncAt: null,
+      changeCount: 0,
+      version: await this.getCurrentVersion(documentId)
+    }
+
+    this.sessions.set(session.id, session)
+
+    // Save session to database
+    await this.saveSessionToDatabase(session)
+
+    // Set up handlers
+    this.setupSyncHandlers(session.id, provider)
+    this.setupChangeTracking(session.id, yDoc, userId)
+
+    return session
+  }
+
+  /**
+   * Leave a collaborative editing session
+   */
+  async leaveSession(sessionId: string): Promise<void> {
+    const session = this.sessions.get(sessionId)
+    if (!session) {
+      throw new Error(`Session ${sessionId} not found`)
+    }
+
+    // Mark session as inactive
+    session.isActive = false
+    session.endedAt = new Date()
+
+    // Update database
+    await databaseAdapter.update('collaborationSession', {
+      where: { id: sessionId },
+      data: {
+        is_active: false,
+        ended_at: session.endedAt,
+        change_count: session.changeCount
+      }
+    })
+
+    // Check if this was the last session for the document
+    const documentSessions = Array.from(this.sessions.values()).filter(
+      s => s.documentId === session.documentId && s.isActive
+    )
+
+    if (documentSessions.length === 0) {
+      // No more active sessions, clean up
+      const provider = this.providers.get(session.documentId)
+      if (provider) {
+        provider.destroy()
+        this.providers.delete(session.documentId)
+      }
+      this.yDocs.delete(session.documentId)
+    }
+
+    this.sessions.delete(sessionId)
+  }
+
+  /**
+   * Get current document content
+   */
+  getDocumentContent(documentId: string): string {
+    const yDoc = this.yDocs.get(documentId)
+    if (!yDoc) {
+      throw new Error(`Document ${documentId} not found`)
+    }
+
+    const yText = yDoc.getText('content')
+    return yText.toString()
+  }
+
+  /**
+   * Apply changes to document
+   */
+  applyChanges(
+    documentId: string,
+    userId: string,
+    changes: DocumentChange[]
+  ): void {
+    const yDoc = this.yDocs.get(documentId)
+    if (!yDoc) {
+      throw new Error(`Document ${documentId} not found`)
+    }
+
+    const yText = yDoc.getText('content')
+
+    yDoc.transact(() => {
+      for (const change of changes) {
+        switch (change.type) {
+          case 'insert':
+            yText.insert(change.position, change.content)
+            break
+          case 'delete':
+            yText.delete(change.position, change.length || 1)
+            break
+          case 'replace':
+            yText.delete(change.position, change.length || 0)
+            yText.insert(change.position, change.content)
+            break
+        }
+      }
+    }, userId)
+  }
+
+  /**
+   * Get sync status for a session
+   */
+  getSyncStatus(sessionId: string): SyncStatus {
+    const session = this.sessions.get(sessionId)
+    return session?.syncStatus || 'disconnected'
+  }
+
+  /**
+   * Get document version
+   */
+  async getDocumentVersion(documentId: string): Promise<DocumentVersion | null> {
+    return await databaseAdapter.findFirst('documentVersion', {
+      where: { document_id: documentId },
+      orderBy: { version: 'desc' }
+    }) as DocumentVersion | null
+  }
+
+  /**
+   * Create a new document version
+   */
+  async createVersion(
+    documentId: string,
+    userId: string,
+    comment?: string
+  ): Promise<DocumentVersion> {
+    const content = this.getDocumentContent(documentId)
+    const currentVersion = await this.getCurrentVersion(documentId)
+
+    const version: Partial<DocumentVersion> = {
+      document_id: documentId,
+      version: currentVersion + 1,
+      content,
+      created_by: userId,
+      created_at: new Date(),
+      comment: comment || `Version ${currentVersion + 1}`
+    }
+
+    return await databaseAdapter.create('documentVersion', {
+      data: version
+    }) as DocumentVersion
+  }
+
+  /**
+   * Get change history for a document
+   */
+  async getChangeHistory(
+    documentId: string,
+    limit: number = 50
+  ): Promise<DocumentChange[]> {
+    return await databaseAdapter.findMany('documentChange', {
+      where: { document_id: documentId },
+      orderBy: { created_at: 'desc' },
+      take: limit
+    }) as DocumentChange[]
+  }
+
+  /**
+   * Resolve conflicts (automatic with CRDT)
+   */
+  resolveConflicts(
+    documentId: string
+  ): ConflictResolution {
+    // Yjs CRDT handles conflicts automatically
+    // This method provides insight into the resolution
+    const yDoc = this.yDocs.get(documentId)
+    if (!yDoc) {
+      throw new Error(`Document ${documentId} not found`)
+    }
+
+    return {
+      documentId,
+      resolvedAt: new Date(),
+      strategy: 'crdt',
+      conflictCount: 0, // CRDT prevents conflicts
+      resolution: 'automatic',
+      finalContent: this.getDocumentContent(documentId)
+    }
+  }
+
+  /**
+   * Get active sessions for a document
+   */
+  getActiveSessions(documentId: string): CollaborationSession[] {
+    return Array.from(this.sessions.values()).filter(
+      s => s.documentId === documentId && s.isActive
+    )
+  }
+
+  /**
+   * Setup sync event handlers
+   */
+  private setupSyncHandlers(
+    sessionId: string,
+    provider: WebsocketProvider
+  ): void {
+    const session = this.sessions.get(sessionId)
+    if (!session) return
+
+    provider.on('status', (event: { status: string }) => {
+      if (event.status === 'connected') {
+        session.syncStatus = 'synced'
+        session.lastSyncAt = new Date()
+      } else if (event.status === 'disconnected') {
+        session.syncStatus = 'disconnected'
+      }
+    })
+
+    provider.on('sync', (isSynced: boolean) => {
+      if (isSynced) {
+        session.syncStatus = 'synced'
+        session.lastSyncAt = new Date()
+      } else {
+        session.syncStatus = 'syncing'
+      }
+    })
+  }
+
+  /**
+   * Setup change tracking
+   */
+  private setupChangeTracking(
+    sessionId: string,
+    yDoc: Y.Doc,
+    userId: string
+  ): void {
+    const session = this.sessions.get(sessionId)
+    if (!session) return
+
+    const yText = yDoc.getText('content')
+
+    yText.observe((event) => {
+      session.changeCount++
+
+      // Track changes in database
+      const changes: Partial<DocumentChange>[] = []
+
+      event.delta.forEach((delta) => {
+        if (delta.insert) {
+          changes.push({
+            document_id: session.documentId,
+            user_id: userId,
+            type: 'insert',
+            position: 0, // Calculate actual position
+            content: delta.insert.toString(),
+            created_at: new Date()
+          })
+        } else if (delta.delete) {
+          changes.push({
+            document_id: session.documentId,
+            user_id: userId,
+            type: 'delete',
+            position: 0, // Calculate actual position
+            length: delta.delete,
+            created_at: new Date()
+          })
+        }
+      })
+
+      // Save changes to database (async, don't block)
+      if (changes.length > 0) {
+        this.saveChangesToDatabase(changes).catch(console.error)
+      }
+    })
+  }
+
+  /**
+   * Generate unique session ID
+   */
+  private generateSessionId(): string {
+    return `sess_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
+  }
+
+  /**
+   * Get current version number
+   */
+  private async getCurrentVersion(documentId: string): Promise<number> {
+    const latestVersion = await this.getDocumentVersion(documentId)
+    return latestVersion?.version || 0
+  }
+
+  /**
+   * Save session to database
+   */
+  private async saveSessionToDatabase(
+    session: CollaborationSession
+  ): Promise<void> {
+    await databaseAdapter.create('collaborationSession', {
+      data: {
+        id: session.id,
+        document_id: session.documentId,
+        user_id: session.userId,
+        started_at: session.startedAt,
+        is_active: session.isActive,
+        sync_status: session.syncStatus,
+        change_count: session.changeCount,
+        version: session.version
+      }
+    })
+  }
+
+  /**
+   * Save changes to database
+   */
+  private async saveChangesToDatabase(
+    changes: Partial<DocumentChange>[]
+  ): Promise<void> {
+    for (const change of changes) {
+      await databaseAdapter.create('documentChange', {
+        data: change
+      })
+    }
+  }
+
+  /**
+   * Cleanup inactive sessions
+   */
+  async cleanupInactiveSessions(): Promise<number> {
+    const inactiveSessions = Array.from(this.sessions.values()).filter(
+      s => !s.isActive
+    )
+
+    for (const session of inactiveSessions) {
+      this.sessions.delete(session.id)
+    }
+
+    return inactiveSessions.length
+  }
+
+  /**
+   * Get editor state for session
+   */
+  getEditorState(sessionId: string): EditorState | null {
+    const session = this.sessions.get(sessionId)
+    if (!session) return null
+
+    const yDoc = this.yDocs.get(session.documentId)
+    if (!yDoc) return null
+
+    return {
+      sessionId: session.id,
+      documentId: session.documentId,
+      content: this.getDocumentContent(session.documentId),
+      version: session.version,
+      syncStatus: session.syncStatus,
+      changeCount: session.changeCount,
+      lastSyncAt: session.lastSyncAt
+    }
+  }
+}
+
+/**
+ * Singleton instance
+ */
+export const collaborativeEditingService = new CollaborativeEditingService()

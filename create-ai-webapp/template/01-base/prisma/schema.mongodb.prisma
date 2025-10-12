@@ -1,0 +1,250 @@
+// ================================================================
+// Prisma Schema - MongoDB
+// ================================================================
+// 
+// 這是 MongoDB 專用的 Prisma Schema。
+// NoSQL 靈活性，支援文本搜索，事務需要副本集。
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// =====================================================
+// 核心模型
+// =====================================================
+
+model User {
+  id            String           @id @default(auto()) @map("_id") @db.ObjectId
+  email         String           @unique
+  name          String?
+  password      String?
+  role          UserRole         @default(USER)
+  
+  azureAdId     String?          @unique
+  azureAdTenant String?
+  
+  isActive      Boolean          @default(true)
+  emailVerified Boolean          @default(false)
+  lastLoginAt   DateTime?
+  
+  preferences   Json?
+  
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  
+  sessionIds    String[]         @db.ObjectId
+  sessions      Session[]        @relation(fields: [sessionIds], references: [id])
+  
+  notificationIds String[]       @db.ObjectId
+  notifications Notification[]   @relation(fields: [notificationIds], references: [id])
+  
+  @@map("users")
+}
+
+enum UserRole {
+  USER
+  ADMIN
+  SUPER_ADMIN
+}
+
+model Session {
+  id           String           @id @default(auto()) @map("_id") @db.ObjectId
+  userId       String           @db.ObjectId
+  
+  refreshToken String           @unique
+  accessToken  String?
+  
+  deviceInfo   String?
+  ipAddress    String?
+  
+  expiresAt    DateTime
+  lastUsedAt   DateTime         @default(now())
+  
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  
+  userIds      String[]         @db.ObjectId
+  users        User[]           @relation(fields: [userIds], references: [id])
+  
+  @@map("sessions")
+}
+
+model TokenBlacklist {
+  id        String           @id @default(auto()) @map("_id") @db.ObjectId
+  token     String           @unique
+  expiresAt DateTime
+  reason    String?
+  createdAt DateTime         @default(now())
+  
+  @@map("token_blacklist")
+}
+
+model Notification {
+  id        String               @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String               @db.ObjectId
+  
+  type      NotificationType
+  title     String
+  message   String
+  data      Json?
+  
+  isRead    Boolean              @default(false)
+  readAt    DateTime?
+  
+  createdAt DateTime             @default(now())
+  updatedAt DateTime             @updatedAt
+  
+  userIds   String[]             @db.ObjectId
+  users     User[]               @relation(fields: [userIds], references: [id])
+  
+  @@map("notifications")
+}
+
+enum NotificationType {
+  SYSTEM
+  WORKFLOW
+  KNOWLEDGE
+  APPROVAL
+  COMMENT
+  MENTION
+}
+
+// =====================================================
+// 知識庫模型（MongoDB 文本搜索）
+// =====================================================
+
+model KnowledgeItem {
+  id          String           @id @default(auto()) @map("_id") @db.ObjectId
+  
+  title       String
+  content     String
+  category    String?
+  tags        String[]
+  
+  sourceFile  String?
+  fileType    String?
+  
+  // MongoDB 可以存儲向量，但查詢性能不如 PostgreSQL
+  embedding   Float[]?
+  
+  version     Int              @default(1)
+  status      KnowledgeStatus  @default(DRAFT)
+  
+  createdBy   String           @db.ObjectId
+  updatedBy   String?          @db.ObjectId
+  approvedBy  String?          @db.ObjectId
+  approvedAt  DateTime?
+  
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  
+  @@map("knowledge_items")
+}
+
+enum KnowledgeStatus {
+  DRAFT
+  PENDING
+  APPROVED
+  ARCHIVED
+}
+
+// =====================================================
+// 工作流程模型
+// =====================================================
+
+model WorkflowInstance {
+  id          String           @id @default(auto()) @map("_id") @db.ObjectId
+  
+  name        String
+  description String?
+  templateId  String?
+  
+  state       WorkflowState    @default(DRAFT)
+  previousState WorkflowState?
+  
+  data        Json
+  metadata    Json?
+  
+  version     Int              @default(1)
+  
+  submittedAt DateTime?
+  submittedBy String?          @db.ObjectId
+  approvedBy  String?          @db.ObjectId
+  approvedAt  DateTime?
+  rejectedBy  String?          @db.ObjectId
+  rejectedAt  DateTime?
+  rejectionReason String?
+  
+  createdBy   String           @db.ObjectId
+  updatedBy   String?          @db.ObjectId
+  
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  completedAt DateTime?
+  
+  commentIds  String[]         @db.ObjectId
+  comments    WorkflowComment[] @relation(fields: [commentIds], references: [id])
+  
+  historyIds  String[]         @db.ObjectId
+  history     WorkflowHistory[] @relation(fields: [historyIds], references: [id])
+  
+  @@map("workflow_instances")
+}
+
+enum WorkflowState {
+  DRAFT
+  IN_PROGRESS
+  PENDING_REVIEW
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+  ON_HOLD
+  CANCELLED
+  COMPLETED
+  ARCHIVED
+  FAILED
+  EXPIRED
+}
+
+model WorkflowComment {
+  id         String           @id @default(auto()) @map("_id") @db.ObjectId
+  workflowId String           @db.ObjectId
+  
+  content    String
+  
+  createdBy  String           @db.ObjectId
+  
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+  
+  workflowIds String[]        @db.ObjectId
+  workflows  WorkflowInstance[] @relation(fields: [workflowIds], references: [id])
+  
+  @@map("workflow_comments")
+}
+
+model WorkflowHistory {
+  id         String           @id @default(auto()) @map("_id") @db.ObjectId
+  workflowId String           @db.ObjectId
+  
+  fromState  WorkflowState?
+  toState    WorkflowState
+  action     String
+  
+  changedBy  String           @db.ObjectId
+  
+  snapshot   Json
+  
+  createdAt  DateTime         @default(now())
+  
+  workflowIds String[]        @db.ObjectId
+  workflows  WorkflowInstance[] @relation(fields: [workflowIds], references: [id])
+  
+  @@map("workflow_history")
+}
+

@@ -1,0 +1,81 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { DemoBanner } from '@/components/demo-banner';
+import { ArrowLeft, Bell, Check, Info, AlertCircle, CheckCircle } from 'lucide-react';
+import { demoGetNotifications } from '@/lib/demo-api';
+
+export default function NotificationsPage() {
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const response = await demoGetNotifications();
+        if (response.success && response.data) {
+          setNotifications(response.data.notifications || []);
+        }
+      } catch (error) {
+        console.error('Failed to fetch notifications:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  const getIcon = (type: string) => {
+    switch (type) {
+      case 'success': return <CheckCircle className="h-5 w-5 text-green-600" />;
+      case 'warning': return <AlertCircle className="h-5 w-5 text-orange-600" />;
+      case 'error': return <AlertCircle className="h-5 w-5 text-red-600" />;
+      default: return <Info className="h-5 w-5 text-blue-600" />;
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      <header className="sticky top-0 z-10 border-b bg-white dark:bg-gray-800">
+        <div className="flex h-16 items-center justify-between px-6">
+          <div className="flex items-center gap-4">
+            <Button variant="ghost" size="icon" asChild>
+              <Link href="/(demo)/dashboard"><ArrowLeft className="h-5 w-5" /></Link>
+            </Button>
+            <h1 className="text-xl font-bold">通知</h1>
+          </div>
+          <Button variant="outline" size="sm">
+            <Check className="mr-2 h-4 w-4" />
+            全部標記為已讀
+          </Button>
+        </div>
+      </header>
+
+      <main className="p-6">
+        <DemoBanner />
+        <div className="space-y-2">
+          {notifications.map((notif) => (
+            <Card key={notif.id} className={`${!notif.read ? 'border-l-4 border-l-primary' : ''}`}>
+              <CardContent className="flex items-start gap-4 pt-6">
+                {getIcon(notif.type)}
+                <div className="flex-1">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-semibold">{notif.title}</h3>
+                    {!notif.read && <Badge>新</Badge>}
+                  </div>
+                  <p className="text-sm text-muted-foreground mt-1">{notif.message}</p>
+                  <span className="text-xs text-muted-foreground mt-2 block">{notif.timestamp}</span>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </main>
+    </div>
+  );
+}

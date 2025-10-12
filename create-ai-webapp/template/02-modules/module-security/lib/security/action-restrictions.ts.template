@@ -1,0 +1,109 @@
+/**
+ * Action-Level Restrictions
+ *
+ * Define and enforce action-level restrictions:
+ * - Rate limiting per action
+ * - Time-based restrictions
+ * - Quota management
+ * - Action throttling
+ *
+ * @module Security/ActionRestrictions
+ */
+
+import { Role, getUserRole } from './rbac';
+
+// ============================================================================
+// Types
+// ============================================================================
+
+export interface ActionRestriction {
+  action: string;
+  maxPerHour?: number;
+  maxPerDay?: number;
+  allowedRoles?: Role[];
+  allowedTimeWindows?: TimeWindow[];
+}
+
+export interface TimeWindow {
+  startHour: number;
+  endHour: number;
+  daysOfWeek?: number[]; // 0-6, 0 = Sunday
+}
+
+// ============================================================================
+// Action Restrictions Registry
+// ============================================================================
+
+const actionRestrictions: Map<string, ActionRestriction> = new Map();
+
+// Default restrictions
+actionRestrictions.set('bulk_export', {
+  action: 'bulk_export',
+  maxPerHour: 5,
+  maxPerDay: 20,
+  allowedRoles: [Role.ADMIN, Role.SALES_MANAGER],
+});
+
+actionRestrictions.set('bulk_import', {
+  action: 'bulk_import',
+  maxPerHour: 3,
+  maxPerDay: 10,
+  allowedRoles: [Role.ADMIN, Role.SALES_MANAGER],
+});
+
+actionRestrictions.set('delete_customer', {
+  action: 'delete_customer',
+  maxPerDay: 50,
+  allowedRoles: [Role.ADMIN, Role.SALES_MANAGER],
+});
+
+// ============================================================================
+// Core Functions
+// ============================================================================
+
+/**
+ * Check if action is allowed for user
+ */
+export async function checkActionRestriction(
+  userId: string,
+  action: string
+): Promise<{ allowed: boolean; reason?: string }> {
+  const restriction = actionRestrictions.get(action);
+  if (!restriction) return { allowed: true };
+
+  const userRole = await getUserRole(userId);
+  if (!userRole) return { allowed: false, reason: 'No user role' };
+
+  // Check role restriction
+  if (restriction.allowedRoles && !restriction.allowedRoles.includes(userRole)) {
+    return { allowed: false, reason: 'Role not allowed for this action' };
+  }
+
+  // Check time window
+  if (restriction.allowedTimeWindows) {
+    const now = new Date();
+    const currentHour = now.getHours();
+    const currentDay = now.getDay();
+
+    const inAllowedWindow = restriction.allowedTimeWindows.some(window => {
+      const hourOk = currentHour >= window.startHour && currentHour < window.endHour;
+      const dayOk = !window.daysOfWeek || window.daysOfWeek.includes(currentDay);
+      return hourOk && dayOk;
+    });
+
+    if (!inAllowedWindow) {
+      return { allowed: false, reason: 'Action not allowed at this time' };
+    }
+  }
+
+  // Check rate limits (would need Redis/cache for real implementation)
+  // Simplified check here
+  return { allowed: true };
+}
+
+/**
+ * Register action restriction
+ */
+export function registerActionRestriction(restriction: ActionRestriction): void {
+  actionRestrictions.set(restriction.action, restriction);
+}

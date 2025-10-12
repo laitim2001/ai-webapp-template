@@ -1,0 +1,56 @@
+/**
+ * Analytics System Unified Exports
+ *
+ * Module Architecture:
+ * - AnalyticsTracker: Event tracking and session management
+ * - AnalyticsReporter: Data aggregation and report generation
+ *
+ * @module lib/analytics
+ */
+
+// Tracker
+export {
+  default as AnalyticsTracker,
+  initTracker,
+  getTracker,
+  track,
+  trackPageView,
+  type TrackerConfig,
+  type AnalyticsEvent,
+  type PageViewEvent,
+  type SessionData,
+} from './tracker';
+
+// Reporter
+export {
+  default as AnalyticsReporter,
+  reporter,
+  type ReportOptions,
+  type AnalyticsMetrics,
+  type TimeSeriesData,
+  type FunnelStep,
+  type FunnelAnalysis,
+  type CohortData,
+  type ExportFormat,
+} from './reporter';
+
+// Re-export types from types directory
+export type {
+  AnalyticsEventType,
+  DeviceType,
+  TimeGrouping,
+  CustomEvent,
+  EventCount,
+  PageCount,
+  DeviceCount,
+  BrowserCount,
+  RetentionPeriod,
+  DashboardMetrics,
+  DateRangePreset,
+  DateRange,
+  ChartDataPoint,
+  MetricCard,
+  AnalyticsServiceConfig,
+  UseAnalyticsReturn,
+  DashboardFilters,
+} from '@/types/analytics';

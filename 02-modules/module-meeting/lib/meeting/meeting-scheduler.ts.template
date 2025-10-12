@@ -1,0 +1,554 @@
+/**
+ * Meeting Scheduler
+ *
+ * Smart meeting scheduling with conflict detection, time zone handling,
+ * optimal time slot finding, and recurring meeting support.
+ *
+ * @module lib/meeting/meeting-scheduler
+ */
+
+import { addDays, addWeeks, addMonths, format, parse, isWithinInterval } from 'date-fns';
+import { utcToZonedTime, zonedTimeToUtc } from 'date-fns-tz';
+
+/**
+ * Time slot for meeting availability
+ */
+export interface TimeSlot {
+  start: Date;
+  end: Date;
+  available: boolean;
+  conflicts?: string[];
+}
+
+/**
+ * Participant availability information
+ */
+export interface ParticipantAvailability {
+  email: string;
+  name?: string;
+  availability: TimeSlot[];
+  timeZone: string;
+}
+
+/**
+ * Meeting schedule configuration
+ */
+export interface MeetingSchedule {
+  duration: number; // in minutes
+  participants: string[]; // email addresses
+  preferredTimeRanges?: {
+    start: string; // HH:mm format
+    end: string; // HH:mm format
+  }[];
+  excludeWeekends?: boolean;
+  workingHours?: {
+    start: number; // 0-23
+    end: number; // 0-23
+  };
+  timeZone?: string;
+  buffer?: number; // minutes before/after meeting
+}
+
+/**
+ * Recurring meeting pattern
+ */
+export interface RecurrencePattern {
+  type: 'daily' | 'weekly' | 'monthly' | 'custom';
+  interval: number; // every N days/weeks/months
+  daysOfWeek?: number[]; // 0-6, 0=Sunday
+  endDate?: Date;
+  occurrences?: number;
+}
+
+/**
+ * Meeting room information
+ */
+export interface MeetingRoom {
+  id: string;
+  name: string;
+  capacity: number;
+  location?: string;
+  equipment?: string[];
+  availability?: TimeSlot[];
+}
+
+/**
+ * Scheduling result with optimal time slots
+ */
+export interface SchedulingResult {
+  recommendedSlots: TimeSlot[];
+  allAvailableSlots: TimeSlot[];
+  conflicts: {
+    participant: string;
+    conflictingSlots: TimeSlot[];
+  }[];
+  statistics: {
+    totalSlotsChecked: number;
+    availableSlots: number;
+    participantsAvailable: number;
+    totalParticipants: number;
+  };
+}
+
+/**
+ * Meeting Scheduler Service
+ *
+ * Provides intelligent meeting scheduling capabilities:
+ * - Find optimal meeting times across time zones
+ * - Detect and resolve conflicts
+ * - Support recurring meetings
+ * - Handle working hours and preferences
+ * - Meeting room booking
+ */
+export class MeetingScheduler {
+  private defaultWorkingHours = { start: 9, end: 17 };
+  private defaultTimeZone = 'UTC';
+
+  /**
+   * Find optimal time slots for a meeting
+   *
+   * @param schedule Meeting schedule configuration
+   * @param availabilityData Participant availability data
+   * @param dateRange Date range to search within
+   * @returns Scheduling result with recommended slots
+   *
+   * @example
+   * const result = await scheduler.findOptimalTimeSlots(
+   *   {
+   *     duration: 60,
+   *     participants: ['user1@example.com', 'user2@example.com'],
+   *     workingHours: { start: 9, end: 17 },
+   *     excludeWeekends: true
+   *   },
+   *   availabilityData,
+   *   { start: new Date(), end: addDays(new Date(), 7) }
+   * );
+   */
+  async findOptimalTimeSlots(
+    schedule: MeetingSchedule,
+    availabilityData: ParticipantAvailability[],
+    dateRange: { start: Date; end: Date }
+  ): Promise<SchedulingResult> {
+    const {
+      duration,
+      excludeWeekends = true,
+      workingHours = this.defaultWorkingHours,
+      timeZone = this.defaultTimeZone,
+      buffer = 0,
+    } = schedule;
+
+    const allSlots: TimeSlot[] = [];
+    const conflicts: { participant: string; conflictingSlots: TimeSlot[] }[] = [];
+    let totalSlotsChecked = 0;
+
+    // Generate candidate time slots
+    const candidateSlots = this.generateCandidateSlots(
+      dateRange.start,
+      dateRange.end,
+      duration + buffer * 2,
+      workingHours,
+      excludeWeekends,
+      timeZone
+    );
+
+    totalSlotsChecked = candidateSlots.length;
+
+    // Check each candidate slot against participant availability
+    for (const slot of candidateSlots) {
+      const slotConflicts: string[] = [];
+      let availableCount = 0;
+
+      for (const participant of availabilityData) {
+        const isAvailable = this.isParticipantAvailable(
+          participant,
+          slot.start,
+          slot.end
+        );
+
+        if (isAvailable) {
+          availableCount++;
+        } else {
+          slotConflicts.push(participant.email);
+        }
+      }
+
+      const slotInfo: TimeSlot = {
+        start: slot.start,
+        end: slot.end,
+        available: slotConflicts.length === 0,
+        conflicts: slotConflicts.length > 0 ? slotConflicts : undefined,
+      };
+
+      allSlots.push(slotInfo);
+
+      // Track conflicts per participant
+      for (const email of slotConflicts) {
+        const existingConflict = conflicts.find((c) => c.participant === email);
+        if (existingConflict) {
+          existingConflict.conflictingSlots.push(slotInfo);
+        } else {
+          conflicts.push({
+            participant: email,
+            conflictingSlots: [slotInfo],
+          });
+        }
+      }
+    }
+
+    // Sort slots by availability score
+    const recommendedSlots = allSlots
+      .filter((slot) => slot.available)
+      .slice(0, 10); // Top 10 recommendations
+
+    return {
+      recommendedSlots,
+      allAvailableSlots: allSlots.filter((s) => s.available),
+      conflicts,
+      statistics: {
+        totalSlotsChecked,
+        availableSlots: allSlots.filter((s) => s.available).length,
+        participantsAvailable: availabilityData.length - conflicts.length,
+        totalParticipants: availabilityData.length,
+      },
+    };
+  }
+
+  /**
+   * Generate candidate time slots within date range
+   */
+  private generateCandidateSlots(
+    startDate: Date,
+    endDate: Date,
+    durationMinutes: number,
+    workingHours: { start: number; end: number },
+    excludeWeekends: boolean,
+    timeZone: string
+  ): TimeSlot[] {
+    const slots: TimeSlot[] = [];
+    const slotInterval = 30; // Check every 30 minutes
+
+    let currentDate = new Date(startDate);
+
+    while (currentDate <= endDate) {
+      const dayOfWeek = currentDate.getDay();
+
+      // Skip weekends if configured
+      if (excludeWeekends && (dayOfWeek === 0 || dayOfWeek === 6)) {
+        currentDate = addDays(currentDate, 1);
+        continue;
+      }
+
+      // Generate slots for working hours
+      for (let hour = workingHours.start; hour < workingHours.end; hour++) {
+        for (let minute = 0; minute < 60; minute += slotInterval) {
+          const slotStart = new Date(currentDate);
+          slotStart.setHours(hour, minute, 0, 0);
+
+          const slotEnd = new Date(slotStart);
+          slotEnd.setMinutes(slotEnd.getMinutes() + durationMinutes);
+
+          // Check if slot end is within working hours
+          if (slotEnd.getHours() < workingHours.end ||
+              (slotEnd.getHours() === workingHours.end && slotEnd.getMinutes() === 0)) {
+            slots.push({
+              start: slotStart,
+              end: slotEnd,
+              available: true, // Will be determined later
+            });
+          }
+        }
+      }
+
+      currentDate = addDays(currentDate, 1);
+    }
+
+    return slots;
+  }
+
+  /**
+   * Check if participant is available for a time slot
+   */
+  private isParticipantAvailable(
+    participant: ParticipantAvailability,
+    slotStart: Date,
+    slotEnd: Date
+  ): boolean {
+    if (!participant.availability || participant.availability.length === 0) {
+      return true; // Assume available if no data
+    }
+
+    // Convert slot times to participant's time zone
+    const participantSlotStart = utcToZonedTime(slotStart, participant.timeZone);
+    const participantSlotEnd = utcToZonedTime(slotEnd, participant.timeZone);
+
+    // Check for conflicts with existing availability
+    for (const slot of participant.availability) {
+      const hasOverlap = this.hasTimeOverlap(
+        participantSlotStart,
+        participantSlotEnd,
+        slot.start,
+        slot.end
+      );
+
+      if (hasOverlap && !slot.available) {
+        return false; // Conflict found
+      }
+    }
+
+    return true;
+  }
+
+  /**
+   * Check if two time ranges overlap
+   */
+  private hasTimeOverlap(
+    start1: Date,
+    end1: Date,
+    start2: Date,
+    end2: Date
+  ): boolean {
+    return start1 < end2 && start2 < end1;
+  }
+
+  /**
+   * Detect scheduling conflicts for participants
+   *
+   * @param participants List of participant emails
+   * @param proposedTime Proposed meeting time
+   * @param duration Meeting duration in minutes
+   * @param existingMeetings Existing meetings to check against
+   * @returns List of conflicts
+   */
+  async detectConflicts(
+    participants: string[],
+    proposedTime: Date,
+    duration: number,
+    existingMeetings: Array<{
+      start: Date;
+      end: Date;
+      participants: string[];
+    }>
+  ): Promise<{ participant: string; conflictingMeetings: any[] }[]> {
+    const conflicts: { participant: string; conflictingMeetings: any[] }[] = [];
+    const proposedEnd = new Date(proposedTime);
+    proposedEnd.setMinutes(proposedEnd.getMinutes() + duration);
+
+    for (const participant of participants) {
+      const participantConflicts = existingMeetings.filter((meeting) => {
+        const isParticipant = meeting.participants.includes(participant);
+        const hasOverlap = this.hasTimeOverlap(
+          proposedTime,
+          proposedEnd,
+          meeting.start,
+          meeting.end
+        );
+        return isParticipant && hasOverlap;
+      });
+
+      if (participantConflicts.length > 0) {
+        conflicts.push({
+          participant,
+          conflictingMeetings: participantConflicts,
+        });
+      }
+    }
+
+    return conflicts;
+  }
+
+  /**
+   * Generate recurring meeting instances
+   *
+   * @param baseDate Base date for first occurrence
+   * @param pattern Recurrence pattern
+   * @param duration Meeting duration in minutes
+   * @returns Array of meeting instances
+   *
+   * @example
+   * const instances = scheduler.generateRecurringInstances(
+   *   new Date('2025-10-15T10:00:00Z'),
+   *   { type: 'weekly', interval: 1, occurrences: 4 },
+   *   60
+   * );
+   */
+  generateRecurringInstances(
+    baseDate: Date,
+    pattern: RecurrencePattern,
+    duration: number
+  ): Array<{ start: Date; end: Date }> {
+    const instances: Array<{ start: Date; end: Date }> = [];
+    let currentDate = new Date(baseDate);
+    let count = 0;
+
+    const maxOccurrences = pattern.occurrences || 100;
+    const endDate = pattern.endDate || addMonths(baseDate, 12);
+
+    while (count < maxOccurrences && currentDate <= endDate) {
+      // Check if current date matches recurrence criteria
+      if (this.matchesRecurrencePattern(currentDate, pattern, count)) {
+        const instanceEnd = new Date(currentDate);
+        instanceEnd.setMinutes(instanceEnd.getMinutes() + duration);
+
+        instances.push({
+          start: new Date(currentDate),
+          end: instanceEnd,
+        });
+      }
+
+      // Advance to next candidate date
+      switch (pattern.type) {
+        case 'daily':
+          currentDate = addDays(currentDate, pattern.interval);
+          break;
+        case 'weekly':
+          currentDate = addWeeks(currentDate, pattern.interval);
+          break;
+        case 'monthly':
+          currentDate = addMonths(currentDate, pattern.interval);
+          break;
+        default:
+          currentDate = addDays(currentDate, 1);
+      }
+
+      count++;
+    }
+
+    return instances;
+  }
+
+  /**
+   * Check if date matches recurrence pattern
+   */
+  private matchesRecurrencePattern(
+    date: Date,
+    pattern: RecurrencePattern,
+    iteration: number
+  ): boolean {
+    if (pattern.type === 'weekly' && pattern.daysOfWeek) {
+      const dayOfWeek = date.getDay();
+      return pattern.daysOfWeek.includes(dayOfWeek);
+    }
+
+    return iteration % pattern.interval === 0;
+  }
+
+  /**
+   * Find available meeting rooms
+   *
+   * @param startTime Meeting start time
+   * @param endTime Meeting end time
+   * @param requiredCapacity Minimum room capacity
+   * @param rooms Available rooms to check
+   * @returns Available rooms
+   */
+  async findAvailableRooms(
+    startTime: Date,
+    endTime: Date,
+    requiredCapacity: number,
+    rooms: MeetingRoom[]
+  ): Promise<MeetingRoom[]> {
+    const availableRooms: MeetingRoom[] = [];
+
+    for (const room of rooms) {
+      if (room.capacity < requiredCapacity) {
+        continue;
+      }
+
+      const isAvailable = this.isRoomAvailable(room, startTime, endTime);
+      if (isAvailable) {
+        availableRooms.push(room);
+      }
+    }
+
+    return availableRooms.sort((a, b) => a.capacity - b.capacity);
+  }
+
+  /**
+   * Check if room is available for time slot
+   */
+  private isRoomAvailable(
+    room: MeetingRoom,
+    startTime: Date,
+    endTime: Date
+  ): boolean {
+    if (!room.availability) {
+      return true;
+    }
+
+    for (const slot of room.availability) {
+      const hasOverlap = this.hasTimeOverlap(
+        startTime,
+        endTime,
+        slot.start,
+        slot.end
+      );
+
+      if (hasOverlap && !slot.available) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  /**
+   * Suggest optimal meeting time across time zones
+   *
+   * @param participants Participant time zones
+   * @param duration Meeting duration in minutes
+   * @param dateRange Date range to search
+   * @returns Recommended time slots in UTC
+   */
+  async suggestOptimalTime(
+    participants: Array<{ email: string; timeZone: string }>,
+    duration: number,
+    dateRange: { start: Date; end: Date }
+  ): Promise<TimeSlot[]> {
+    const workingHours = this.defaultWorkingHours;
+    const slots: Array<TimeSlot & { score: number }> = [];
+
+    // Generate candidate slots
+    const candidates = this.generateCandidateSlots(
+      dateRange.start,
+      dateRange.end,
+      duration,
+      workingHours,
+      true,
+      'UTC'
+    );
+
+    // Score each slot based on how many participants are in working hours
+    for (const slot of candidates) {
+      let score = 0;
+
+      for (const participant of participants) {
+        const localStart = utcToZonedTime(slot.start, participant.timeZone);
+        const hour = localStart.getHours();
+
+        if (hour >= workingHours.start && hour < workingHours.end) {
+          score += 1;
+        }
+      }
+
+      slots.push({
+        ...slot,
+        score,
+      });
+    }
+
+    // Return top scored slots
+    return slots
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 5)
+      .map(({ score, ...slot }) => slot);
+  }
+}
+
+/**
+ * Create a new MeetingScheduler instance
+ */
+export function createMeetingScheduler(): MeetingScheduler {
+  return new MeetingScheduler();
+}
+
+export default MeetingScheduler;

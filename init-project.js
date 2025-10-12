@@ -55,21 +55,39 @@ const DATABASE_OPTIONS = [
 ];
 
 const MODULE_OPTIONS = [
-  // 核心模組（預設選中）
-  { name: '認證系統 (JWT + Azure AD SSO)', value: 'auth', checked: true },
-  { name: 'API Gateway (10個企業級中間件)', value: 'api-gateway', checked: true },
-  
-  // 可選模組
-  { name: '知識庫系統 (向量搜索 + 版本控制)', value: 'knowledge', checked: false },
-  { name: 'AI 整合 (Azure OpenAI 封裝)', value: 'ai', checked: false },
-  { name: '工作流程引擎 (12狀態 + 6種設計模式)', value: 'workflow', checked: false },
-  { name: '通知系統 (多渠道通知)', value: 'notifications', checked: false },
-  { name: '模板管理 (CRUD + PDF導出)', value: 'templates', checked: false },
-  { name: 'Dynamics 365 整合', value: 'dynamics365', checked: false },
-  
-  // 開發工具鏈（預設選中）
+  // === P0 核心模組（預設選中）===
+  { name: '認證系統 (JWT + Azure AD SSO)', value: 'module-auth', checked: true },
+  { name: 'API Gateway (12個企業級中間件)', value: 'module-api-gateway', checked: true },
+  { name: '安全模組 (數據保護 + 審計)', value: 'module-security', checked: true },
   { name: '監控系統 (OpenTelemetry + Prometheus)', value: 'monitoring', checked: true },
-  { name: '測試框架 (Jest + Playwright)', value: 'testing', checked: true },
+
+  // === P1 高優先級模組 ===
+  { name: '知識庫系統 (向量搜索 + 版本控制)', value: 'module-knowledge-base', checked: false },
+  { name: 'AI 整合 (Azure OpenAI 封裝)', value: 'module-ai-integration', checked: false },
+  { name: '搜索模組 (多算法向量搜索)', value: 'module-search', checked: false },
+  { name: '工作流程引擎 (12狀態 + 6種設計模式)', value: 'module-workflow', checked: false },
+  { name: '通知系統 (多渠道通知)', value: 'module-notification', checked: false },
+  { name: '性能監控 (應用級性能追蹤)', value: 'module-performance', checked: false },
+  { name: '韌性模組 (容錯 + 重試 + 熔斷)', value: 'module-resilience', checked: false },
+
+  // === P2 輔助工具模組 ===
+  { name: '緩存系統 (Redis 雙層緩存)', value: 'module-cache', checked: false },
+  { name: '模板管理 (Handlebars + PDF)', value: 'module-template', checked: false },
+  { name: 'PDF 生成 (Puppeteer)', value: 'module-pdf', checked: false },
+  { name: '文件解析器 (PDF/Word/Excel/OCR)', value: 'module-parsers', checked: false },
+  { name: 'Dynamics 365 整合', value: 'module-dynamics365', checked: false },
+  { name: 'Customer 360 (客戶全景視圖)', value: 'module-customer360', checked: false },
+
+  // === Phase 3 業務模組 ===
+  { name: '會議管理 (排程 + Teams 整合)', value: 'module-meeting', checked: false },
+  { name: '日曆系統 (事件管理 + 同步)', value: 'module-calendar', checked: false },
+  { name: '分析模組 (數據分析 + 報表)', value: 'module-analytics', checked: false },
+  { name: '提醒系統 (智能提醒引擎)', value: 'module-reminder', checked: false },
+  { name: '推薦引擎 (內容推薦)', value: 'module-recommendation', checked: false },
+  { name: '協作模組 (團隊協作)', value: 'module-collaboration', checked: false },
+
+  // === 開發工具鏈（預設選中）===
+  { name: '測試框架 (Jest + Playwright, 564+ 測試)', value: 'testing', checked: true },
   { name: 'AI 助手指南', value: 'ai-guide', checked: true },
 ];
 
@@ -144,8 +162,8 @@ async function main() {
     });
     
     // 9. 顯示完成信息
-    printCompletionInfo(projectInfo, databaseConfig);
-    
+    printCompletionInfo(projectInfo, databaseConfig, selectedModules);
+
   } catch (error) {
     console.error(chalk.red('\n❌ 初始化過程中發生錯誤:'));
     console.error(error);
@@ -275,7 +293,12 @@ async function getDatabaseConfig() {
 async function getModuleSelection() {
   console.log(chalk.blue.bold('\n📦 選擇功能模組\n'));
   console.log(chalk.gray('(使用空格鍵選擇，Enter 確認)\n'));
-  
+  console.log(chalk.yellow('💡 提示: 如果不選擇任何模組，將獲得基礎演示項目:\n'));
+  console.log(chalk.gray('   - 完整的 UI 設計系統 (20+ shadcn/ui 組件)'));
+  console.log(chalk.gray('   - 演示頁面 (登錄、儀表板、知識庫、客戶管理等)'));
+  console.log(chalk.gray('   - 模擬數據和 API，可直接運行查看效果'));
+  console.log(chalk.gray('   - 隨時可通過複製模組目錄添加完整功能\n'));
+
   const { modules } = await inquirer.prompt([
     {
       type: 'checkbox',
@@ -284,8 +307,21 @@ async function getModuleSelection() {
       choices: MODULE_OPTIONS,
     },
   ]);
-  
-  console.log(chalk.green(`\n✅ 已選擇 ${modules.length} 個模組`));
+
+  if (modules.length === 0) {
+    console.log(chalk.yellow('\n⚠️  未選擇任何模組'));
+    console.log(chalk.white('📦 零模組配置 - 你將獲得:'));
+    console.log(chalk.green('   ✓ 基礎項目結構 (Next.js 14 + TypeScript)'));
+    console.log(chalk.green('   ✓ 完整 UI 設計系統 (20+ 組件)'));
+    console.log(chalk.green('   ✓ 15個演示頁面 (包含完整 UI/UX)'));
+    console.log(chalk.green('   ✓ 演示數據和模擬 API'));
+    console.log(chalk.green('   ✓ 響應式設計和深色模式'));
+    console.log(chalk.white('\n💡 所有演示頁面位於 app/(demo)/ 路由組'));
+    console.log(chalk.white('📚 詳細說明請查看生成的 DEMO-MODE.md 文檔\n'));
+  } else {
+    console.log(chalk.green(`\n✅ 已選擇 ${modules.length} 個模組`));
+  }
+
   return modules;
 }
 
@@ -325,7 +361,7 @@ async function getEnvironmentConfig(databaseConfig, selectedModules) {
   // 根據選擇的模組詢問相關環境變數
   const questions = [];
   
-  if (selectedModules.includes('auth')) {
+  if (selectedModules.includes('module-auth')) {
     questions.push(
       {
         type: 'input',
@@ -341,10 +377,10 @@ async function getEnvironmentConfig(databaseConfig, selectedModules) {
       }
     );
   }
-  
+
   const answers = await inquirer.prompt(questions);
   Object.assign(envVars, answers);
-  
+
   // Azure AD 配置
   if (answers.enableAzureAD) {
     const azureQuestions = await inquirer.prompt([
@@ -366,9 +402,9 @@ async function getEnvironmentConfig(databaseConfig, selectedModules) {
     ]);
     Object.assign(envVars, azureQuestions);
   }
-  
+
   // AI 模組配置
-  if (selectedModules.includes('ai')) {
+  if (selectedModules.includes('module-ai-integration')) {
     const aiQuestions = await inquirer.prompt([
       {
         type: 'input',
@@ -631,16 +667,30 @@ async function generateAIAssistantGuide(config) {
 
 function generateModulesList(selectedModules) {
   const moduleDescriptions = {
-    'auth': '✅ **認證系統** (`module-auth/`)\n   - JWT 雙令牌認證\n   - Azure AD SSO 整合\n   - 使用: `import { ... } from "@/lib/auth"`',
-    'api-gateway': '✅ **API Gateway** (`module-api-gateway/`)\n   - 10個企業級中間件\n   - 速率限制、CORS、驗證\n   - 使用: `import { withApiMiddleware } from "@/lib/api-gateway/middleware"`',
-    'knowledge': '✅ **知識庫系統** (`module-knowledge-base/`)\n   - 向量搜索 (pgvector)\n   - 版本控制和審計\n   - 使用: `import { ... } from "@/lib/knowledge"`',
-    'ai': '✅ **AI 整合** (`module-ai-integration/`)\n   - Azure OpenAI 封裝\n   - 流式回應支持\n   - 使用: `import { azureOpenAI } from "@/lib/ai"`',
-    'workflow': '✅ **工作流程引擎** (`module-workflow/`)\n   - 12狀態工作流\n   - 6種設計模式\n   - 使用: `import { ... } from "@/lib/workflow"`',
-    'notifications': '✅ **通知系統** (`module-notification/`)\n   - 多渠道通知 (Email, SMS, Push)\n   - 模板管理\n   - 使用: `import { ... } from "@/lib/notification"`',
-    'templates': '✅ **模板管理** (`module-template/`)\n   - Handlebars 模板引擎\n   - PDF 導出\n   - 使用: `import { ... } from "@/lib/template"`',
-    'dynamics365': '✅ **Dynamics 365 整合** (`module-dynamics365/`)\n   - CRM 數據同步\n   - OAuth 認證\n   - 使用: `import { ... } from "@/lib/dynamics365"`',
+    'module-auth': '✅ **認證系統** (`module-auth/`)\n   - JWT 雙令牌認證\n   - Azure AD SSO 整合\n   - 使用: `import { ... } from "@/lib/auth"`',
+    'module-api-gateway': '✅ **API Gateway** (`module-api-gateway/`)\n   - 12個企業級中間件\n   - 速率限制、CORS、驗證\n   - 使用: `import { withApiMiddleware } from "@/lib/api-gateway/middleware"`',
+    'module-security': '✅ **安全模組** (`module-security/`)\n   - 數據保護和加密\n   - 審計日誌系統\n   - 使用: `import { ... } from "@/lib/security"`',
+    'module-knowledge-base': '✅ **知識庫系統** (`module-knowledge-base/`)\n   - 向量搜索 (pgvector)\n   - 版本控制和審計\n   - 使用: `import { ... } from "@/lib/knowledge"`',
+    'module-ai-integration': '✅ **AI 整合** (`module-ai-integration/`)\n   - Azure OpenAI 封裝\n   - 流式回應支持\n   - 使用: `import { azureOpenAI } from "@/lib/ai"`',
+    'module-search': '✅ **搜索模組** (`module-search/`)\n   - 多算法向量搜索\n   - 全文檢索\n   - 使用: `import { ... } from "@/lib/search"`',
+    'module-workflow': '✅ **工作流程引擎** (`module-workflow/`)\n   - 12狀態工作流\n   - 6種設計模式\n   - 使用: `import { ... } from "@/lib/workflow"`',
+    'module-notification': '✅ **通知系統** (`module-notification/`)\n   - 多渠道通知 (Email, SMS, Push)\n   - 模板管理\n   - 使用: `import { ... } from "@/lib/notification"`',
+    'module-performance': '✅ **性能監控** (`module-performance/`)\n   - 應用級性能追蹤\n   - 響應時間分析\n   - 使用: `import { ... } from "@/lib/performance"`',
+    'module-resilience': '✅ **韌性模組** (`module-resilience/`)\n   - 容錯和重試機制\n   - 熔斷器模式\n   - 使用: `import { ... } from "@/lib/resilience"`',
+    'module-cache': '✅ **緩存系統** (`module-cache/`)\n   - Redis 雙層緩存\n   - 智能緩存策略\n   - 使用: `import { ... } from "@/lib/cache"`',
+    'module-template': '✅ **模板管理** (`module-template/`)\n   - Handlebars 模板引擎\n   - PDF 導出\n   - 使用: `import { ... } from "@/lib/template"`',
+    'module-pdf': '✅ **PDF 生成** (`module-pdf/`)\n   - Puppeteer 引擎\n   - HTML to PDF 轉換\n   - 使用: `import { ... } from "@/lib/pdf"`',
+    'module-parsers': '✅ **文件解析器** (`module-parsers/`)\n   - PDF/Word/Excel 解析\n   - OCR 文字識別\n   - 使用: `import { ... } from "@/lib/parsers"`',
+    'module-dynamics365': '✅ **Dynamics 365 整合** (`module-dynamics365/`)\n   - CRM 數據同步\n   - OAuth 認證\n   - 使用: `import { ... } from "@/lib/dynamics365"`',
+    'module-customer360': '✅ **Customer 360** (`module-customer360/`)\n   - 客戶全景視圖\n   - 數據聚合分析\n   - 使用: `import { ... } from "@/lib/customer360"`',
+    'module-meeting': '✅ **會議管理** (`module-meeting/`)\n   - 會議排程\n   - Teams 整合\n   - 使用: `import { ... } from "@/lib/meeting"`',
+    'module-calendar': '✅ **日曆系統** (`module-calendar/`)\n   - 事件管理\n   - 多日曆同步\n   - 使用: `import { ... } from "@/lib/calendar"`',
+    'module-analytics': '✅ **分析模組** (`module-analytics/`)\n   - 數據分析引擎\n   - 自定義報表\n   - 使用: `import { ... } from "@/lib/analytics"`',
+    'module-reminder': '✅ **提醒系統** (`module-reminder/`)\n   - 智能提醒引擎\n   - 多渠道通知\n   - 使用: `import { ... } from "@/lib/reminder"`',
+    'module-recommendation': '✅ **推薦引擎** (`module-recommendation/`)\n   - 內容推薦算法\n   - 個性化推送\n   - 使用: `import { ... } from "@/lib/recommendation"`',
+    'module-collaboration': '✅ **協作模組** (`module-collaboration/`)\n   - 團隊協作功能\n   - 實時同步\n   - 使用: `import { ... } from "@/lib/collaboration"`',
     'monitoring': '✅ **監控系統** (`00-monitoring/`)\n   - OpenTelemetry 遙測\n   - Prometheus/Azure Monitor\n   - 自動配置和啟用',
-    'testing': '✅ **測試框架**\n   - Jest 單元測試 (120+ 測試)\n   - Playwright E2E 測試\n   - 執行: `npm test` / `npm run test:e2e`',
+    'testing': '✅ **測試框架**\n   - Jest 單元測試 (564+ 測試)\n   - Playwright E2E 測試\n   - 執行: `npm test` / `npm run test:e2e`',
   };
 
   const installedModules = selectedModules
@@ -830,36 +880,60 @@ function printBanner() {
   `));
 }
 
-function printCompletionInfo(projectInfo, databaseConfig) {
+function printCompletionInfo(projectInfo, databaseConfig, selectedModules) {
   console.log(chalk.green.bold('\n🎉 項目初始化完成！\n'));
-  
+
   console.log(chalk.white('📁 項目結構:'));
   console.log(`  ${projectInfo.name}/`);
   console.log('  ├── app/                    # Next.js 應用');
+  if (selectedModules.length === 0) {
+    console.log('  │   └── (demo)/             # 演示頁面路由組');
+  }
   console.log('  ├── components/             # React 組件');
   console.log('  ├── lib/                    # 工具函數');
+  if (selectedModules.length === 0) {
+    console.log('  │   ├── demo-data.ts        # 演示數據');
+    console.log('  │   └── demo-api.ts         # 模擬 API');
+  }
   console.log('  ├── prisma/                 # 數據庫模型');
   console.log('  ├── .env.local              # 環境變數');
   console.log('  └── ...\n');
-  
+
   console.log(chalk.white('🚀 快速開始:\n'));
   console.log(chalk.cyan('  1. 啟動開發服務器:'));
   console.log('     npm run dev\n');
   console.log(chalk.cyan('  2. 訪問應用:'));
   console.log('     http://localhost:3000\n');
-  console.log(chalk.cyan('  3. 查看監控面板:'));
-  console.log('     http://localhost:3001\n');
-  
+
+  if (selectedModules.length === 0) {
+    console.log(chalk.yellow('🎭 演示模式:\n'));
+    console.log(chalk.white('  你可以訪問以下演示頁面:'));
+    console.log(chalk.gray('  - http://localhost:3000/(demo)/login         # 登錄頁'));
+    console.log(chalk.gray('  - http://localhost:3000/(demo)/dashboard     # 儀表板'));
+    console.log(chalk.gray('  - http://localhost:3000/(demo)/dashboard/knowledge  # 知識庫'));
+    console.log(chalk.gray('  - http://localhost:3000/(demo)/dashboard/customers  # 客戶管理'));
+    console.log(chalk.gray('  - http://localhost:3000/(demo)/api-docs      # API 文檔'));
+    console.log(chalk.white('\n  💡 查看 DEMO-MODE.md 了解所有演示頁面\n'));
+  } else if (selectedModules.includes('monitoring')) {
+    console.log(chalk.cyan('  3. 查看監控面板:'));
+    console.log('     http://localhost:3001\n');
+  }
+
   console.log(chalk.white('📖 文檔:\n'));
+  if (selectedModules.length === 0) {
+    console.log('  - 演示模式說明: DEMO-MODE.md');
+  }
   console.log('  - AI 助手指南: AI-ASSISTANT-GUIDE.md');
   console.log('  - 項目索引: PROJECT-INDEX.md');
   console.log('  - 部署指南: DEPLOYMENT-GUIDE.md\n');
-  
+
   console.log(chalk.white('💡 提示:\n'));
-  console.log('  - 運行測試: npm test');
+  if (selectedModules.includes('testing')) {
+    console.log('  - 運行測試: npm test');
+  }
   console.log('  - 查看日誌: tail -f DEVELOPMENT-LOG.md');
   console.log('  - 健康檢查: npm run health-check\n');
-  
+
   console.log(chalk.gray('需要幫助？查看 README.md\n'));
 }
 

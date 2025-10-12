@@ -1,0 +1,302 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { DemoBanner } from '@/components/demo-banner';
+import {
+  ArrowLeft,
+  Activity,
+  Users,
+  Database,
+  Zap,
+  CheckCircle2,
+  AlertCircle,
+  Info,
+  XCircle
+} from 'lucide-react';
+import { demoGetAdminStats, demoGetSystemUsers, demoGetSystemLogs } from '@/lib/demo-api';
+
+export default function AdminPage() {
+  const [stats, setStats] = useState<any>(null);
+  const [users, setUsers] = useState<any[]>([]);
+  const [logs, setLogs] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [statsRes, usersRes, logsRes] = await Promise.all([
+          demoGetAdminStats(),
+          demoGetSystemUsers(),
+          demoGetSystemLogs({ limit: 10 }),
+        ]);
+
+        if (statsRes.success) setStats(statsRes.data);
+        if (usersRes.success && usersRes.data) setUsers(usersRes.data.users || []);
+        if (logsRes.success && logsRes.data) setLogs(logsRes.data.logs || []);
+      } catch (error) {
+        console.error('Failed to fetch admin data:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  const getRoleBadge = (role: string) => {
+    const variants: any = {
+      'admin': 'destructive',
+      'editor': 'default',
+      'user': 'secondary'
+    };
+    const labels: any = {
+      'admin': '管理員',
+      'editor': '編輯者',
+      'user': '用戶'
+    };
+    return <Badge variant={variants[role]}>{labels[role]}</Badge>;
+  };
+
+  const getStatusBadge = (status: string) => {
+    const variants: any = {
+      'active': 'default',
+      'inactive': 'outline'
+    };
+    const labels: any = {
+      'active': '活躍',
+      'inactive': '非活躍'
+    };
+    return <Badge variant={variants[status]}>{labels[status]}</Badge>;
+  };
+
+  const getLogIcon = (level: string) => {
+    switch (level) {
+      case 'info':
+        return <Info className="h-4 w-4 text-blue-600" />;
+      case 'warning':
+        return <AlertCircle className="h-4 w-4 text-yellow-600" />;
+      case 'error':
+        return <XCircle className="h-4 w-4 text-red-600" />;
+      default:
+        return <CheckCircle2 className="h-4 w-4 text-green-600" />;
+    }
+  };
+
+  if (!stats) return <div>Loading...</div>;
+
+  return (
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      <header className="sticky top-0 z-10 border-b bg-white dark:bg-gray-800">
+        <div className="flex h-16 items-center justify-between px-6">
+          <div className="flex items-center gap-4">
+            <Button variant="ghost" size="icon" asChild>
+              <Link href="/(demo)/dashboard"><ArrowLeft className="h-5 w-5" /></Link>
+            </Button>
+            <h1 className="text-xl font-bold">系統管理</h1>
+          </div>
+        </div>
+      </header>
+
+      <main className="p-6">
+        <DemoBanner />
+
+        {/* 系統概況卡片 */}
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium">系統健康</CardTitle>
+              <Activity className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-green-600">
+                {stats.systemHealth.status === 'healthy' ? '正常' : '異常'}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                運行時間: {stats.systemHealth.uptime}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                活躍警報: {stats.systemHealth.activeAlerts}
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium">用戶統計</CardTitle>
+              <Users className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stats.userStats.totalUsers}</div>
+              <p className="text-xs text-muted-foreground">
+                今日活躍: {stats.userStats.activeToday}
+              </p>
+              <p className="text-xs text-green-600">
+                本週新增: +{stats.userStats.newThisWeek}
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium">存儲狀態</CardTitle>
+              <Database className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stats.storageStats.usagePercent.toFixed(1)}%</div>
+              <p className="text-xs text-muted-foreground">
+                已使用: {stats.storageStats.usedStorage} / {stats.storageStats.totalStorage}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                文檔數: {stats.storageStats.documentsCount.toLocaleString()}
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium">性能指標</CardTitle>
+              <Zap className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stats.performanceStats.avgResponseTime}</div>
+              <p className="text-xs text-muted-foreground">
+                請求/分鐘: {stats.performanceStats.requestsPerMinute.toLocaleString()}
+              </p>
+              <p className="text-xs text-green-600">
+                緩存命中率: {stats.performanceStats.cacheHitRate}
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* 詳細信息標籤 */}
+        <Tabs defaultValue="users" className="space-y-4">
+          <TabsList>
+            <TabsTrigger value="users">用戶管理</TabsTrigger>
+            <TabsTrigger value="logs">系統日誌</TabsTrigger>
+            <TabsTrigger value="settings">系統設置</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="users" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>用戶列表</CardTitle>
+                <CardDescription>管理系統用戶和權限</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {users.map((user) => (
+                    <div
+                      key={user.id}
+                      className="flex items-center justify-between p-4 border rounded-lg"
+                    >
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <h4 className="font-semibold">{user.name}</h4>
+                          {getRoleBadge(user.role)}
+                          {getStatusBadge(user.status)}
+                        </div>
+                        <p className="text-sm text-muted-foreground">{user.email}</p>
+                        <p className="text-xs text-muted-foreground">
+                          最後活躍: {user.lastActive} | 註冊於: {user.createdAt}
+                        </p>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button variant="outline" size="sm">編輯</Button>
+                        <Button variant="outline" size="sm">權限</Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="logs" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>系統日誌</CardTitle>
+                <CardDescription>最近的系統活動和事件</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {logs.map((log) => (
+                    <div
+                      key={log.id}
+                      className="flex items-start gap-3 p-3 border rounded-lg"
+                    >
+                      {getLogIcon(log.level)}
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="font-medium">{log.message}</span>
+                          <span className="text-xs text-muted-foreground">{log.timestamp}</span>
+                        </div>
+                        <p className="text-sm text-muted-foreground">用戶: {log.user}</p>
+                        {log.metadata && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {Object.entries(log.metadata).map(([key, value]) => (
+                              <span key={key} className="mr-3">
+                                {key}: {String(value)}
+                              </span>
+                            ))}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="settings" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>系統設置</CardTitle>
+                <CardDescription>配置系統參數和功能</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between p-4 border rounded-lg">
+                  <div>
+                    <h4 className="font-semibold">自動備份</h4>
+                    <p className="text-sm text-muted-foreground">每日凌晨3點自動備份數據庫</p>
+                  </div>
+                  <Button variant="outline">配置</Button>
+                </div>
+
+                <div className="flex items-center justify-between p-4 border rounded-lg">
+                  <div>
+                    <h4 className="font-semibold">郵件通知</h4>
+                    <p className="text-sm text-muted-foreground">系統事件郵件通知設置</p>
+                  </div>
+                  <Button variant="outline">配置</Button>
+                </div>
+
+                <div className="flex items-center justify-between p-4 border rounded-lg">
+                  <div>
+                    <h4 className="font-semibold">安全設置</h4>
+                    <p className="text-sm text-muted-foreground">密碼策略和登錄限制</p>
+                  </div>
+                  <Button variant="outline">配置</Button>
+                </div>
+
+                <div className="flex items-center justify-between p-4 border rounded-lg">
+                  <div>
+                    <h4 className="font-semibold">性能監控</h4>
+                    <p className="text-sm text-muted-foreground">系統性能和資源監控</p>
+                  </div>
+                  <Button variant="outline">配置</Button>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+      </main>
+    </div>
+  );
+}

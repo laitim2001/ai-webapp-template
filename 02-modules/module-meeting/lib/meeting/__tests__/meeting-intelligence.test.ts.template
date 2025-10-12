@@ -1,0 +1,453 @@
+/**
+ * Tests for Meeting Intelligence
+ *
+ * @module lib/meeting/__tests__/meeting-intelligence.test
+ */
+
+import { MeetingIntelligence, createMeetingIntelligence } from '../meeting-intelligence';
+
+// Mock Azure OpenAI
+jest.mock('@azure/openai', () => ({
+  OpenAIClient: jest.fn().mockImplementation(() => ({
+    getChatCompletions: jest.fn(),
+  })),
+  AzureKeyCredential: jest.fn(),
+}));
+
+describe('MeetingIntelligence', () => {
+  let intelligence: MeetingIntelligence;
+  let mockClient: any;
+
+  const mockConfig = {
+    azureOpenAIEndpoint: 'https://test.openai.azure.com',
+    azureOpenAIKey: 'test-key',
+    deploymentName: 'gpt-4',
+  };
+
+  const mockTranscript = {
+    meetingId: 'meeting-123',
+    segments: [
+      {
+        speaker: 'Alice',
+        timestamp: 0,
+        text: 'Welcome everyone to the project kickoff meeting.',
+      },
+      {
+        speaker: 'Bob',
+        timestamp: 10,
+        text: 'Thanks Alice. Let me share our project timeline.',
+      },
+      {
+        speaker: 'Charlie',
+        timestamp: 30,
+        text: 'I will handle the backend development. Expected completion in 2 weeks.',
+      },
+    ],
+    duration: 300,
+    participants: ['Alice', 'Bob', 'Charlie'],
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    const { OpenAIClient } = require('@azure/openai');
+    mockClient = new OpenAIClient();
+    intelligence = new MeetingIntelligence(mockConfig);
+  });
+
+  describe('generateSummary', () => {
+    it('should generate comprehensive meeting summary', async () => {
+      const mockResponse = {
+        choices: [
+          {
+            message: {
+              content: JSON.stringify({
+                keyPoints: [
+                  'Project kickoff discussion',
+                  'Timeline review',
+                  'Task assignments',
+                ],
+                decisions: ['Backend development to be completed in 2 weeks'],
+                actionItems: [
+                  {
+                    description: 'Complete backend development',
+                    assignee: 'Charlie',
+                    priority: 'high',
+                  },
+                ],
+                topics: ['Project Planning', 'Development Timeline'],
+                sentiment: 'positive',
+                fullSummary: 'The team discussed project kickoff and assigned tasks.',
+              }),
+            },
+          },
+        ],
+      };
+
+      mockClient.getChatCompletions.mockResolvedValueOnce(mockResponse);
+
+      const meetingInfo = {
+        title: 'Project Kickoff',
+        date: new Date('2025-10-15'),
+        participants: ['Alice', 'Bob', 'Charlie'],
+      };
+
+      const summary = await intelligence.generateSummary(mockTranscript, meetingInfo);
+
+      expect(summary.meetingId).toBe('meeting-123');
+      expect(summary.title).toBe('Project Kickoff');
+      expect(summary.keyPoints).toHaveLength(3);
+      expect(summary.decisions).toHaveLength(1);
+      expect(summary.actionItems).toHaveLength(1);
+      expect(summary.actionItems[0].description).toBe('Complete backend development');
+      expect(summary.actionItems[0].assignee).toBe('Charlie');
+      expect(summary.actionItems[0].status).toBe('pending');
+      expect(summary.sentiment).toBe('positive');
+      expect(mockClient.getChatCompletions).toHaveBeenCalled();
+    });
+
+    it('should handle API errors gracefully', async () => {
+      mockClient.getChatCompletions.mockRejectedValueOnce(new Error('API Error'));
+
+      const meetingInfo = {
+        title: 'Test Meeting',
+        date: new Date(),
+        participants: ['Alice'],
+      };
+
+      await expect(
+        intelligence.generateSummary(mockTranscript, meetingInfo)
+      ).rejects.toThrow('Failed to generate meeting summary');
+    });
+
+    it('should handle invalid JSON response', async () => {
+      const mockResponse = {
+        choices: [
+          {
+            message: {
+              content: 'Invalid JSON',
+            },
+          },
+        ],
+      };
+
+      mockClient.getChatCompletions.mockResolvedValueOnce(mockResponse);
+
+      const meetingInfo = {
+        title: 'Test Meeting',
+        date: new Date(),
+        participants: ['Alice'],
+      };
+
+      await expect(
+        intelligence.generateSummary(mockTranscript, meetingInfo)
+      ).rejects.toThrow();
+    });
+
+    it('should generate action item IDs', async () => {
+      const mockResponse = {
+        choices: [
+          {
+            message: {
+              content: JSON.stringify({
+                keyPoints: [],
+                decisions: [],
+                actionItems: [
+                  { description: 'Task 1', assignee: 'Alice', priority: 'high' },
+                  { description: 'Task 2', assignee: 'Bob', priority: 'medium' },
+                ],
+                topics: [],
+                sentiment: 'neutral',
+                fullSummary: 'Summary text',
+              }),
+            },
+          },
+        ],
+      };
+
+      mockClient.getChatCompletions.mockResolvedValueOnce(mockResponse);
+
+      const meetingInfo = {
+        title: 'Test Meeting',
+        date: new Date(),
+        participants: ['Alice', 'Bob'],
+      };
+
+      const summary = await intelligence.generateSummary(mockTranscript, meetingInfo);
+
+      expect(summary.actionItems).toHaveLength(2);
+      expect(summary.actionItems[0].id).toContain('meeting-123-action-0');
+      expect(summary.actionItems[1].id).toContain('meeting-123-action-1');
+    });
+  });
+
+  describe('extractActionItems', () => {
+    it('should extract action items from transcript', async () => {
+      const mockResponse = {
+        choices: [
+          {
+            message: {
+              content: JSON.stringify([
+                {
+                  description: 'Complete backend development',
+                  assignee: 'Charlie',
+                  dueDate: '2025-10-30T00:00:00Z',
+                  priority: 'high',
+                  context: 'Backend development discussion',
+                },
+                {
+                  description: 'Review design mockups',
+                  assignee: 'Alice',
+                  priority: 'medium',
+                  context: 'Design review',
+                },
+              ]),
+            },
+          },
+        ],
+      };
+
+      mockClient.getChatCompletions.mockResolvedValueOnce(mockResponse);
+
+      const actionItems = await intelligence.extractActionItems(mockTranscript);
+
+      expect(actionItems).toHaveLength(2);
+      expect(actionItems[0].description).toBe('Complete backend development');
+      expect(actionItems[0].assignee).toBe('Charlie');
+      expect(actionItems[0].dueDate).toEqual(new Date('2025-10-30T00:00:00Z'));
+      expect(actionItems[0].priority).toBe('high');
+      expect(actionItems[0].status).toBe('pending');
+      expect(actionItems[1].assignee).toBe('Alice');
+    });
+
+    it('should handle items without assignee or due date', async () => {
+      const mockResponse = {
+        choices: [
+          {
+            message: {
+              content: JSON.stringify([
+                {
+                  description: 'Follow up on requirements',
+                  priority: 'low',
+                },
+              ]),
+            },
+          },
+        ],
+      };
+
+      mockClient.getChatCompletions.mockResolvedValueOnce(mockResponse);
+
+      const actionItems = await intelligence.extractActionItems(mockTranscript);
+
+      expect(actionItems).toHaveLength(1);
+      expect(actionItems[0].assignee).toBeUndefined();
+      expect(actionItems[0].dueDate).toBeUndefined();
+    });
+
+    it('should handle extraction errors', async () => {
+      mockClient.getChatCompletions.mockRejectedValueOnce(new Error('API Error'));
+
+      await expect(intelligence.extractActionItems(mockTranscript)).rejects.toThrow(
+        'Failed to extract action items'
+      );
+    });
+  });
+
+  describe('generateAnalytics', () => {
+    it('should calculate speaking time per participant', async () => {
+      mockClient.getChatCompletions.mockResolvedValueOnce({
+        choices: [{ message: { content: JSON.stringify([]) } }],
+      });
+
+      const analytics = await intelligence.generateAnalytics(mockTranscript);
+
+      expect(analytics.meetingId).toBe('meeting-123');
+      expect(analytics.speakingTime).toBeDefined();
+      expect(analytics.speakingTime['Alice']).toBeGreaterThan(0);
+      expect(analytics.speakingTime['Bob']).toBeGreaterThan(0);
+      expect(analytics.speakingTime['Charlie']).toBeGreaterThan(0);
+    });
+
+    it('should calculate participation rate', async () => {
+      mockClient.getChatCompletions.mockResolvedValueOnce({
+        choices: [{ message: { content: JSON.stringify([]) } }],
+      });
+
+      const analytics = await intelligence.generateAnalytics(mockTranscript);
+
+      expect(analytics.participationRate).toBeDefined();
+      expect(analytics.participationRate['Alice']).toBeGreaterThan(0);
+      expect(analytics.participationRate['Alice']).toBeLessThanOrEqual(100);
+
+      // Total participation should be 100%
+      const totalParticipation = Object.values(analytics.participationRate).reduce(
+        (sum, rate) => sum + rate,
+        0
+      );
+      expect(totalParticipation).toBeCloseTo(100, 0);
+    });
+
+    it('should calculate engagement score', async () => {
+      mockClient.getChatCompletions.mockResolvedValueOnce({
+        choices: [{ message: { content: JSON.stringify([]) } }],
+      });
+
+      const analytics = await intelligence.generateAnalytics(mockTranscript);
+
+      expect(analytics.engagementScore).toBeGreaterThanOrEqual(0);
+      expect(analytics.engagementScore).toBeLessThanOrEqual(100);
+    });
+
+    it('should extract topics', async () => {
+      const mockResponse = {
+        choices: [
+          {
+            message: {
+              content: JSON.stringify([
+                { name: 'Project Planning', duration: 120, relevance: 0.9 },
+                { name: 'Timeline Review', duration: 100, relevance: 0.8 },
+              ]),
+            },
+          },
+        ],
+      };
+
+      mockClient.getChatCompletions.mockResolvedValueOnce(mockResponse);
+
+      const analytics = await intelligence.generateAnalytics(mockTranscript);
+
+      expect(analytics.topics).toHaveLength(2);
+      expect(analytics.topics[0].name).toBe('Project Planning');
+      expect(analytics.topics[0].relevance).toBe(0.9);
+    });
+  });
+
+  describe('generateMeetingNotes', () => {
+    it('should generate markdown meeting notes', () => {
+      const summary = {
+        meetingId: 'meeting-123',
+        title: 'Project Kickoff',
+        date: new Date('2025-10-15'),
+        duration: 3600,
+        participants: ['Alice', 'Bob', 'Charlie'],
+        keyPoints: ['Discussed project scope', 'Assigned tasks'],
+        decisions: ['Approved project timeline'],
+        actionItems: [
+          {
+            id: 'action-1',
+            description: 'Complete design',
+            assignee: 'Alice',
+            priority: 'high' as const,
+            status: 'pending' as const,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
+        ],
+        topics: ['Planning', 'Timeline'],
+        sentiment: 'positive' as const,
+        fullSummary: 'The team discussed the project kickoff and assigned initial tasks.',
+        generatedAt: new Date(),
+      };
+
+      const notes = intelligence.generateMeetingNotes(summary);
+
+      expect(notes).toContain('# Project Kickoff');
+      expect(notes).toContain('## Summary');
+      expect(notes).toContain('## Key Points');
+      expect(notes).toContain('## Decisions Made');
+      expect(notes).toContain('## Action Items');
+      expect(notes).toContain('## Topics Discussed');
+      expect(notes).toContain('Alice, Bob, Charlie');
+      expect(notes).toContain('Complete design');
+      expect(notes).toContain('**high** priority');
+    });
+
+    it('should handle empty decisions and action items', () => {
+      const summary = {
+        meetingId: 'meeting-123',
+        title: 'Status Update',
+        date: new Date('2025-10-15'),
+        duration: 1800,
+        participants: ['Alice'],
+        keyPoints: ['Status update'],
+        decisions: [],
+        actionItems: [],
+        topics: ['Status'],
+        fullSummary: 'Quick status update.',
+        generatedAt: new Date(),
+      };
+
+      const notes = intelligence.generateMeetingNotes(summary);
+
+      expect(notes).toContain('No specific decisions recorded');
+      expect(notes).toContain('No action items identified');
+    });
+  });
+
+  describe('updateActionItemStatus', () => {
+    it('should update action item status', () => {
+      const actionItems = [
+        {
+          id: 'action-1',
+          description: 'Task 1',
+          status: 'pending' as const,
+          priority: 'high' as const,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+        {
+          id: 'action-2',
+          description: 'Task 2',
+          status: 'pending' as const,
+          priority: 'medium' as const,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      ];
+
+      const updated = intelligence.updateActionItemStatus(
+        'action-1',
+        'completed',
+        actionItems
+      );
+
+      expect(updated[0].status).toBe('completed');
+      expect(updated[1].status).toBe('pending');
+    });
+
+    it('should not modify other items', () => {
+      const actionItems = [
+        {
+          id: 'action-1',
+          description: 'Task 1',
+          assignee: 'Alice',
+          status: 'pending' as const,
+          priority: 'high' as const,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      ];
+
+      const updated = intelligence.updateActionItemStatus(
+        'action-1',
+        'in_progress',
+        actionItems
+      );
+
+      expect(updated[0].assignee).toBe('Alice');
+      expect(updated[0].description).toBe('Task 1');
+    });
+  });
+
+  describe('createMeetingIntelligence', () => {
+    it('should create instance from environment variables', () => {
+      process.env.AZURE_OPENAI_ENDPOINT = 'https://test.openai.azure.com';
+      process.env.AZURE_OPENAI_KEY = 'test-key';
+      process.env.AZURE_OPENAI_DEPLOYMENT = 'gpt-4';
+
+      const instance = createMeetingIntelligence();
+
+      expect(instance).toBeInstanceOf(MeetingIntelligence);
+    });
+  });
+});

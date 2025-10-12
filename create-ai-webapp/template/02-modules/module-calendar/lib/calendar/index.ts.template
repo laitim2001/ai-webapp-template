@@ -1,0 +1,164 @@
+/**
+ * Calendar Module - Main Export
+ *
+ * Unified exports for Google Calendar, Outlook Calendar, and Calendar Sync services.
+ *
+ * @module lib/calendar
+ * @version 5.0.0
+ */
+
+export { GoogleCalendarService } from './google-calendar';
+export { OutlookCalendarService } from './outlook-calendar';
+export { CalendarSyncService } from './calendar-sync';
+
+export type {
+  // Google Calendar Types
+  GoogleCalendarConfig,
+  GoogleCredentials,
+  GoogleEventCreateOptions,
+  GoogleEventListOptions,
+  GoogleWatchChannel,
+
+  // Outlook Calendar Types
+  OutlookCalendarConfig,
+  OutlookCredentials,
+  OutlookEventCreateOptions,
+  OutlookEventListOptions,
+  OutlookScheduleInformation,
+  OutlookFreeBusySlot,
+
+  // Common Calendar Types
+  CalendarEvent,
+  CalendarProvider,
+  EventStatus,
+  ResponseStatus,
+  ReminderMethod,
+  RecurrenceFrequency,
+  DayOfWeek,
+  Visibility,
+  TimeZone,
+  DateTime,
+  DateOnly,
+  EventTime,
+  Attendee,
+  Reminder,
+  ReminderConfig,
+  Location,
+  RecurrencePattern,
+  EventAttachment,
+
+  // Sync Types
+  CalendarConnection,
+  CalendarSyncConfig,
+  SyncOptions,
+  SyncResult,
+  SyncDirection,
+  ConflictStrategy,
+  SyncStatus,
+  CalendarConflict,
+  ConflictResolutionOptions,
+  SyncEventMapping,
+  FreeSlot,
+  TimeSlotConflict,
+  CalendarStats,
+  BatchOperationResult,
+
+  // Service Interfaces
+  ICalendarService,
+  ISyncService,
+} from '@/types/calendar';
+
+/**
+ * Utility: Convert timezone
+ *
+ * @param dateTime - Date-time string
+ * @param fromTz - Source timezone
+ * @param toTz - Target timezone
+ * @returns Converted date-time string
+ */
+export function convertTimeZone(dateTime: string, fromTz: string, toTz: string): string {
+  const date = new Date(dateTime);
+
+  // Use Intl.DateTimeFormat for timezone conversion
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: toTz,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  });
+
+  const parts = formatter.formatToParts(date);
+  const year = parts.find((p) => p.type === 'year')?.value;
+  const month = parts.find((p) => p.type === 'month')?.value;
+  const day = parts.find((p) => p.type === 'day')?.value;
+  const hour = parts.find((p) => p.type === 'hour')?.value;
+  const minute = parts.find((p) => p.type === 'minute')?.value;
+  const second = parts.find((p) => p.type === 'second')?.value;
+
+  return `${year}-${month}-${day}T${hour}:${minute}:${second}`;
+}
+
+/**
+ * Utility: Format event time with locale
+ *
+ * @param event - Calendar event
+ * @param timeZone - Display timezone
+ * @param locale - Locale string (e.g., 'zh-TW', 'en-US')
+ * @returns Formatted time string
+ */
+export function formatEventTime(
+  event: import('@/types/calendar').CalendarEvent,
+  timeZone: string,
+  locale: string = 'en-US'
+): string {
+  const startTime = 'dateTime' in event.start ? event.start.dateTime : event.start.date;
+
+  const date = new Date(startTime);
+
+  const formatter = new Intl.DateTimeFormat(locale, {
+    timeZone,
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: 'dateTime' in event.start ? 'numeric' : undefined,
+    minute: 'dateTime' in event.start ? 'numeric' : undefined,
+  });
+
+  return formatter.format(date);
+}
+
+/**
+ * Utility: Check if events overlap
+ *
+ * @param event1 - First event
+ * @param event2 - Second event
+ * @returns Whether events overlap
+ */
+export function eventsOverlap(
+  event1: import('@/types/calendar').CalendarEvent,
+  event2: import('@/types/calendar').CalendarEvent
+): boolean {
+  const start1 = new Date('dateTime' in event1.start ? event1.start.dateTime : event1.start.date).getTime();
+  const end1 = new Date('dateTime' in event1.end ? event1.end.dateTime : event1.end.date).getTime();
+  const start2 = new Date('dateTime' in event2.start ? event2.start.dateTime : event2.start.date).getTime();
+  const end2 = new Date('dateTime' in event2.end ? event2.end.dateTime : event2.end.date).getTime();
+
+  return start1 < end2 && end1 > start2;
+}
+
+/**
+ * Utility: Get event duration in minutes
+ *
+ * @param event - Calendar event
+ * @returns Duration in minutes
+ */
+export function getEventDuration(event: import('@/types/calendar').CalendarEvent): number {
+  const start = new Date('dateTime' in event.start ? event.start.dateTime : event.start.date);
+  const end = new Date('dateTime' in event.end ? event.end.dateTime : event.end.date);
+
+  return Math.round((end.getTime() - start.getTime()) / (1000 * 60));
+}

@@ -1,0 +1,92 @@
+'use client';
+
+/**
+ * 演示模式標記組件
+ *
+ * 在頁面頂部顯示演示模式提示
+ * 告知用戶當前使用的是模擬數據
+ */
+
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Info, Sparkles } from 'lucide-react';
+
+export function DemoBanner() {
+  return (
+    <Alert className="mb-6 border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950">
+      <Sparkles className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+      <AlertDescription className="text-sm">
+        <strong className="font-semibold text-blue-900 dark:text-blue-100">
+          🎭 演示模式
+        </strong>
+        <span className="text-blue-700 dark:text-blue-300">
+          {' '}
+          - 此頁面使用模擬數據展示UI效果。選擇相應模組後將獲得完整功能。
+        </span>
+      </AlertDescription>
+    </Alert>
+  );
+}
+
+/**
+ * 內聯演示標記 (用於小型組件)
+ */
+export function InlineDemoBadge() {
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-900 dark:text-blue-300">
+      <Info className="h-3 w-3" />
+      演示
+    </span>
+  );
+}
+
+/**
+ * 演示模式提示卡片
+ */
+export function DemoModeCard() {
+  return (
+    <div className="rounded-lg border border-blue-200 bg-gradient-to-br from-blue-50 to-blue-100 p-6 dark:border-blue-800 dark:from-blue-950 dark:to-blue-900">
+      <div className="mb-4 flex items-start gap-3">
+        <div className="rounded-full bg-blue-600 p-2 dark:bg-blue-500">
+          <Sparkles className="h-5 w-5 text-white" />
+        </div>
+        <div>
+          <h3 className="text-lg font-semibold text-blue-900 dark:text-blue-100">
+            歡迎使用演示模式
+          </h3>
+          <p className="mt-1 text-sm text-blue-700 dark:text-blue-300">
+            零模組配置 - 快速原型設計和UI參考
+          </p>
+        </div>
+      </div>
+
+      <div className="space-y-2 text-sm text-blue-800 dark:text-blue-200">
+        <div className="flex items-center gap-2">
+          <div className="h-1.5 w-1.5 rounded-full bg-blue-600 dark:bg-blue-400"></div>
+          <span>完整的UI設計系統 (27個shadcn/ui組件)</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="h-1.5 w-1.5 rounded-full bg-blue-600 dark:bg-blue-400"></div>
+          <span>12+頁面示例展示完整應用結構</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="h-1.5 w-1.5 rounded-full bg-blue-600 dark:bg-blue-400"></div>
+          <span>模擬數據和真實的UI交互效果</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="h-1.5 w-1.5 rounded-full bg-blue-600 dark:bg-blue-400"></div>
+          <span>響應式設計和暗色模式支持</span>
+        </div>
+      </div>
+
+      <div className="mt-4 rounded-md bg-white/50 p-3 dark:bg-black/20">
+        <p className="text-xs text-blue-700 dark:text-blue-300">
+          <strong className="font-semibold">💡 提示:</strong> 運行{' '}
+          <code className="rounded bg-blue-200 px-1 py-0.5 font-mono dark:bg-blue-800">
+            node init-project.js
+          </code>{' '}
+          並選擇所需模組以啟用完整功能。
+        </p>
+      </div>
+    </div>
+  );
+}

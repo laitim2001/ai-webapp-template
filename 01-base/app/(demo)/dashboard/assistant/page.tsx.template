@@ -1,0 +1,89 @@
+'use client';
+
+import { useState } from 'react';
+import Link from 'next/link';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { DemoBanner } from '@/components/demo-banner';
+import { ArrowLeft, Send, Bot, User } from 'lucide-react';
+
+export default function AssistantPage() {
+  const [messages, setMessages] = useState<any[]>([
+    { id: 1, role: 'assistant', content: '您好!我是AI助手,很高興為您服務。請問有什麼可以幫助您的嗎?' }
+  ]);
+  const [input, setInput] = useState('');
+
+  const handleSend = () => {
+    if (!input.trim()) return;
+
+    const userMessage = { id: Date.now(), role: 'user', content: input };
+    setMessages(prev => [...prev, userMessage]);
+    setInput('');
+
+    setTimeout(() => {
+      const aiResponse = {
+        id: Date.now() + 1,
+        role: 'assistant',
+        content: '這是演示模式的回復。在實際使用中,這裡會顯示AI助手的智能回答。'
+      };
+      setMessages(prev => [...prev, aiResponse]);
+    }, 1000);
+  };
+
+  return (
+    <div className="flex h-screen flex-col bg-gray-50 dark:bg-gray-900">
+      <header className="border-b bg-white dark:bg-gray-800">
+        <div className="flex h-16 items-center gap-4 px-6">
+          <Button variant="ghost" size="icon" asChild>
+            <Link href="/(demo)/dashboard"><ArrowLeft className="h-5 w-5" /></Link>
+          </Button>
+          <h1 className="text-xl font-bold">AI助手</h1>
+        </div>
+      </header>
+
+      <main className="flex-1 overflow-hidden p-6">
+        <DemoBanner />
+        <Card className="h-[calc(100vh-200px)] flex flex-col">
+          <CardContent className="flex-1 overflow-y-auto p-6 space-y-4">
+            {messages.map((message) => (
+              <div key={message.id} className={`flex gap-3 ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                {message.role === 'assistant' && (
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary">
+                    <Bot className="h-4 w-4 text-primary-foreground" />
+                  </div>
+                )}
+                <div className={`max-w-[70%] rounded-lg p-3 ${
+                  message.role === 'user'
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-muted'
+                }`}>
+                  <p className="text-sm">{message.content}</p>
+                </div>
+                {message.role === 'user' && (
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-secondary">
+                    <User className="h-4 w-4" />
+                  </div>
+                )}
+              </div>
+            ))}
+          </CardContent>
+
+          <div className="border-t p-4">
+            <div className="flex gap-2">
+              <Input
+                placeholder="輸入您的問題..."
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && handleSend()}
+              />
+              <Button onClick={handleSend}>
+                <Send className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        </Card>
+      </main>
+    </div>
+  );
+}

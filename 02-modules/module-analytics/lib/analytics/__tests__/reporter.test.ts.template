@@ -1,0 +1,371 @@
+/**
+ * Analytics Reporter Tests
+ */
+
+import AnalyticsReporter, { reporter } from '../reporter';
+import { databaseAdapter } from '@/lib/db/database-adapter';
+import type { ReportOptions } from '@/types/analytics';
+
+// Mock database adapter
+jest.mock('@/lib/db/database-adapter', () => ({
+  databaseAdapter: {
+    count: jest.fn(),
+    aggregate: jest.fn(),
+    findMany: jest.fn(),
+    groupBy: jest.fn(),
+  },
+}));
+
+describe('AnalyticsReporter', () => {
+  const mockOptions: ReportOptions = {
+    projectId: 'test-project',
+    startDate: new Date('2024-01-01'),
+    endDate: new Date('2024-01-31'),
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  describe('getMetrics', () => {
+    test('should calculate basic metrics', async () => {
+      const mockCount = databaseAdapter.count as jest.Mock;
+      const mockAggregate = databaseAdapter.aggregate as jest.Mock;
+      const mockFindMany = databaseAdapter.findMany as jest.Mock;
+      const mockGroupBy = databaseAdapter.groupBy as jest.Mock;
+
+      mockCount.mockResolvedValue(1000);
+      mockAggregate.mockResolvedValue({ _count: { userId: 100 } });
+      mockFindMany.mockResolvedValue([
+        {
+          startTime: new Date('2024-01-01T10:00:00'),
+          endTime: new Date('2024-01-01T10:30:00'),
+          events: 10,
+          pageViews: 5,
+        },
+        {
+          startTime: new Date('2024-01-01T11:00:00'),
+          endTime: new Date('2024-01-01T11:15:00'),
+          events: 5,
+          pageViews: 1,
+        },
+      ]);
+      mockGroupBy.mockResolvedValue([]);
+
+      const metrics = await reporter.getMetrics(mockOptions);
+
+      expect(metrics.totalEvents).toBe(1000);
+      expect(metrics.totalUsers).toBe(100);
+      expect(metrics.totalSessions).toBe(2);
+      expect(metrics.avgSessionDuration).toBeGreaterThan(0);
+    });
+
+    test('should calculate bounce rate', async () => {
+      const mockCount = databaseAdapter.count as jest.Mock;
+      const mockAggregate = databaseAdapter.aggregate as jest.Mock;
+      const mockFindMany = databaseAdapter.findMany as jest.Mock;
+      const mockGroupBy = databaseAdapter.groupBy as jest.Mock;
+
+      mockCount.mockResolvedValue(100);
+      mockAggregate.mockResolvedValue({ _count: { userId: 50 } });
+      mockFindMany.mockResolvedValue([
+        {
+          startTime: new Date('2024-01-01T10:00:00'),
+          endTime: new Date('2024-01-01T10:00:05'), // 5 seconds, bounced
+          events: 1,
+          pageViews: 1,
+        },
+        {
+          startTime: new Date('2024-01-01T11:00:00'),
+          endTime: new Date('2024-01-01T11:30:00'), // 30 minutes, not bounced
+          events: 20,
+          pageViews: 5,
+        },
+      ]);
+      mockGroupBy.mockResolvedValue([]);
+
+      const metrics = await reporter.getMetrics(mockOptions);
+
+      expect(metrics.bounceRate).toBe(50); // 1 out of 2 sessions bounced
+    });
+
+    test('should get top events', async () => {
+      const mockCount = databaseAdapter.count as jest.Mock;
+      const mockAggregate = databaseAdapter.aggregate as jest.Mock;
+      const mockFindMany = databaseAdapter.findMany as jest.Mock;
+      const mockGroupBy = databaseAdapter.groupBy as jest.Mock;
+
+      mockCount.mockResolvedValue(100);
+      mockAggregate.mockResolvedValue({ _count: { userId: 50 } });
+      mockFindMany.mockResolvedValue([]);
+      mockGroupBy.mockResolvedValueOnce([
+        { eventName: 'Page View', _count: { eventName: 500 } },
+        { eventName: 'Button Click', _count: { eventName: 200 } },
+        { eventName: 'Form Submit', _count: { eventName: 50 } },
+      ]);
+
+      const metrics = await reporter.getMetrics(mockOptions);
+
+      expect(metrics.topEvents).toHaveLength(3);
+      expect(metrics.topEvents[0]).toEqual({
+        eventName: 'Page View',
+        count: 500,
+      });
+    });
+
+    test('should get device and browser breakdown', async () => {
+      const mockCount = databaseAdapter.count as jest.Mock;
+      const mockAggregate = databaseAdapter.aggregate as jest.Mock;
+      const mockFindMany = databaseAdapter.findMany as jest.Mock;
+      const mockGroupBy = databaseAdapter.groupBy as jest.Mock;
+
+      mockCount.mockResolvedValue(100);
+      mockAggregate.mockResolvedValue({ _count: { userId: 50 } });
+      mockFindMany.mockResolvedValue([]);
+
+      // Top events
+      mockGroupBy.mockResolvedValueOnce([]);
+      // Top pages
+      mockGroupBy.mockResolvedValueOnce([]);
+      // Device breakdown
+      mockGroupBy.mockResolvedValueOnce([
+        { deviceType: 'desktop', _count: { deviceType: 60 } },
+        { deviceType: 'mobile', _count: { deviceType: 40 } },
+      ]);
+      // Browser breakdown
+      mockGroupBy.mockResolvedValueOnce([
+        { browser: 'Chrome', _count: { browser: 70 } },
+        { browser: 'Firefox', _count: { browser: 30 } },
+      ]);
+
+      const metrics = await reporter.getMetrics(mockOptions);
+
+      expect(metrics.deviceBreakdown).toHaveLength(2);
+      expect(metrics.browserBreakdown).toHaveLength(2);
+    });
+  });
+
+  describe('getTimeSeries', () => {
+    test('should group events by day', async () => {
+      const mockFindMany = databaseAdapter.findMany as jest.Mock;
+
+      mockFindMany.mockResolvedValue([
+        {
+          id: '1',
+          timestamp: new Date('2024-01-01T10:00:00'),
+          userId: 'user1',
+          sessionId: 'session1',
+        },
+        {
+          id: '2',
+          timestamp: new Date('2024-01-01T14:00:00'),
+          userId: 'user2',
+          sessionId: 'session2',
+        },
+        {
+          id: '3',
+          timestamp: new Date('2024-01-02T10:00:00'),
+          userId: 'user1',
+          sessionId: 'session3',
+        },
+      ]);
+
+      const timeSeries = await reporter.getTimeSeries({
+        ...mockOptions,
+        groupBy: 'day',
+      });
+
+      expect(timeSeries).toHaveLength(2);
+      expect(timeSeries[0]).toMatchObject({
+        date: '2024-01-01',
+        events: 2,
+        users: 2,
+        sessions: 2,
+      });
+      expect(timeSeries[1]).toMatchObject({
+        date: '2024-01-02',
+        events: 1,
+        users: 1,
+        sessions: 1,
+      });
+    });
+
+    test('should group events by hour', async () => {
+      const mockFindMany = databaseAdapter.findMany as jest.Mock;
+
+      mockFindMany.mockResolvedValue([
+        {
+          id: '1',
+          timestamp: new Date('2024-01-01T10:30:00'),
+          userId: 'user1',
+          sessionId: 'session1',
+        },
+        {
+          id: '2',
+          timestamp: new Date('2024-01-01T10:45:00'),
+          userId: 'user1',
+          sessionId: 'session1',
+        },
+        {
+          id: '3',
+          timestamp: new Date('2024-01-01T11:15:00'),
+          userId: 'user2',
+          sessionId: 'session2',
+        },
+      ]);
+
+      const timeSeries = await reporter.getTimeSeries({
+        ...mockOptions,
+        groupBy: 'hour',
+      });
+
+      expect(timeSeries).toHaveLength(2);
+      expect(timeSeries[0].date).toBe('2024-01-01 10:00');
+      expect(timeSeries[1].date).toBe('2024-01-01 11:00');
+    });
+  });
+
+  describe('analyzeFunnel', () => {
+    test('should calculate funnel conversion rates', async () => {
+      const mockFindMany = databaseAdapter.findMany as jest.Mock;
+
+      // Step 1: Page View - 100 users
+      mockFindMany.mockResolvedValueOnce(
+        Array.from({ length: 100 }, (_, i) => ({ userId: `user${i}` }))
+      );
+
+      // Step 2: Add to Cart - 50 users
+      mockFindMany.mockResolvedValueOnce(
+        Array.from({ length: 50 }, (_, i) => ({ userId: `user${i}` }))
+      );
+
+      // Step 3: Checkout - 25 users
+      mockFindMany.mockResolvedValueOnce(
+        Array.from({ length: 25 }, (_, i) => ({ userId: `user${i}` }))
+      );
+
+      const funnel = await reporter.analyzeFunnel(
+        'test-project',
+        [
+          { name: 'View Product', eventName: 'Page View' },
+          { name: 'Add to Cart', eventName: 'Add to Cart' },
+          { name: 'Checkout', eventName: 'Checkout' },
+        ],
+        mockOptions.startDate,
+        mockOptions.endDate
+      );
+
+      expect(funnel.totalUsers).toBe(100);
+      expect(funnel.steps[0].users).toBe(100);
+      expect(funnel.steps[0].conversionRate).toBe(100);
+      expect(funnel.steps[1].users).toBe(50);
+      expect(funnel.steps[1].conversionRate).toBe(50);
+      expect(funnel.steps[2].users).toBe(25);
+      expect(funnel.steps[2].conversionRate).toBe(25);
+      expect(funnel.overallConversionRate).toBe(25);
+    });
+
+    test('should handle empty funnel', async () => {
+      const mockFindMany = databaseAdapter.findMany as jest.Mock;
+      mockFindMany.mockResolvedValue([]);
+
+      const funnel = await reporter.analyzeFunnel(
+        'test-project',
+        [{ name: 'Step 1', eventName: 'Event 1' }],
+        mockOptions.startDate,
+        mockOptions.endDate
+      );
+
+      expect(funnel.totalUsers).toBe(0);
+      expect(funnel.overallConversionRate).toBe(0);
+    });
+  });
+
+  describe('analyzeCohorts', () => {
+    test('should calculate cohort retention', async () => {
+      const mockFindMany = databaseAdapter.findMany as jest.Mock;
+
+      // Initial cohort query
+      mockFindMany.mockResolvedValueOnce([
+        { userId: 'user1', startTime: new Date('2024-01-15') },
+        { userId: 'user2', startTime: new Date('2024-01-20') },
+        { userId: 'user3', startTime: new Date('2024-02-10') },
+      ]);
+
+      // Retention queries (simplified - return all users for each period)
+      for (let i = 0; i < 36; i++) { // 3 cohorts × 12 periods
+        mockFindMany.mockResolvedValueOnce([
+          { userId: 'user1' },
+        ]);
+      }
+
+      const cohorts = await reporter.analyzeCohorts(
+        'test-project',
+        new Date('2024-01-01'),
+        new Date('2024-12-31'),
+        3
+      );
+
+      expect(cohorts.length).toBeGreaterThan(0);
+      expect(cohorts[0]).toHaveProperty('cohortDate');
+      expect(cohorts[0]).toHaveProperty('cohortSize');
+      expect(cohorts[0]).toHaveProperty('retention');
+    });
+  });
+
+  describe('exportData', () => {
+    test('should export data as JSON', async () => {
+      const mockFindMany = databaseAdapter.findMany as jest.Mock;
+
+      mockFindMany.mockResolvedValue([
+        { id: '1', eventName: 'Event 1', timestamp: new Date('2024-01-01') },
+        { id: '2', eventName: 'Event 2', timestamp: new Date('2024-01-02') },
+      ]);
+
+      const result = await reporter.exportData(mockOptions, 'json');
+
+      expect(result.format).toBe('json');
+      expect(result.data).toHaveLength(2);
+    });
+
+    test('should export data as CSV', async () => {
+      const mockFindMany = databaseAdapter.findMany as jest.Mock;
+
+      mockFindMany.mockResolvedValue([
+        { id: '1', eventName: 'Event 1', timestamp: new Date('2024-01-01') },
+      ]);
+
+      const result = await reporter.exportData(mockOptions, 'csv');
+
+      expect(result.format).toBe('csv');
+    });
+  });
+
+  describe('convertToCSV', () => {
+    test('should convert data to CSV format', () => {
+      const data = [
+        { name: 'John', age: 30, email: 'john@example.com' },
+        { name: 'Jane', age: 25, email: 'jane@example.com' },
+      ];
+
+      const csv = reporter.convertToCSV(data);
+
+      expect(csv).toContain('name,age,email');
+      expect(csv).toContain('John');
+      expect(csv).toContain('Jane');
+    });
+
+    test('should handle empty data', () => {
+      const csv = reporter.convertToCSV([]);
+      expect(csv).toBe('');
+    });
+
+    test('should escape special characters', () => {
+      const data = [{ name: 'John "Johnny" Doe', note: 'Line1\nLine2' }];
+
+      const csv = reporter.convertToCSV(data);
+
+      expect(csv).toContain('""'); // Escaped quotes
+    });
+  });
+});

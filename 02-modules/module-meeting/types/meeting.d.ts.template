@@ -1,0 +1,486 @@
+/**
+ * Meeting Module Type Definitions
+ *
+ * Comprehensive TypeScript type definitions for the Meeting module,
+ * including Teams integration, scheduling, and intelligence features.
+ *
+ * @module types/meeting
+ */
+
+/**
+ * Base meeting information
+ */
+export interface Meeting {
+  id: string;
+  title: string;
+  description?: string;
+  startTime: Date;
+  endTime: Date;
+  timeZone: string;
+  location?: string;
+  organizer: MeetingOrganizer;
+  participants: MeetingParticipant[];
+  status: MeetingStatus;
+  type: MeetingType;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+/**
+ * Meeting organizer information
+ */
+export interface MeetingOrganizer {
+  id: string;
+  email: string;
+  name: string;
+  timeZone?: string;
+}
+
+/**
+ * Meeting participant with role and RSVP status
+ */
+export interface MeetingParticipant {
+  id?: string;
+  email: string;
+  name?: string;
+  role: ParticipantRole;
+  required?: boolean;
+  rsvpStatus?: RSVPStatus;
+  timeZone?: string;
+}
+
+/**
+ * Participant role in meeting
+ */
+export type ParticipantRole = 'organizer' | 'presenter' | 'attendee' | 'optional';
+
+/**
+ * RSVP response status
+ */
+export type RSVPStatus = 'accepted' | 'declined' | 'tentative' | 'no_response';
+
+/**
+ * Meeting status
+ */
+export type MeetingStatus =
+  | 'scheduled'
+  | 'in_progress'
+  | 'completed'
+  | 'cancelled'
+  | 'rescheduled';
+
+/**
+ * Meeting type/category
+ */
+export type MeetingType =
+  | 'one_on_one'
+  | 'team_meeting'
+  | 'all_hands'
+  | 'standup'
+  | 'retrospective'
+  | 'planning'
+  | 'review'
+  | 'other';
+
+/**
+ * Online meeting platform
+ */
+export type MeetingPlatform = 'teams' | 'zoom' | 'google_meet' | 'webex' | 'other';
+
+/**
+ * Online meeting details
+ */
+export interface OnlineMeeting extends Meeting {
+  platform: MeetingPlatform;
+  joinUrl: string;
+  joinPhone?: string;
+  conferenceId?: string;
+  passcode?: string;
+  lobbyEnabled?: boolean;
+  recordingEnabled?: boolean;
+  transcriptionEnabled?: boolean;
+}
+
+/**
+ * Teams-specific meeting details
+ */
+export interface TeamsMeeting extends OnlineMeeting {
+  platform: 'teams';
+  teamsId: string;
+  threadId?: string;
+  audioConferencing?: {
+    tollNumber?: string;
+    tollFreeNumber?: string;
+    conferenceId: string;
+  };
+  allowedPresenters?: 'everyone' | 'organization' | 'roleIsPresenter' | 'organizer';
+  isEntryExitAnnounced?: boolean;
+}
+
+/**
+ * Zoom-specific meeting details
+ */
+export interface ZoomMeeting extends OnlineMeeting {
+  platform: 'zoom';
+  zoomId: string;
+  password?: string;
+  waitingRoom?: boolean;
+  hostVideo?: boolean;
+  participantVideo?: boolean;
+  muteUponEntry?: boolean;
+}
+
+/**
+ * Meeting schedule configuration
+ */
+export interface MeetingScheduleConfig {
+  duration: number; // minutes
+  participants: string[];
+  preferredTimeRanges?: TimeRange[];
+  excludeWeekends?: boolean;
+  workingHours?: WorkingHours;
+  timeZone?: string;
+  buffer?: number; // minutes before/after
+  roomRequired?: boolean;
+  minimumCapacity?: number;
+}
+
+/**
+ * Time range definition
+ */
+export interface TimeRange {
+  start: string; // HH:mm or ISO datetime
+  end: string; // HH:mm or ISO datetime
+  timeZone?: string;
+}
+
+/**
+ * Working hours definition
+ */
+export interface WorkingHours {
+  start: number; // 0-23
+  end: number; // 0-23
+  days?: number[]; // 0-6, 0=Sunday
+}
+
+/**
+ * Meeting availability time slot
+ */
+export interface AvailabilitySlot {
+  start: Date;
+  end: Date;
+  available: boolean;
+  participants?: string[];
+  conflicts?: MeetingConflict[];
+}
+
+/**
+ * Meeting scheduling conflict
+ */
+export interface MeetingConflict {
+  participant: string;
+  conflictingMeetingId?: string;
+  conflictingMeetingTitle?: string;
+  timeSlot: TimeRange;
+}
+
+/**
+ * Recurring meeting pattern
+ */
+export interface RecurrenceRule {
+  frequency: RecurrenceFrequency;
+  interval: number; // every N days/weeks/months
+  daysOfWeek?: DayOfWeek[];
+  dayOfMonth?: number; // 1-31
+  endDate?: Date;
+  occurrences?: number; // number of instances
+}
+
+/**
+ * Recurrence frequency
+ */
+export type RecurrenceFrequency = 'daily' | 'weekly' | 'monthly' | 'yearly';
+
+/**
+ * Day of week
+ */
+export type DayOfWeek =
+  | 'sunday'
+  | 'monday'
+  | 'tuesday'
+  | 'wednesday'
+  | 'thursday'
+  | 'friday'
+  | 'saturday';
+
+/**
+ * Meeting series (recurring meetings)
+ */
+export interface MeetingSeries {
+  id: string;
+  baseInstanceId: string;
+  recurrenceRule: RecurrenceRule;
+  instances: Meeting[];
+  exceptions?: MeetingException[];
+}
+
+/**
+ * Exception to recurring meeting series
+ */
+export interface MeetingException {
+  originalDate: Date;
+  newDate?: Date; // if rescheduled
+  cancelled?: boolean;
+  reason?: string;
+}
+
+/**
+ * Meeting room/space
+ */
+export interface MeetingRoom {
+  id: string;
+  name: string;
+  capacity: number;
+  location?: string;
+  building?: string;
+  floor?: string;
+  equipment?: RoomEquipment[];
+  amenities?: string[];
+  bookable?: boolean;
+  availability?: AvailabilitySlot[];
+}
+
+/**
+ * Room equipment
+ */
+export type RoomEquipment =
+  | 'projector'
+  | 'whiteboard'
+  | 'video_conference'
+  | 'phone'
+  | 'computer'
+  | 'screen'
+  | 'other';
+
+/**
+ * Meeting transcript
+ */
+export interface MeetingTranscript {
+  id: string;
+  meetingId: string;
+  segments: TranscriptSegment[];
+  language: string;
+  duration: number; // seconds
+  participants: string[];
+  generatedAt: Date;
+}
+
+/**
+ * Transcript segment with speaker and timing
+ */
+export interface TranscriptSegment {
+  id?: string;
+  speaker: string;
+  timestamp: number; // seconds from start
+  duration?: number; // seconds
+  text: string;
+  confidence?: number; // 0-1
+}
+
+/**
+ * Meeting summary generated by AI
+ */
+export interface MeetingSummary {
+  id: string;
+  meetingId: string;
+  title: string;
+  date: Date;
+  duration: number;
+  participants: string[];
+  keyPoints: string[];
+  decisions: string[];
+  actionItems: ActionItem[];
+  topics: string[];
+  sentiment?: MeetingSentiment;
+  fullSummary: string;
+  generatedAt: Date;
+}
+
+/**
+ * Meeting sentiment analysis
+ */
+export type MeetingSentiment = 'positive' | 'neutral' | 'negative' | 'mixed';
+
+/**
+ * Action item from meeting
+ */
+export interface ActionItem {
+  id: string;
+  meetingId?: string;
+  description: string;
+  assignee?: string;
+  assigneeEmail?: string;
+  dueDate?: Date;
+  priority: ActionItemPriority;
+  status: ActionItemStatus;
+  context?: string;
+  createdAt: Date;
+  updatedAt: Date;
+  completedAt?: Date;
+}
+
+/**
+ * Action item priority
+ */
+export type ActionItemPriority = 'high' | 'medium' | 'low';
+
+/**
+ * Action item status
+ */
+export type ActionItemStatus = 'pending' | 'in_progress' | 'completed' | 'cancelled';
+
+/**
+ * Meeting analytics and insights
+ */
+export interface MeetingAnalytics {
+  meetingId: string;
+  duration: number;
+  participantCount: number;
+  speakingTime: Record<string, number>; // participant -> seconds
+  participationRate: Record<string, number>; // participant -> percentage
+  engagementScore: number; // 0-100
+  topics: TopicAnalysis[];
+  sentimentOverTime?: SentimentPoint[];
+  interruptionCount?: number;
+  questionCount?: number;
+}
+
+/**
+ * Topic analysis from meeting
+ */
+export interface TopicAnalysis {
+  name: string;
+  duration: number; // seconds
+  relevance: number; // 0-1
+  keywords?: string[];
+}
+
+/**
+ * Sentiment at specific time
+ */
+export interface SentimentPoint {
+  timestamp: number; // seconds from start
+  sentiment: number; // -1 to 1
+  speaker?: string;
+}
+
+/**
+ * Meeting notification preferences
+ */
+export interface MeetingNotificationPreferences {
+  email?: boolean;
+  push?: boolean;
+  sms?: boolean;
+  reminderMinutes?: number[]; // e.g., [15, 60, 1440] for 15min, 1hr, 1day
+  dailyDigest?: boolean;
+}
+
+/**
+ * Meeting invitation
+ */
+export interface MeetingInvitation {
+  id: string;
+  meetingId: string;
+  recipientEmail: string;
+  status: RSVPStatus;
+  sentAt: Date;
+  respondedAt?: Date;
+  message?: string;
+}
+
+/**
+ * Meeting attendance record
+ */
+export interface MeetingAttendance {
+  id: string;
+  meetingId: string;
+  participantEmail: string;
+  joinedAt?: Date;
+  leftAt?: Date;
+  duration?: number; // seconds
+  attended: boolean;
+  device?: string;
+  location?: string;
+}
+
+/**
+ * Meeting search filters
+ */
+export interface MeetingSearchFilters {
+  startDate?: Date;
+  endDate?: Date;
+  status?: MeetingStatus[];
+  type?: MeetingType[];
+  organizer?: string;
+  participant?: string;
+  title?: string;
+  platform?: MeetingPlatform[];
+  hasRecording?: boolean;
+  hasTranscript?: boolean;
+}
+
+/**
+ * Meeting statistics
+ */
+export interface MeetingStatistics {
+  totalMeetings: number;
+  totalDuration: number; // minutes
+  averageDuration: number; // minutes
+  byType: Record<MeetingType, number>;
+  byStatus: Record<MeetingStatus, number>;
+  byPlatform: Record<MeetingPlatform, number>;
+  participationRate: number; // percentage
+  completionRate: number; // percentage
+}
+
+/**
+ * Meeting configuration options
+ */
+export interface MeetingConfig {
+  defaultDuration?: number; // minutes
+  defaultBuffer?: number; // minutes
+  defaultTimeZone?: string;
+  defaultPlatform?: MeetingPlatform;
+  workingHours?: WorkingHours;
+  allowWeekendMeetings?: boolean;
+  autoRecording?: boolean;
+  autoTranscription?: boolean;
+  reminderMinutes?: number[];
+  maxParticipants?: number;
+  requireRoomForSize?: number; // minimum participants requiring room
+}
+
+/**
+ * Error types for meeting operations
+ */
+export interface MeetingError extends Error {
+  code: MeetingErrorCode;
+  meetingId?: string;
+  details?: any;
+}
+
+/**
+ * Meeting error codes
+ */
+export type MeetingErrorCode =
+  | 'MEETING_NOT_FOUND'
+  | 'MEETING_CONFLICT'
+  | 'PARTICIPANT_UNAVAILABLE'
+  | 'ROOM_UNAVAILABLE'
+  | 'INVALID_TIME_SLOT'
+  | 'PLATFORM_ERROR'
+  | 'TRANSCRIPTION_FAILED'
+  | 'SUMMARY_GENERATION_FAILED'
+  | 'PERMISSION_DENIED'
+  | 'INVALID_RECURRENCE'
+  | 'QUOTA_EXCEEDED';

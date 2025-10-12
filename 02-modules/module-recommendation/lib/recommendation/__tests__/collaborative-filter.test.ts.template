@@ -1,0 +1,594 @@
+/**
+ * Collaborative Filtering Tests
+ *
+ * Comprehensive test suite for collaborative filtering recommendation system
+ */
+
+import { CollaborativeFilterRecommender } from '../collaborative-filter';
+import type {
+  UserInteraction,
+  CollaborativeFilterOptions,
+  RecommendOptions,
+  SimilarityOptions,
+} from '../collaborative-filter';
+
+describe('CollaborativeFilterRecommender', () => {
+  let recommender: CollaborativeFilterRecommender;
+
+  const sampleInteractions: UserInteraction[] = [
+    // User 1 likes items 1, 2, 3
+    { userId: 'user-1', itemId: 'item-1', rating: 5.0, timestamp: Date.now() },
+    { userId: 'user-1', itemId: 'item-2', rating: 4.0, timestamp: Date.now() },
+    { userId: 'user-1', itemId: 'item-3', rating: 4.5, timestamp: Date.now() },
+
+    // User 2 likes items 1, 2, 4 (similar to user 1)
+    { userId: 'user-2', itemId: 'item-1', rating: 4.5, timestamp: Date.now() },
+    { userId: 'user-2', itemId: 'item-2', rating: 4.0, timestamp: Date.now() },
+    { userId: 'user-2', itemId: 'item-4', rating: 5.0, timestamp: Date.now() },
+
+    // User 3 likes items 3, 4, 5
+    { userId: 'user-3', itemId: 'item-3', rating: 5.0, timestamp: Date.now() },
+    { userId: 'user-3', itemId: 'item-4', rating: 4.5, timestamp: Date.now() },
+    { userId: 'user-3', itemId: 'item-5', rating: 4.0, timestamp: Date.now() },
+
+    // User 4 likes items 5, 6 (different preferences)
+    { userId: 'user-4', itemId: 'item-5', rating: 5.0, timestamp: Date.now() },
+    { userId: 'user-4', itemId: 'item-6', rating: 4.5, timestamp: Date.now() },
+  ];
+
+  describe('User-Based Collaborative Filtering', () => {
+    beforeEach(async () => {
+      recommender = new CollaborativeFilterRecommender({
+        algorithm: 'user-based',
+        similarityMetric: 'cosine',
+        minSimilarity: 0.0,
+        neighborhoodSize: 5,
+      });
+      await recommender.train(sampleInteractions);
+    });
+
+    it('should train model from interactions', async () => {
+      // Training should complete without errors
+      expect(recommender).toBeDefined();
+    });
+
+    it('should recommend items for a user', async () => {
+      const recommendations = await recommender.recommendForUser('user-1', {
+        limit: 5,
+        excludeInteracted: true,
+      });
+
+      expect(recommendations).toBeInstanceOf(Array);
+      expect(recommendations.length).toBeGreaterThan(0);
+
+      // Should recommend item-4 (user-2 liked it, and user-2 is similar to user-1)
+      const hasItem4 = recommendations.some(rec => rec.itemId === 'item-4');
+      expect(hasItem4).toBe(true);
+    });
+
+    it('should exclude already interacted items', async () => {
+      const recommendations = await recommender.recommendForUser('user-1', {
+        limit: 10,
+        excludeInteracted: true,
+      });
+
+      const interactedItems = ['item-1', 'item-2', 'item-3'];
+      recommendations.forEach(rec => {
+        expect(interactedItems).not.toContain(rec.itemId);
+      });
+    });
+
+    it('should include interacted items when requested', async () => {
+      const recommendations = await recommender.recommendForUser('user-1', {
+        limit: 10,
+        excludeInteracted: false,
+      });
+
+      // May include some items user already interacted with
+      expect(recommendations).toBeInstanceOf(Array);
+    });
+
+    it('should respect limit parameter', async () => {
+      const recommendations = await recommender.recommendForUser('user-1', {
+        limit: 2,
+      });
+
+      expect(recommendations.length).toBeLessThanOrEqual(2);
+    });
+
+    it('should filter by minimum score', async () => {
+      const recommendations = await recommender.recommendForUser('user-1', {
+        limit: 10,
+        minScore: 3.5,
+      });
+
+      recommendations.forEach(rec => {
+        expect(rec.score).toBeGreaterThanOrEqual(3.5);
+      });
+    });
+
+    it('should include recommendation reason', async () => {
+      const recommendations = await recommender.recommendForUser('user-1', {
+        limit: 5,
+      });
+
+      recommendations.forEach(rec => {
+        expect(rec.reason).toBeDefined();
+        expect(rec.reason).toBeTruthy();
+      });
+    });
+
+    it('should handle cold start (new user)', async () => {
+      const recommendations = await recommender.recommendForUser('new-user', {
+        limit: 5,
+      });
+
+      // Should return popular items
+      expect(recommendations).toBeInstanceOf(Array);
+      expect(recommendations.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe('Item-Based Collaborative Filtering', () => {
+    beforeEach(async () => {
+      recommender = new CollaborativeFilterRecommender({
+        algorithm: 'item-based',
+        similarityMetric: 'cosine',
+        minSimilarity: 0.0,
+        neighborhoodSize: 5,
+      });
+      await recommender.train(sampleInteractions);
+    });
+
+    it('should recommend items based on item similarity', async () => {
+      const recommendations = await recommender.recommendForUser('user-1', {
+        limit: 5,
+        excludeInteracted: true,
+      });
+
+      expect(recommendations).toBeInstanceOf(Array);
+      expect(recommendations.length).toBeGreaterThan(0);
+    });
+
+    it('should find similar items', async () => {
+      const similarItems = await recommender.getSimilarItems('item-1', {
+        limit: 3,
+      });
+
+      expect(similarItems).toBeInstanceOf(Array);
+      expect(similarItems.length).toBeGreaterThan(0);
+
+      similarItems.forEach(item => {
+        expect(item.id).not.toBe('item-1');
+        expect(item.similarity).toBeGreaterThanOrEqual(0);
+        expect(item.similarity).toBeLessThanOrEqual(1);
+      });
+    });
+
+    it('should sort similar items by similarity', async () => {
+      const similarItems = await recommender.getSimilarItems('item-1', {
+        limit: 5,
+      });
+
+      for (let i = 1; i < similarItems.length; i++) {
+        expect(similarItems[i - 1].similarity).toBeGreaterThanOrEqual(
+          similarItems[i].similarity
+        );
+      }
+    });
+
+    it('should respect minimum similarity threshold', async () => {
+      const similarItems = await recommender.getSimilarItems('item-1', {
+        limit: 10,
+        minSimilarity: 0.3,
+      });
+
+      similarItems.forEach(item => {
+        expect(item.similarity).toBeGreaterThanOrEqual(0.3);
+      });
+    });
+  });
+
+  describe('Hybrid Collaborative Filtering', () => {
+    beforeEach(async () => {
+      recommender = new CollaborativeFilterRecommender({
+        algorithm: 'hybrid',
+        similarityMetric: 'cosine',
+        minSimilarity: 0.0,
+        neighborhoodSize: 5,
+      });
+      await recommender.train(sampleInteractions);
+    });
+
+    it('should combine user-based and item-based predictions', async () => {
+      const recommendations = await recommender.recommendForUser('user-1', {
+        limit: 5,
+        excludeInteracted: true,
+      });
+
+      expect(recommendations).toBeInstanceOf(Array);
+      expect(recommendations.length).toBeGreaterThan(0);
+
+      recommendations.forEach(rec => {
+        expect(rec.reason).toContain('users and items');
+      });
+    });
+
+    it('should provide balanced recommendations', async () => {
+      const recommendations = await recommender.recommendForUser('user-1', {
+        limit: 5,
+      });
+
+      expect(recommendations).toBeInstanceOf(Array);
+      // Hybrid should leverage both algorithms
+    });
+  });
+
+  describe('Similarity Metrics', () => {
+    describe('Cosine Similarity', () => {
+      beforeEach(async () => {
+        recommender = new CollaborativeFilterRecommender({
+          algorithm: 'user-based',
+          similarityMetric: 'cosine',
+        });
+        await recommender.train(sampleInteractions);
+      });
+
+      it('should calculate user similarity', async () => {
+        const similarUsers = await recommender.getSimilarUsers('user-1', {
+          limit: 3,
+        });
+
+        expect(similarUsers).toBeInstanceOf(Array);
+        expect(similarUsers.length).toBeGreaterThan(0);
+
+        // user-2 should be similar to user-1 (both like item-1 and item-2)
+        const hasUser2 = similarUsers.some(user => user.id === 'user-2');
+        expect(hasUser2).toBe(true);
+      });
+
+      it('should produce similarity scores between 0 and 1', async () => {
+        const similarUsers = await recommender.getSimilarUsers('user-1', {
+          limit: 5,
+        });
+
+        similarUsers.forEach(user => {
+          expect(user.similarity).toBeGreaterThanOrEqual(0);
+          expect(user.similarity).toBeLessThanOrEqual(1);
+        });
+      });
+    });
+
+    describe('Pearson Correlation', () => {
+      beforeEach(async () => {
+        recommender = new CollaborativeFilterRecommender({
+          algorithm: 'user-based',
+          similarityMetric: 'pearson',
+        });
+        await recommender.train(sampleInteractions);
+      });
+
+      it('should calculate correlation-based similarity', async () => {
+        const similarUsers = await recommender.getSimilarUsers('user-1', {
+          limit: 3,
+        });
+
+        expect(similarUsers).toBeInstanceOf(Array);
+        expect(similarUsers.length).toBeGreaterThan(0);
+      });
+
+      it('should handle negative correlations', async () => {
+        const similarUsers = await recommender.getSimilarUsers('user-1', {
+          limit: 5,
+          minSimilarity: -1.0,
+        });
+
+        // Pearson can be negative
+        expect(similarUsers).toBeInstanceOf(Array);
+      });
+    });
+  });
+
+  describe('Rating Prediction', () => {
+    beforeEach(async () => {
+      recommender = new CollaborativeFilterRecommender({
+        algorithm: 'user-based',
+        similarityMetric: 'cosine',
+      });
+      await recommender.train(sampleInteractions);
+    });
+
+    it('should predict rating for user-item pair', async () => {
+      const prediction = await recommender.predictRating('user-1', 'item-4');
+
+      expect(prediction).toBeGreaterThan(0);
+      expect(prediction).toBeLessThanOrEqual(5);
+    });
+
+    it('should predict higher ratings for likely matches', async () => {
+      // user-1 and user-2 are similar, user-2 rated item-4 highly
+      const prediction = await recommender.predictRating('user-1', 'item-4');
+
+      // Should predict a relatively high rating
+      expect(prediction).toBeGreaterThan(3.0);
+    });
+
+    it('should handle prediction for cold start user', async () => {
+      const prediction = await recommender.predictRating('new-user', 'item-1');
+
+      // Should return a fallback prediction (global mean or item mean)
+      expect(prediction).toBeGreaterThan(0);
+    });
+  });
+
+  describe('Matrix Factorization', () => {
+    beforeEach(async () => {
+      recommender = new CollaborativeFilterRecommender({
+        algorithm: 'user-based',
+        matrixFactorization: true,
+        numFactors: 5,
+        learningRate: 0.01,
+        regularization: 0.1,
+        iterations: 50,
+      });
+      await recommender.train(sampleInteractions);
+    });
+
+    it('should train matrix factorization model', async () => {
+      expect(recommender).toBeDefined();
+    });
+
+    it('should predict ratings with factorization', async () => {
+      const prediction = await recommender.predictRating('user-1', 'item-4');
+
+      expect(prediction).toBeGreaterThan(0);
+      expect(typeof prediction).toBe('number');
+    });
+
+    it('should recommend with factorization', async () => {
+      const recommendations = await recommender.recommendForUser('user-1', {
+        limit: 5,
+      });
+
+      expect(recommendations).toBeInstanceOf(Array);
+      expect(recommendations.length).toBeGreaterThan(0);
+    });
+
+    it('should handle cold start with factorization', async () => {
+      const prediction = await recommender.predictRating('new-user', 'item-1');
+
+      // Should return global mean or similar fallback
+      expect(typeof prediction).toBe('number');
+    });
+  });
+
+  describe('Incremental Updates', () => {
+    beforeEach(async () => {
+      recommender = new CollaborativeFilterRecommender({
+        algorithm: 'user-based',
+      });
+      await recommender.train(sampleInteractions);
+    });
+
+    it('should update model with new interaction', async () => {
+      const newInteraction: UserInteraction = {
+        userId: 'user-1',
+        itemId: 'item-7',
+        rating: 5.0,
+        timestamp: Date.now(),
+      };
+
+      await recommender.updateInteraction(newInteraction);
+
+      // The interaction should be recorded
+      const prediction = await recommender.predictRating('user-1', 'item-7');
+      expect(prediction).toBeDefined();
+    });
+
+    it('should update existing user rating', async () => {
+      const updatedInteraction: UserInteraction = {
+        userId: 'user-1',
+        itemId: 'item-1',
+        rating: 3.0, // Changed from 5.0
+        timestamp: Date.now(),
+      };
+
+      await recommender.updateInteraction(updatedInteraction);
+
+      // Should reflect the update
+      const prediction = await recommender.predictRating('user-1', 'item-1');
+      expect(prediction).toBeLessThanOrEqual(5.0);
+    });
+
+    it('should add new user through update', async () => {
+      const newUserInteraction: UserInteraction = {
+        userId: 'user-99',
+        itemId: 'item-1',
+        rating: 4.0,
+        timestamp: Date.now(),
+      };
+
+      await recommender.updateInteraction(newUserInteraction);
+
+      const recommendations = await recommender.recommendForUser('user-99', {
+        limit: 3,
+      });
+
+      expect(recommendations).toBeInstanceOf(Array);
+    });
+  });
+
+  describe('Edge Cases and Error Handling', () => {
+    it('should handle empty interaction list', async () => {
+      const emptyRecommender = new CollaborativeFilterRecommender();
+      await emptyRecommender.train([]);
+
+      const recommendations = await emptyRecommender.recommendForUser('user-1', {
+        limit: 5,
+      });
+
+      // Should return empty or popular items
+      expect(recommendations).toBeInstanceOf(Array);
+    });
+
+    it('should handle single user', async () => {
+      const singleUserInteractions: UserInteraction[] = [
+        { userId: 'user-1', itemId: 'item-1', rating: 5.0, timestamp: Date.now() },
+        { userId: 'user-1', itemId: 'item-2', rating: 4.0, timestamp: Date.now() },
+      ];
+
+      const singleRecommender = new CollaborativeFilterRecommender({
+        algorithm: 'user-based',
+      });
+      await singleRecommender.train(singleUserInteractions);
+
+      const recommendations = await singleRecommender.recommendForUser('user-1', {
+        limit: 5,
+      });
+
+      // Should handle gracefully (may return empty or based on item means)
+      expect(recommendations).toBeInstanceOf(Array);
+    });
+
+    it('should handle all ratings being the same', async () => {
+      const uniformInteractions: UserInteraction[] = [
+        { userId: 'user-1', itemId: 'item-1', rating: 5.0, timestamp: Date.now() },
+        { userId: 'user-2', itemId: 'item-1', rating: 5.0, timestamp: Date.now() },
+        { userId: 'user-3', itemId: 'item-1', rating: 5.0, timestamp: Date.now() },
+      ];
+
+      const uniformRecommender = new CollaborativeFilterRecommender();
+      await uniformRecommender.train(uniformInteractions);
+
+      const prediction = await uniformRecommender.predictRating('user-1', 'item-1');
+      expect(prediction).toBeCloseTo(5.0, 1);
+    });
+
+    it('should handle very sparse data', async () => {
+      const sparseInteractions: UserInteraction[] = [
+        { userId: 'user-1', itemId: 'item-1', rating: 5.0, timestamp: Date.now() },
+        { userId: 'user-2', itemId: 'item-2', rating: 4.0, timestamp: Date.now() },
+        { userId: 'user-3', itemId: 'item-3', rating: 3.0, timestamp: Date.now() },
+      ];
+
+      const sparseRecommender = new CollaborativeFilterRecommender();
+      await sparseRecommender.train(sparseInteractions);
+
+      const recommendations = await sparseRecommender.recommendForUser('user-1', {
+        limit: 5,
+      });
+
+      expect(recommendations).toBeInstanceOf(Array);
+    });
+  });
+
+  describe('Popular Items Fallback', () => {
+    beforeEach(async () => {
+      recommender = new CollaborativeFilterRecommender();
+      await recommender.train(sampleInteractions);
+    });
+
+    it('should return popular items for cold start', async () => {
+      const recommendations = await recommender.recommendForUser('new-user', {
+        limit: 5,
+      });
+
+      expect(recommendations).toBeInstanceOf(Array);
+      expect(recommendations.length).toBeGreaterThan(0);
+
+      // Should include items with more interactions
+      recommendations.forEach(rec => {
+        expect(rec.reason).toBe('Popular item');
+      });
+    });
+
+    it('should sort popular items by popularity', async () => {
+      const recommendations = await recommender.recommendForUser('new-user', {
+        limit: 5,
+      });
+
+      for (let i = 1; i < recommendations.length; i++) {
+        expect(recommendations[i - 1].score).toBeGreaterThanOrEqual(
+          recommendations[i].score
+        );
+      }
+    });
+  });
+
+  describe('Configuration Options', () => {
+    it('should respect neighborhood size', async () => {
+      const smallNeighborhood = new CollaborativeFilterRecommender({
+        algorithm: 'user-based',
+        neighborhoodSize: 2,
+      });
+
+      await smallNeighborhood.train(sampleInteractions);
+
+      const recommendations = await smallNeighborhood.recommendForUser('user-1', {
+        limit: 5,
+      });
+
+      expect(recommendations).toBeInstanceOf(Array);
+    });
+
+    it('should respect minimum similarity threshold', async () => {
+      const strictRecommender = new CollaborativeFilterRecommender({
+        algorithm: 'user-based',
+        minSimilarity: 0.5,
+      });
+
+      await strictRecommender.train(sampleInteractions);
+
+      const similarUsers = await strictRecommender.getSimilarUsers('user-1', {
+        limit: 10,
+      });
+
+      similarUsers.forEach(user => {
+        expect(user.similarity).toBeGreaterThanOrEqual(0.5);
+      });
+    });
+  });
+
+  describe('Algorithm Comparison', () => {
+    const testInteractions: UserInteraction[] = sampleInteractions;
+
+    it('should produce different results for different algorithms', async () => {
+      const userBased = new CollaborativeFilterRecommender({
+        algorithm: 'user-based',
+      });
+      const itemBased = new CollaborativeFilterRecommender({
+        algorithm: 'item-based',
+      });
+
+      await userBased.train(testInteractions);
+      await itemBased.train(testInteractions);
+
+      const userRecs = await userBased.recommendForUser('user-1', { limit: 5 });
+      const itemRecs = await itemBased.recommendForUser('user-1', { limit: 5 });
+
+      // Results may differ
+      expect(userRecs).toBeInstanceOf(Array);
+      expect(itemRecs).toBeInstanceOf(Array);
+    });
+
+    it('should have different reasons for different algorithms', async () => {
+      const userBased = new CollaborativeFilterRecommender({
+        algorithm: 'user-based',
+      });
+      const itemBased = new CollaborativeFilterRecommender({
+        algorithm: 'item-based',
+      });
+
+      await userBased.train(testInteractions);
+      await itemBased.train(testInteractions);
+
+      const userRecs = await userBased.recommendForUser('user-1', { limit: 1 });
+      const itemRecs = await itemBased.recommendForUser('user-1', { limit: 1 });
+
+      if (userRecs.length > 0 && itemRecs.length > 0) {
+        expect(userRecs[0].reason).toContain('similar to you');
+        expect(itemRecs[0].reason).toContain('items you liked');
+      }
+    });
+  });
+});

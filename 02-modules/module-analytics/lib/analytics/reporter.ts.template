@@ -1,0 +1,520 @@
+/**
+ * Analytics Reporter
+ *
+ * Data aggregation and report generation for analytics.
+ * Supports funnel analysis, cohort analysis, and time-series data.
+ */
+
+import { databaseAdapter } from '@/lib/db/database-adapter';
+
+export interface ReportOptions {
+  projectId: string;
+  startDate: Date;
+  endDate: Date;
+  userId?: string;
+  eventType?: string;
+  groupBy?: 'day' | 'week' | 'month' | 'hour';
+  timezone?: string;
+}
+
+export interface AnalyticsMetrics {
+  totalEvents: number;
+  totalUsers: number;
+  totalSessions: number;
+  avgSessionDuration: number;
+  avgEventsPerSession: number;
+  avgPageViewsPerSession: number;
+  bounceRate: number;
+  topEvents: Array<{ eventName: string; count: number }>;
+  topPages: Array<{ url: string; count: number }>;
+  deviceBreakdown: Array<{ deviceType: string; count: number }>;
+  browserBreakdown: Array<{ browser: string; count: number }>;
+}
+
+export interface TimeSeriesData {
+  date: string;
+  events: number;
+  users: number;
+  sessions: number;
+}
+
+export interface FunnelStep {
+  name: string;
+  eventName: string;
+  users?: number;
+  conversionRate?: number;
+}
+
+export interface FunnelAnalysis {
+  steps: FunnelStep[];
+  totalUsers: number;
+  overallConversionRate: number;
+}
+
+export interface CohortData {
+  cohortDate: string;
+  cohortSize: number;
+  retention: Array<{ period: number; users: number; rate: number }>;
+}
+
+export interface ExportFormat {
+  format: 'csv' | 'json';
+  data: any[];
+}
+
+class AnalyticsReporter {
+  /**
+   * Get analytics metrics for date range
+   */
+  async getMetrics(options: ReportOptions): Promise<AnalyticsMetrics> {
+    const { projectId, startDate, endDate, userId } = options;
+
+    // Build where clause
+    const whereClause: any = {
+      projectId,
+      timestamp: {
+        gte: startDate,
+        lte: endDate,
+      },
+    };
+
+    if (userId) {
+      whereClause.userId = userId;
+    }
+
+    // Total events
+    const totalEvents = await databaseAdapter.count('analyticsEvent', {
+      where: whereClause,
+    });
+
+    // Unique users
+    const uniqueUsers = await databaseAdapter.aggregate('analyticsEvent', {
+      where: whereClause,
+      _count: {
+        userId: true,
+      },
+    });
+
+    const totalUsers = uniqueUsers._count?.userId || 0;
+
+    // Sessions data
+    const sessionWhere: any = {
+      projectId,
+      startTime: {
+        gte: startDate,
+        lte: endDate,
+      },
+    };
+
+    if (userId) {
+      sessionWhere.userId = userId;
+    }
+
+    const sessions = await databaseAdapter.findMany('analyticsSession', {
+      where: sessionWhere,
+    });
+
+    const totalSessions = sessions.length;
+
+    // Calculate session metrics
+    let totalDuration = 0;
+    let totalEvents = 0;
+    let totalPageViews = 0;
+    let bouncedSessions = 0;
+
+    for (const session of sessions) {
+      if (session.endTime && session.startTime) {
+        totalDuration += session.endTime.getTime() - session.startTime.getTime();
+      }
+      totalEvents += session.events || 0;
+      totalPageViews += session.pageViews || 0;
+
+      // Bounced session: only 1 page view and duration < 10 seconds
+      if (session.pageViews === 1 && session.endTime && session.startTime) {
+        const duration = session.endTime.getTime() - session.startTime.getTime();
+        if (duration < 10000) {
+          bouncedSessions++;
+        }
+      }
+    }
+
+    const avgSessionDuration = totalSessions > 0 ? totalDuration / totalSessions / 1000 : 0; // in seconds
+    const avgEventsPerSession = totalSessions > 0 ? totalEvents / totalSessions : 0;
+    const avgPageViewsPerSession = totalSessions > 0 ? totalPageViews / totalSessions : 0;
+    const bounceRate = totalSessions > 0 ? (bouncedSessions / totalSessions) * 100 : 0;
+
+    // Top events
+    const eventGroups = await databaseAdapter.groupBy('analyticsEvent', {
+      by: ['eventName'],
+      where: whereClause,
+      _count: {
+        eventName: true,
+      },
+      orderBy: {
+        _count: {
+          eventName: 'desc',
+        },
+      },
+      take: 10,
+    });
+
+    const topEvents = eventGroups.map((group: any) => ({
+      eventName: group.eventName,
+      count: group._count.eventName,
+    }));
+
+    // Top pages
+    const pageGroups = await databaseAdapter.groupBy('analyticsEvent', {
+      by: ['pageUrl'],
+      where: {
+        ...whereClause,
+        eventType: 'pageview',
+        pageUrl: { not: null },
+      },
+      _count: {
+        pageUrl: true,
+      },
+      orderBy: {
+        _count: {
+          pageUrl: 'desc',
+        },
+      },
+      take: 10,
+    });
+
+    const topPages = pageGroups.map((group: any) => ({
+      url: group.pageUrl,
+      count: group._count.pageUrl,
+    }));
+
+    // Device breakdown
+    const deviceGroups = await databaseAdapter.groupBy('analyticsEvent', {
+      by: ['deviceType'],
+      where: whereClause,
+      _count: {
+        deviceType: true,
+      },
+    });
+
+    const deviceBreakdown = deviceGroups.map((group: any) => ({
+      deviceType: group.deviceType || 'unknown',
+      count: group._count.deviceType,
+    }));
+
+    // Browser breakdown
+    const browserGroups = await databaseAdapter.groupBy('analyticsEvent', {
+      by: ['browser'],
+      where: whereClause,
+      _count: {
+        browser: true,
+      },
+    });
+
+    const browserBreakdown = browserGroups.map((group: any) => ({
+      browser: group.browser || 'unknown',
+      count: group._count.browser,
+    }));
+
+    return {
+      totalEvents,
+      totalUsers,
+      totalSessions,
+      avgSessionDuration,
+      avgEventsPerSession,
+      avgPageViewsPerSession,
+      bounceRate,
+      topEvents,
+      topPages,
+      deviceBreakdown,
+      browserBreakdown,
+    };
+  }
+
+  /**
+   * Get time series data
+   */
+  async getTimeSeries(options: ReportOptions): Promise<TimeSeriesData[]> {
+    const { projectId, startDate, endDate, groupBy = 'day' } = options;
+
+    // This is a simplified version - in production, use database-specific date functions
+    const events = await databaseAdapter.findMany('analyticsEvent', {
+      where: {
+        projectId,
+        timestamp: {
+          gte: startDate,
+          lte: endDate,
+        },
+      },
+      select: {
+        timestamp: true,
+        userId: true,
+        sessionId: true,
+      },
+    });
+
+    // Group by date
+    const grouped = new Map<string, { events: Set<string>; users: Set<string>; sessions: Set<string> }>();
+
+    for (const event of events) {
+      const dateKey = this.getDateKey(event.timestamp, groupBy);
+
+      if (!grouped.has(dateKey)) {
+        grouped.set(dateKey, {
+          events: new Set(),
+          users: new Set(),
+          sessions: new Set(),
+        });
+      }
+
+      const group = grouped.get(dateKey)!;
+      group.events.add(event.id);
+      if (event.userId) group.users.add(event.userId);
+      if (event.sessionId) group.sessions.add(event.sessionId);
+    }
+
+    // Convert to array
+    const timeSeries: TimeSeriesData[] = [];
+    for (const [date, data] of grouped.entries()) {
+      timeSeries.push({
+        date,
+        events: data.events.size,
+        users: data.users.size,
+        sessions: data.sessions.size,
+      });
+    }
+
+    return timeSeries.sort((a, b) => a.date.localeCompare(b.date));
+  }
+
+  /**
+   * Get date key for grouping
+   */
+  private getDateKey(date: Date, groupBy: 'day' | 'week' | 'month' | 'hour'): string {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hour = String(date.getHours()).padStart(2, '0');
+
+    switch (groupBy) {
+      case 'hour':
+        return `${year}-${month}-${day} ${hour}:00`;
+      case 'day':
+        return `${year}-${month}-${day}`;
+      case 'week':
+        // Get week start (Sunday)
+        const weekStart = new Date(date);
+        weekStart.setDate(date.getDate() - date.getDay());
+        return `${weekStart.getFullYear()}-W${String(this.getWeekNumber(weekStart)).padStart(2, '0')}`;
+      case 'month':
+        return `${year}-${month}`;
+      default:
+        return `${year}-${month}-${day}`;
+    }
+  }
+
+  /**
+   * Get ISO week number
+   */
+  private getWeekNumber(date: Date): number {
+    const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+    const dayNum = d.getUTCDay() || 7;
+    d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+    return Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+  }
+
+  /**
+   * Analyze conversion funnel
+   */
+  async analyzeFunnel(projectId: string, steps: FunnelStep[], startDate: Date, endDate: Date): Promise<FunnelAnalysis> {
+    const whereClause = {
+      projectId,
+      timestamp: {
+        gte: startDate,
+        lte: endDate,
+      },
+    };
+
+    // Get users who completed each step
+    const stepUsers: Set<string>[] = [];
+
+    for (let i = 0; i < steps.length; i++) {
+      const step = steps[i];
+      const events = await databaseAdapter.findMany('analyticsEvent', {
+        where: {
+          ...whereClause,
+          eventName: step.eventName,
+          userId: { not: null },
+        },
+        select: {
+          userId: true,
+        },
+      });
+
+      const users = new Set(events.map((e: any) => e.userId).filter(Boolean));
+
+      // For steps after the first, filter users who completed previous step
+      if (i > 0) {
+        const previousUsers = stepUsers[i - 1];
+        stepUsers.push(new Set([...users].filter(u => previousUsers.has(u))));
+      } else {
+        stepUsers.push(users);
+      }
+    }
+
+    // Calculate conversion rates
+    const totalUsers = stepUsers[0]?.size || 0;
+    const funnelSteps = steps.map((step, i) => ({
+      ...step,
+      users: stepUsers[i].size,
+      conversionRate: totalUsers > 0 ? (stepUsers[i].size / totalUsers) * 100 : 0,
+    }));
+
+    const overallConversionRate = totalUsers > 0 && stepUsers.length > 0
+      ? (stepUsers[stepUsers.length - 1].size / totalUsers) * 100
+      : 0;
+
+    return {
+      steps: funnelSteps,
+      totalUsers,
+      overallConversionRate,
+    };
+  }
+
+  /**
+   * Analyze user cohorts
+   */
+  async analyzeCohorts(projectId: string, startDate: Date, endDate: Date, periods: number = 12): Promise<CohortData[]> {
+    // Get all users grouped by signup date
+    const sessions = await databaseAdapter.findMany('analyticsSession', {
+      where: {
+        projectId,
+        startTime: {
+          gte: startDate,
+          lte: endDate,
+        },
+        userId: { not: null },
+      },
+      select: {
+        userId: true,
+        startTime: true,
+      },
+      orderBy: {
+        startTime: 'asc',
+      },
+    });
+
+    // Group users by cohort (first session date)
+    const userCohorts = new Map<string, string>(); // userId -> cohort date
+    for (const session of sessions) {
+      if (!session.userId) continue;
+      if (!userCohorts.has(session.userId)) {
+        const cohortDate = this.getDateKey(session.startTime, 'month');
+        userCohorts.set(session.userId, cohortDate);
+      }
+    }
+
+    // Group by cohort date
+    const cohorts = new Map<string, Set<string>>();
+    for (const [userId, cohortDate] of userCohorts.entries()) {
+      if (!cohorts.has(cohortDate)) {
+        cohorts.set(cohortDate, new Set());
+      }
+      cohorts.get(cohortDate)!.add(userId);
+    }
+
+    // Calculate retention for each cohort
+    const cohortData: CohortData[] = [];
+
+    for (const [cohortDate, cohortUsers] of cohorts.entries()) {
+      const cohortStartDate = new Date(cohortDate + '-01');
+      const retention: Array<{ period: number; users: number; rate: number }> = [];
+
+      for (let period = 0; period < periods; period++) {
+        const periodStart = new Date(cohortStartDate);
+        periodStart.setMonth(periodStart.getMonth() + period);
+        const periodEnd = new Date(periodStart);
+        periodEnd.setMonth(periodEnd.getMonth() + 1);
+
+        // Count users active in this period
+        const activeSessions = await databaseAdapter.findMany('analyticsSession', {
+          where: {
+            projectId,
+            userId: { in: Array.from(cohortUsers) },
+            startTime: {
+              gte: periodStart,
+              lt: periodEnd,
+            },
+          },
+          select: {
+            userId: true,
+          },
+        });
+
+        const activeUsers = new Set(activeSessions.map((s: any) => s.userId).filter(Boolean));
+
+        retention.push({
+          period,
+          users: activeUsers.size,
+          rate: cohortUsers.size > 0 ? (activeUsers.size / cohortUsers.size) * 100 : 0,
+        });
+      }
+
+      cohortData.push({
+        cohortDate,
+        cohortSize: cohortUsers.size,
+        retention,
+      });
+    }
+
+    return cohortData.sort((a, b) => a.cohortDate.localeCompare(b.cohortDate));
+  }
+
+  /**
+   * Export data to CSV or JSON
+   */
+  async exportData(options: ReportOptions, format: 'csv' | 'json' = 'json'): Promise<ExportFormat> {
+    const events = await databaseAdapter.findMany('analyticsEvent', {
+      where: {
+        projectId: options.projectId,
+        timestamp: {
+          gte: options.startDate,
+          lte: options.endDate,
+        },
+      },
+    });
+
+    return {
+      format,
+      data: events,
+    };
+  }
+
+  /**
+   * Convert data to CSV format
+   */
+  convertToCSV(data: any[]): string {
+    if (data.length === 0) return '';
+
+    const headers = Object.keys(data[0]);
+    const csvRows = [headers.join(',')];
+
+    for (const row of data) {
+      const values = headers.map(header => {
+        const value = row[header];
+        if (value === null || value === undefined) return '';
+        if (typeof value === 'object') return JSON.stringify(value);
+        return String(value).replace(/"/g, '""');
+      });
+      csvRows.push(values.map(v => `"${v}"`).join(','));
+    }
+
+    return csvRows.join('\n');
+  }
+}
+
+export default AnalyticsReporter;
+
+// Export singleton instance
+const reporter = new AnalyticsReporter();
+export { reporter };

@@ -1,0 +1,298 @@
+/**
+ * ================================================================
+ * {{PROJECT_NAME}} - Workflow Seed Data
+ * ================================================================
+ *
+ * Sample workflow definitions for development and testing.
+ * Creates 5+ workflows with different configurations.
+ *
+ * @module seed-data/workflows
+ */
+
+import { PrismaClient } from '@prisma/client'
+
+const prisma = new PrismaClient()
+
+/**
+ * Sample workflow definitions
+ */
+export const sampleWorkflows = [
+  {
+    name: 'Lead Qualification Process',
+    description: 'Automated workflow for qualifying and routing new leads',
+    type: 'SALES',
+    config: {
+      stages: [
+        { id: 'new', name: 'New Lead', duration: 24 },
+        { id: 'contacted', name: 'Initial Contact', duration: 48 },
+        { id: 'qualified', name: 'Qualified', duration: 72 },
+        { id: 'demo', name: 'Demo Scheduled', duration: 168 },
+        { id: 'proposal', name: 'Proposal Sent', duration: 120 },
+        { id: 'negotiation', name: 'Negotiation', duration: 240 },
+        { id: 'closed', name: 'Closed Won/Lost', duration: null },
+      ],
+      rules: [
+        {
+          condition: 'lead.score > 80',
+          action: 'assign_to_senior_rep',
+        },
+        {
+          condition: 'lead.value > 100000',
+          action: 'notify_sales_manager',
+        },
+      ],
+      automation: {
+        emailReminders: true,
+        slackNotifications: true,
+        autoAssignment: true,
+      },
+    },
+    active: true,
+    version: 2,
+  },
+  {
+    name: 'Quote Approval Workflow',
+    description: 'Multi-level approval process for sales quotes',
+    type: 'APPROVAL',
+    config: {
+      approvalLevels: [
+        {
+          level: 1,
+          role: 'SALES_MANAGER',
+          threshold: 50000,
+          required: true,
+        },
+        {
+          level: 2,
+          role: 'VP_SALES',
+          threshold: 100000,
+          required: true,
+        },
+        {
+          level: 3,
+          role: 'CFO',
+          threshold: 250000,
+          required: true,
+        },
+      ],
+      timeouts: {
+        level1: 24, // hours
+        level2: 48,
+        level3: 72,
+      },
+      escalation: {
+        enabled: true,
+        notifyAfter: 12, // hours
+      },
+    },
+    active: true,
+    version: 1,
+  },
+  {
+    name: 'Contract Review Process',
+    description: 'Legal and compliance review for contracts',
+    type: 'REVIEW',
+    config: {
+      reviewers: [
+        {
+          role: 'LEGAL',
+          required: true,
+          sla: 48, // hours
+        },
+        {
+          role: 'COMPLIANCE',
+          required: true,
+          sla: 24,
+        },
+        {
+          role: 'FINANCE',
+          required: false,
+          condition: 'contract.value > 50000',
+          sla: 36,
+        },
+      ],
+      checklist: [
+        'Terms and conditions reviewed',
+        'Pricing verified',
+        'Compliance requirements met',
+        'Risk assessment completed',
+        'Insurance requirements checked',
+      ],
+      parallel: false, // Sequential review
+    },
+    active: true,
+    version: 3,
+  },
+  {
+    name: 'Customer Onboarding Flow',
+    description: 'Structured onboarding process for new customers',
+    type: 'ONBOARDING',
+    config: {
+      phases: [
+        {
+          name: 'Welcome',
+          duration: 1, // days
+          tasks: [
+            'Send welcome email',
+            'Schedule kickoff call',
+            'Assign customer success manager',
+          ],
+        },
+        {
+          name: 'Setup',
+          duration: 7,
+          tasks: [
+            'Account configuration',
+            'User provisioning',
+            'Integration setup',
+            'Custom branding',
+          ],
+        },
+        {
+          name: 'Training',
+          duration: 7,
+          tasks: [
+            'Admin training session',
+            'User training sessions',
+            'Documentation handover',
+            'Q&A sessions',
+          ],
+        },
+        {
+          name: 'Go-Live',
+          duration: 3,
+          tasks: [
+            'Production deployment',
+            'Data migration',
+            'Go-live support',
+            'Post-launch review',
+          ],
+        },
+        {
+          name: 'Follow-up',
+          duration: 14,
+          tasks: [
+            'Usage monitoring',
+            'Feedback collection',
+            'Additional training',
+            'Success metrics review',
+          ],
+        },
+      ],
+      milestones: [
+        { name: 'Kickoff Complete', day: 1 },
+        { name: 'Setup Complete', day: 8 },
+        { name: 'Training Complete', day: 15 },
+        { name: 'Go-Live', day: 18 },
+        { name: 'Onboarding Complete', day: 32 },
+      ],
+    },
+    active: true,
+    version: 1,
+  },
+  {
+    name: 'Support Ticket Resolution',
+    description: 'Automated routing and SLA management for support tickets',
+    type: 'SUPPORT',
+    config: {
+      priorities: [
+        {
+          level: 'CRITICAL',
+          sla: 1, // hours
+          autoEscalate: true,
+          notifyManagement: true,
+        },
+        {
+          level: 'HIGH',
+          sla: 4,
+          autoEscalate: true,
+          notifyManagement: false,
+        },
+        {
+          level: 'MEDIUM',
+          sla: 24,
+          autoEscalate: false,
+          notifyManagement: false,
+        },
+        {
+          level: 'LOW',
+          sla: 72,
+          autoEscalate: false,
+          notifyManagement: false,
+        },
+      ],
+      routing: {
+        rules: [
+          {
+            condition: 'category == "technical"',
+            assignTo: 'TECH_SUPPORT',
+          },
+          {
+            condition: 'category == "billing"',
+            assignTo: 'BILLING_TEAM',
+          },
+          {
+            condition: 'category == "general"',
+            assignTo: 'GENERAL_SUPPORT',
+          },
+        ],
+        loadBalancing: true,
+      },
+      automation: {
+        autoResponse: true,
+        statusUpdates: true,
+        satisfactionSurvey: true,
+      },
+    },
+    active: true,
+    version: 2,
+  },
+]
+
+/**
+ * Seed workflows
+ */
+export async function seedWorkflows(userId: string) {
+  console.log('🌱 Seeding workflows...')
+
+  const createdWorkflows = []
+
+  for (const workflowData of sampleWorkflows) {
+    const workflow = await prisma.workflow.create({
+      data: {
+        name: workflowData.name,
+        description: workflowData.description,
+        type: workflowData.type,
+        config: workflowData.config,
+        active: workflowData.active,
+        version: workflowData.version,
+        createdById: userId,
+        currentState: 'ACTIVE',
+      },
+    })
+
+    createdWorkflows.push(workflow)
+    console.log(`  ✅ Created workflow: ${workflow.name}`)
+  }
+
+  console.log(`✅ Seeded ${createdWorkflows.length} workflows\n`)
+  return createdWorkflows
+}
+
+/**
+ * Clean up workflows (for testing)
+ */
+export async function cleanupWorkflows() {
+  console.log('🧹 Cleaning up workflows...')
+  
+  await prisma.workflow.deleteMany({
+    where: {
+      name: {
+        in: sampleWorkflows.map(w => w.name),
+      },
+    },
+  })
+  
+  console.log('✅ Workflows cleaned up\n')
+}
+

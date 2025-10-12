@@ -1,0 +1,537 @@
+/**
+ * Outlook Calendar Service Tests
+ *
+ * Comprehensive test suite for Microsoft Graph Calendar API integration.
+ *
+ * @module lib/calendar/__tests__/outlook-calendar.test
+ */
+
+import { OutlookCalendarService } from '../outlook-calendar';
+import type { OutlookEventCreateOptions } from '@/types/calendar';
+
+// Mock Microsoft Graph Client
+jest.mock('@microsoft/microsoft-graph-client', () => ({
+  Client: {
+    init: jest.fn().mockReturnValue({
+      api: jest.fn().mockReturnThis(),
+      post: jest.fn(),
+      get: jest.fn(),
+      patch: jest.fn(),
+      delete: jest.fn(),
+      top: jest.fn().mockReturnThis(),
+      skip: jest.fn().mockReturnThis(),
+      filter: jest.fn().mockReturnThis(),
+      orderby: jest.fn().mockReturnThis(),
+      select: jest.fn().mockReturnThis(),
+    }),
+  },
+}));
+
+// Mock database adapter
+jest.mock('@/lib/db/database-adapter', () => ({
+  databaseAdapter: {
+    findFirst: jest.fn(),
+    create: jest.fn(),
+    update: jest.fn(),
+    deleteMany: jest.fn(),
+    findMany: jest.fn(),
+  },
+}));
+
+// Mock fetch for OAuth
+global.fetch = jest.fn();
+
+describe('OutlookCalendarService', () => {
+  let service: OutlookCalendarService;
+
+  const mockConfig = {
+    clientId: 'test-client-id',
+    clientSecret: 'test-client-secret',
+    tenantId: 'test-tenant-id',
+    redirectUri: 'http://localhost:3000/callback',
+  };
+
+  beforeEach(() => {
+    service = new OutlookCalendarService(mockConfig);
+    jest.clearAllMocks();
+  });
+
+  // ==========================================================================
+  // Authentication Tests
+  // ==========================================================================
+
+  describe('Authentication', () => {
+    it('should generate auth URL', () => {
+      const url = service.getAuthUrl('test-state');
+
+      expect(url).toContain('login.microsoftonline.com');
+      expect(url).toContain(mockConfig.tenantId);
+      expect(url).toContain(mockConfig.clientId);
+      expect(url).toContain('state=test-state');
+    });
+
+    it('should exchange code for tokens', async () => {
+      const mockTokenResponse = {
+        access_token: 'test-access-token',
+        refresh_token: 'test-refresh-token',
+        token_type: 'Bearer',
+        expires_in: 3600,
+      };
+
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockTokenResponse,
+      });
+
+      const tokens = await service.getTokensFromCode('auth-code');
+
+      expect(tokens).toHaveProperty('access_token');
+      expect(tokens).toHaveProperty('refresh_token');
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining('token'),
+        expect.any(Object)
+      );
+    });
+
+    it('should handle token exchange error', async () => {
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: false,
+        json: async () => ({
+          error: 'invalid_grant',
+          error_description: 'Invalid authorization code',
+        }),
+      });
+
+      await expect(service.getTokensFromCode('invalid-code')).rejects.toThrow(
+        'Failed to get tokens'
+      );
+    });
+
+    it('should refresh access token', async () => {
+      const mockTokenResponse = {
+        access_token: 'new-access-token',
+        refresh_token: 'new-refresh-token',
+        expires_in: 3600,
+      };
+
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockTokenResponse,
+      });
+
+      const credentials = {
+        access_token: 'old-token',
+        refresh_token: 'refresh-token',
+      };
+
+      await service.setCredentials(credentials);
+      const newCredentials = await service.refreshAccessToken('refresh-token');
+
+      expect(newCredentials.access_token).toBe('new-access-token');
+    });
+  });
+
+  // ==========================================================================
+  // Event Creation Tests
+  // ==========================================================================
+
+  describe('Event Creation', () => {
+    beforeEach(async () => {
+      await service.setCredentials({
+        access_token: 'test-token',
+        refresh_token: 'test-refresh',
+      });
+    });
+
+    it('should create simple event', async () => {
+      const mockEvent = {
+        id: 'event-123',
+        subject: 'Test Event',
+        start: {
+          dateTime: '2025-10-15T14:00:00',
+          timeZone: 'Asia/Taipei',
+        },
+        end: {
+          dateTime: '2025-10-15T15:00:00',
+          timeZone: 'Asia/Taipei',
+        },
+        createdDateTime: '2025-10-10T10:00:00Z',
+        lastModifiedDateTime: '2025-10-10T10:00:00Z',
+      };
+
+      service['client']!.post = jest.fn().mockResolvedValue(mockEvent);
+
+      const options: OutlookEventCreateOptions = {
+        subject: 'Test Event',
+        start: {
+          dateTime: '2025-10-15T14:00:00',
+          timeZone: 'Asia/Taipei',
+        },
+        end: {
+          dateTime: '2025-10-15T15:00:00',
+          timeZone: 'Asia/Taipei',
+        },
+      };
+
+      const event = await service.createEvent(options);
+
+      expect(event.summary).toBe('Test Event');
+      expect(event.provider).toBe('outlook');
+    });
+
+    it('should create event with body', async () => {
+      const mockEvent = {
+        id: 'event-123',
+        subject: 'Meeting',
+        body: {
+          contentType: 'HTML',
+          content: '<h1>Agenda</h1>',
+        },
+        start: { dateTime: '2025-10-15T14:00:00', timeZone: 'UTC' },
+        end: { dateTime: '2025-10-15T15:00:00', timeZone: 'UTC' },
+      };
+
+      service['client']!.post = jest.fn().mockResolvedValue(mockEvent);
+
+      const options: OutlookEventCreateOptions = {
+        subject: 'Meeting',
+        body: {
+          contentType: 'HTML',
+          content: '<h1>Agenda</h1>',
+        },
+        start: { dateTime: '2025-10-15T14:00:00', timeZone: 'UTC' },
+        end: { dateTime: '2025-10-15T15:00:00', timeZone: 'UTC' },
+      };
+
+      const event = await service.createEvent(options);
+
+      expect(event.description).toBe('<h1>Agenda</h1>');
+    });
+
+    it('should create Teams meeting', async () => {
+      const mockEvent = {
+        id: 'event-123',
+        subject: 'Teams Meeting',
+        start: { dateTime: '2025-10-15T14:00:00', timeZone: 'UTC' },
+        end: { dateTime: '2025-10-15T15:00:00', timeZone: 'UTC' },
+        isOnlineMeeting: true,
+        onlineMeetingProvider: 'teamsForBusiness',
+        onlineMeeting: {
+          joinUrl: 'https://teams.microsoft.com/l/meetup/...',
+        },
+      };
+
+      service['client']!.post = jest.fn().mockResolvedValue(mockEvent);
+
+      const event = await service.createTeamsMeeting({
+        subject: 'Teams Meeting',
+        start: { dateTime: '2025-10-15T14:00:00', timeZone: 'UTC' },
+        end: { dateTime: '2025-10-15T15:00:00', timeZone: 'UTC' },
+      });
+
+      expect(event.metadata?.isOnlineMeeting).toBe(true);
+      expect(event.metadata?.onlineMeeting?.joinUrl).toContain('teams.microsoft.com');
+    });
+
+    it('should create event with attendees', async () => {
+      const mockEvent = {
+        id: 'event-123',
+        subject: 'Meeting',
+        start: { dateTime: '2025-10-15T14:00:00', timeZone: 'UTC' },
+        end: { dateTime: '2025-10-15T15:00:00', timeZone: 'UTC' },
+        attendees: [
+          {
+            emailAddress: { address: 'john@example.com', name: 'John Doe' },
+            type: 'required',
+          },
+          {
+            emailAddress: { address: 'jane@example.com', name: 'Jane Smith' },
+            type: 'optional',
+          },
+        ],
+      };
+
+      service['client']!.post = jest.fn().mockResolvedValue(mockEvent);
+
+      const event = await service.createEvent({
+        subject: 'Meeting',
+        start: { dateTime: '2025-10-15T14:00:00', timeZone: 'UTC' },
+        end: { dateTime: '2025-10-15T15:00:00', timeZone: 'UTC' },
+        attendees: [
+          {
+            emailAddress: { address: 'john@example.com', name: 'John Doe' },
+            type: 'required',
+          },
+          {
+            emailAddress: { address: 'jane@example.com', name: 'Jane Smith' },
+            type: 'optional',
+          },
+        ],
+      });
+
+      expect(event.attendees?.length).toBe(2);
+      expect(event.attendees?.[0].email).toBe('john@example.com');
+      expect(event.attendees?.[1].optional).toBe(true);
+    });
+  });
+
+  // ==========================================================================
+  // Event Read Tests
+  // ==========================================================================
+
+  describe('Event Read', () => {
+    beforeEach(async () => {
+      await service.setCredentials({
+        access_token: 'test-token',
+        refresh_token: 'test-refresh',
+      });
+    });
+
+    it('should get event by ID', async () => {
+      const mockEvent = {
+        id: 'event-123',
+        subject: 'Test Event',
+        start: { dateTime: '2025-10-15T14:00:00', timeZone: 'UTC' },
+        end: { dateTime: '2025-10-15T15:00:00', timeZone: 'UTC' },
+      };
+
+      service['client']!.get = jest.fn().mockResolvedValue(mockEvent);
+
+      const event = await service.getEvent('event-123');
+
+      expect(event.id).toBe('event-123');
+      expect(event.summary).toBe('Test Event');
+    });
+
+    it('should list events', async () => {
+      const mockEvents = {
+        value: [
+          {
+            id: 'event-1',
+            subject: 'Event 1',
+            start: { dateTime: '2025-10-15T14:00:00' },
+            end: { dateTime: '2025-10-15T15:00:00' },
+          },
+          {
+            id: 'event-2',
+            subject: 'Event 2',
+            start: { dateTime: '2025-10-16T14:00:00' },
+            end: { dateTime: '2025-10-16T15:00:00' },
+          },
+        ],
+      };
+
+      service['client']!.get = jest.fn().mockResolvedValue(mockEvents);
+
+      const events = await service.listEvents();
+
+      expect(events.length).toBe(2);
+      expect(events[0].summary).toBe('Event 1');
+    });
+
+    it('should list events with filters', async () => {
+      service['client']!.get = jest.fn().mockResolvedValue({ value: [] });
+
+      await service.listEvents({
+        top: 10,
+        filter: "start/dateTime ge '2025-10-15T00:00:00'",
+        orderBy: 'start/dateTime',
+      });
+
+      expect(service['client']!.top).toHaveBeenCalledWith(10);
+      expect(service['client']!.filter).toHaveBeenCalled();
+      expect(service['client']!.orderby).toHaveBeenCalled();
+    });
+  });
+
+  // ==========================================================================
+  // Event Update Tests
+  // ==========================================================================
+
+  describe('Event Update', () => {
+    beforeEach(async () => {
+      await service.setCredentials({
+        access_token: 'test-token',
+        refresh_token: 'test-refresh',
+      });
+    });
+
+    it('should update event', async () => {
+      const updatedEvent = {
+        id: 'event-123',
+        subject: 'Updated Title',
+        start: { dateTime: '2025-10-15T14:00:00', timeZone: 'UTC' },
+        end: { dateTime: '2025-10-15T15:00:00', timeZone: 'UTC' },
+      };
+
+      service['client']!.patch = jest.fn().mockResolvedValue(updatedEvent);
+
+      const event = await service.updateEvent('event-123', {
+        subject: 'Updated Title',
+      });
+
+      expect(event.summary).toBe('Updated Title');
+    });
+
+    it('should update event time', async () => {
+      const updatedEvent = {
+        id: 'event-123',
+        subject: 'Test Event',
+        start: { dateTime: '2025-10-15T16:00:00', timeZone: 'UTC' },
+        end: { dateTime: '2025-10-15T17:00:00', timeZone: 'UTC' },
+      };
+
+      service['client']!.patch = jest.fn().mockResolvedValue(updatedEvent);
+
+      const event = await service.updateEvent('event-123', {
+        start: { dateTime: '2025-10-15T16:00:00', timeZone: 'UTC' },
+        end: { dateTime: '2025-10-15T17:00:00', timeZone: 'UTC' },
+      });
+
+      expect(event.start.dateTime).toBe('2025-10-15T16:00:00');
+    });
+  });
+
+  // ==========================================================================
+  // Event Delete Tests
+  // ==========================================================================
+
+  describe('Event Delete', () => {
+    beforeEach(async () => {
+      await service.setCredentials({
+        access_token: 'test-token',
+        refresh_token: 'test-refresh',
+      });
+    });
+
+    it('should delete event', async () => {
+      service['client']!.delete = jest.fn().mockResolvedValue({});
+
+      await service.deleteEvent('event-123');
+
+      expect(service['client']!.api).toHaveBeenCalledWith('/me/events/event-123');
+      expect(service['client']!.delete).toHaveBeenCalled();
+    });
+  });
+
+  // ==========================================================================
+  // Free/Busy Tests
+  // ==========================================================================
+
+  describe('Free/Busy Queries', () => {
+    beforeEach(async () => {
+      await service.setCredentials({
+        access_token: 'test-token',
+        refresh_token: 'test-refresh',
+      });
+    });
+
+    it('should find free/busy time', async () => {
+      const mockSchedule = {
+        value: [
+          {
+            scheduleId: 'john@example.com',
+            availabilityView: '000000',
+            scheduleItems: [
+              {
+                start: '2025-10-15T09:00:00',
+                end: '2025-10-15T10:00:00',
+                status: 'busy',
+              },
+            ],
+          },
+        ],
+      };
+
+      service['client']!.post = jest.fn().mockResolvedValue(mockSchedule);
+
+      const schedules = await service.findFreeBusyTime({
+        attendees: ['john@example.com'],
+        startTime: '2025-10-15T00:00:00',
+        endTime: '2025-10-15T23:59:59',
+        timeZone: 'Asia/Taipei',
+        meetingDuration: 60,
+      });
+
+      expect(schedules.length).toBe(1);
+      expect(schedules[0].scheduleId).toBe('john@example.com');
+    });
+
+    it('should find free slots', async () => {
+      const mockSchedule = {
+        value: [
+          {
+            scheduleId: 'john@example.com',
+            scheduleItems: [
+              {
+                start: '2025-10-15T09:00:00',
+                end: '2025-10-15T10:00:00',
+                status: 'busy',
+              },
+            ],
+          },
+        ],
+      };
+
+      service['client']!.post = jest.fn().mockResolvedValue(mockSchedule);
+
+      const freeSlots = await service.findFreeSlots({
+        attendees: ['john@example.com'],
+        startTime: '2025-10-15T08:00:00',
+        endTime: '2025-10-15T12:00:00',
+        meetingDuration: 60,
+      });
+
+      expect(Array.isArray(freeSlots)).toBe(true);
+      expect(freeSlots.length).toBeGreaterThanOrEqual(0);
+    });
+  });
+
+  // ==========================================================================
+  // Batch Operations Tests
+  // ==========================================================================
+
+  describe('Batch Operations', () => {
+    beforeEach(async () => {
+      await service.setCredentials({
+        access_token: 'test-token',
+        refresh_token: 'test-refresh',
+      });
+    });
+
+    it('should batch create events', async () => {
+      service['client']!.post = jest
+        .fn()
+        .mockResolvedValueOnce({
+          id: 'event-1',
+          subject: 'Event 1',
+          start: { dateTime: '2025-10-15T14:00:00' },
+          end: { dateTime: '2025-10-15T15:00:00' },
+        })
+        .mockResolvedValueOnce({
+          id: 'event-2',
+          subject: 'Event 2',
+          start: { dateTime: '2025-10-16T14:00:00' },
+          end: { dateTime: '2025-10-16T15:00:00' },
+        });
+
+      const events: OutlookEventCreateOptions[] = [
+        {
+          subject: 'Event 1',
+          start: { dateTime: '2025-10-15T14:00:00', timeZone: 'UTC' },
+          end: { dateTime: '2025-10-15T15:00:00', timeZone: 'UTC' },
+        },
+        {
+          subject: 'Event 2',
+          start: { dateTime: '2025-10-16T14:00:00', timeZone: 'UTC' },
+          end: { dateTime: '2025-10-16T15:00:00', timeZone: 'UTC' },
+        },
+      ];
+
+      const result = await service.batchCreateEvents(events);
+
+      expect(result.successCount).toBe(2);
+      expect(result.failureCount).toBe(0);
+    });
+  });
+});

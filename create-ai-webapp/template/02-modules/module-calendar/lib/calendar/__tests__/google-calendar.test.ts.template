@@ -1,0 +1,516 @@
+/**
+ * Google Calendar Service Tests
+ *
+ * Comprehensive test suite for Google Calendar API integration.
+ *
+ * @module lib/calendar/__tests__/google-calendar.test
+ */
+
+import { GoogleCalendarService } from '../google-calendar';
+import type { GoogleEventCreateOptions, CalendarEvent } from '@/types/calendar';
+
+// Mock googleapis
+jest.mock('googleapis', () => ({
+  google: {
+    auth: {
+      OAuth2: jest.fn().mockImplementation(() => ({
+        generateAuthUrl: jest.fn().mockReturnValue('https://accounts.google.com/oauth2/auth'),
+        getToken: jest.fn().mockResolvedValue({
+          tokens: {
+            access_token: 'mock_access_token',
+            refresh_token: 'mock_refresh_token',
+            expiry_date: Date.now() + 3600000,
+          },
+        }),
+        setCredentials: jest.fn(),
+        refreshAccessToken: jest.fn().mockResolvedValue({
+          credentials: {
+            access_token: 'new_access_token',
+            refresh_token: 'new_refresh_token',
+          },
+        }),
+        on: jest.fn(),
+      })),
+    },
+    calendar: jest.fn().mockReturnValue({
+      events: {
+        insert: jest.fn(),
+        get: jest.fn(),
+        update: jest.fn(),
+        delete: jest.fn(),
+        list: jest.fn(),
+        watch: jest.fn(),
+      },
+      channels: {
+        stop: jest.fn(),
+      },
+    }),
+  },
+}));
+
+// Mock database adapter
+jest.mock('@/lib/db/database-adapter', () => ({
+  databaseAdapter: {
+    findFirst: jest.fn(),
+    create: jest.fn(),
+    update: jest.fn(),
+    deleteMany: jest.fn(),
+    findMany: jest.fn(),
+  },
+}));
+
+describe('GoogleCalendarService', () => {
+  let service: GoogleCalendarService;
+
+  const mockConfig = {
+    clientId: 'test-client-id',
+    clientSecret: 'test-client-secret',
+    redirectUri: 'http://localhost:3000/callback',
+  };
+
+  beforeEach(() => {
+    service = new GoogleCalendarService(mockConfig);
+    jest.clearAllMocks();
+  });
+
+  // ==========================================================================
+  // Authentication Tests
+  // ==========================================================================
+
+  describe('Authentication', () => {
+    it('should generate auth URL', () => {
+      const url = service.getAuthUrl('test-state');
+      expect(url).toBe('https://accounts.google.com/oauth2/auth');
+    });
+
+    it('should exchange code for tokens', async () => {
+      const tokens = await service.getTokensFromCode('auth-code');
+
+      expect(tokens).toHaveProperty('access_token');
+      expect(tokens).toHaveProperty('refresh_token');
+    });
+
+    it('should set credentials', async () => {
+      const credentials = {
+        access_token: 'test-token',
+        refresh_token: 'test-refresh',
+      };
+
+      await service.setCredentials(credentials);
+
+      // Should call setCredentials on OAuth2 client
+      expect(service['oauth2Client'].setCredentials).toHaveBeenCalledWith(credentials);
+    });
+
+    it('should refresh access token', async () => {
+      await service.setCredentials({
+        access_token: 'old-token',
+        refresh_token: 'refresh-token',
+      });
+
+      const newCredentials = await service.refreshAccessToken();
+
+      expect(newCredentials).toHaveProperty('access_token', 'new_access_token');
+    });
+  });
+
+  // ==========================================================================
+  // Event Creation Tests
+  // ==========================================================================
+
+  describe('Event Creation', () => {
+    beforeEach(async () => {
+      await service.setCredentials({
+        access_token: 'test-token',
+        refresh_token: 'test-refresh',
+      });
+
+      const mockEvent = {
+        id: 'event-123',
+        summary: 'Test Event',
+        start: { dateTime: '2025-10-15T14:00:00', timeZone: 'Asia/Taipei' },
+        end: { dateTime: '2025-10-15T15:00:00', timeZone: 'Asia/Taipei' },
+        created: '2025-10-10T10:00:00Z',
+        updated: '2025-10-10T10:00:00Z',
+      };
+
+      service['calendar'].events.insert = jest.fn().mockResolvedValue({ data: mockEvent });
+    });
+
+    it('should create simple event', async () => {
+      const options: GoogleEventCreateOptions = {
+        summary: 'Test Event',
+        start: { dateTime: '2025-10-15T14:00:00', timeZone: 'Asia/Taipei' },
+        end: { dateTime: '2025-10-15T15:00:00', timeZone: 'Asia/Taipei' },
+      };
+
+      const event = await service.createEvent(options);
+
+      expect(event.summary).toBe('Test Event');
+      expect(event.provider).toBe('google');
+      expect(service['calendar'].events.insert).toHaveBeenCalled();
+    });
+
+    it('should create event with attendees', async () => {
+      const options: GoogleEventCreateOptions = {
+        summary: 'Meeting',
+        start: { dateTime: '2025-10-15T14:00:00', timeZone: 'Asia/Taipei' },
+        end: { dateTime: '2025-10-15T15:00:00', timeZone: 'Asia/Taipei' },
+        attendees: [
+          { email: 'john@example.com' },
+          { email: 'jane@example.com', optional: true },
+        ],
+      };
+
+      const event = await service.createEvent(options);
+
+      expect(event.attendees).toBeDefined();
+      expect(event.attendees?.length).toBe(2);
+    });
+
+    it('should create recurring event', async () => {
+      const options: GoogleEventCreateOptions = {
+        summary: 'Weekly Meeting',
+        start: { dateTime: '2025-10-15T14:00:00', timeZone: 'Asia/Taipei' },
+        end: { dateTime: '2025-10-15T15:00:00', timeZone: 'Asia/Taipei' },
+        recurrence: ['RRULE:FREQ=WEEKLY;COUNT=10'],
+      };
+
+      const event = await service.createEvent(options);
+
+      expect(event.recurrence).toBeDefined();
+      expect(event.recurrence?.[0]).toContain('FREQ=WEEKLY');
+    });
+
+    it('should create event with reminders', async () => {
+      const options: GoogleEventCreateOptions = {
+        summary: 'Important Meeting',
+        start: { dateTime: '2025-10-15T14:00:00', timeZone: 'Asia/Taipei' },
+        end: { dateTime: '2025-10-15T15:00:00', timeZone: 'Asia/Taipei' },
+        reminders: {
+          useDefault: false,
+          overrides: [
+            { method: 'email', minutes: 1440 },
+            { method: 'popup', minutes: 30 },
+          ],
+        },
+      };
+
+      const event = await service.createEvent(options);
+
+      expect(event.reminders).toBeDefined();
+      expect(event.reminders?.overrides?.length).toBe(2);
+    });
+  });
+
+  // ==========================================================================
+  // Event Read Tests
+  // ==========================================================================
+
+  describe('Event Read', () => {
+    beforeEach(async () => {
+      await service.setCredentials({
+        access_token: 'test-token',
+        refresh_token: 'test-refresh',
+      });
+    });
+
+    it('should get event by ID', async () => {
+      const mockEvent = {
+        id: 'event-123',
+        summary: 'Test Event',
+        start: { dateTime: '2025-10-15T14:00:00', timeZone: 'Asia/Taipei' },
+        end: { dateTime: '2025-10-15T15:00:00', timeZone: 'Asia/Taipei' },
+      };
+
+      service['calendar'].events.get = jest.fn().mockResolvedValue({ data: mockEvent });
+
+      const event = await service.getEvent('event-123');
+
+      expect(event.id).toBe('event-123');
+      expect(event.summary).toBe('Test Event');
+    });
+
+    it('should list events', async () => {
+      const mockEvents = [
+        {
+          id: 'event-1',
+          summary: 'Event 1',
+          start: { dateTime: '2025-10-15T14:00:00' },
+          end: { dateTime: '2025-10-15T15:00:00' },
+        },
+        {
+          id: 'event-2',
+          summary: 'Event 2',
+          start: { dateTime: '2025-10-16T14:00:00' },
+          end: { dateTime: '2025-10-16T15:00:00' },
+        },
+      ];
+
+      service['calendar'].events.list = jest.fn().mockResolvedValue({
+        data: { items: mockEvents },
+      });
+
+      const events = await service.listEvents();
+
+      expect(events.length).toBe(2);
+      expect(events[0].summary).toBe('Event 1');
+      expect(events[1].summary).toBe('Event 2');
+    });
+
+    it('should list events with time range', async () => {
+      service['calendar'].events.list = jest.fn().mockResolvedValue({
+        data: { items: [] },
+      });
+
+      await service.listEvents({
+        timeMin: '2025-10-15T00:00:00Z',
+        timeMax: '2025-10-20T23:59:59Z',
+      });
+
+      expect(service['calendar'].events.list).toHaveBeenCalledWith(
+        expect.objectContaining({
+          timeMin: '2025-10-15T00:00:00Z',
+          timeMax: '2025-10-20T23:59:59Z',
+        })
+      );
+    });
+  });
+
+  // ==========================================================================
+  // Event Update Tests
+  // ==========================================================================
+
+  describe('Event Update', () => {
+    beforeEach(async () => {
+      await service.setCredentials({
+        access_token: 'test-token',
+        refresh_token: 'test-refresh',
+      });
+    });
+
+    it('should update event', async () => {
+      const existingEvent = {
+        id: 'event-123',
+        summary: 'Old Title',
+        start: { dateTime: '2025-10-15T14:00:00' },
+        end: { dateTime: '2025-10-15T15:00:00' },
+      };
+
+      const updatedEvent = {
+        ...existingEvent,
+        summary: 'New Title',
+      };
+
+      service['calendar'].events.get = jest.fn().mockResolvedValue({ data: existingEvent });
+      service['calendar'].events.update = jest.fn().mockResolvedValue({ data: updatedEvent });
+
+      const event = await service.updateEvent('event-123', {
+        summary: 'New Title',
+      });
+
+      expect(event.summary).toBe('New Title');
+      expect(service['calendar'].events.update).toHaveBeenCalled();
+    });
+
+    it('should update event time', async () => {
+      const existingEvent = {
+        id: 'event-123',
+        summary: 'Test Event',
+        start: { dateTime: '2025-10-15T14:00:00' },
+        end: { dateTime: '2025-10-15T15:00:00' },
+      };
+
+      const updatedEvent = {
+        ...existingEvent,
+        start: { dateTime: '2025-10-15T16:00:00' },
+        end: { dateTime: '2025-10-15T17:00:00' },
+      };
+
+      service['calendar'].events.get = jest.fn().mockResolvedValue({ data: existingEvent });
+      service['calendar'].events.update = jest.fn().mockResolvedValue({ data: updatedEvent });
+
+      const event = await service.updateEvent('event-123', {
+        start: { dateTime: '2025-10-15T16:00:00' },
+        end: { dateTime: '2025-10-15T17:00:00' },
+      });
+
+      expect(event.start.dateTime).toBe('2025-10-15T16:00:00');
+    });
+  });
+
+  // ==========================================================================
+  // Event Delete Tests
+  // ==========================================================================
+
+  describe('Event Delete', () => {
+    beforeEach(async () => {
+      await service.setCredentials({
+        access_token: 'test-token',
+        refresh_token: 'test-refresh',
+      });
+    });
+
+    it('should delete event', async () => {
+      service['calendar'].events.delete = jest.fn().mockResolvedValue({});
+
+      await service.deleteEvent('event-123');
+
+      expect(service['calendar'].events.delete).toHaveBeenCalledWith({
+        calendarId: 'primary',
+        eventId: 'event-123',
+        sendNotifications: true,
+      });
+    });
+
+    it('should delete event from specific calendar', async () => {
+      service['calendar'].events.delete = jest.fn().mockResolvedValue({});
+
+      await service.deleteEvent('event-123', 'custom-calendar');
+
+      expect(service['calendar'].events.delete).toHaveBeenCalledWith({
+        calendarId: 'custom-calendar',
+        eventId: 'event-123',
+        sendNotifications: true,
+      });
+    });
+  });
+
+  // ==========================================================================
+  // Batch Operations Tests
+  // ==========================================================================
+
+  describe('Batch Operations', () => {
+    beforeEach(async () => {
+      await service.setCredentials({
+        access_token: 'test-token',
+        refresh_token: 'test-refresh',
+      });
+    });
+
+    it('should batch create events', async () => {
+      service['calendar'].events.insert = jest
+        .fn()
+        .mockResolvedValueOnce({
+          data: { id: 'event-1', summary: 'Event 1', start: {}, end: {} },
+        })
+        .mockResolvedValueOnce({
+          data: { id: 'event-2', summary: 'Event 2', start: {}, end: {} },
+        });
+
+      const events: GoogleEventCreateOptions[] = [
+        {
+          summary: 'Event 1',
+          start: { dateTime: '2025-10-15T14:00:00' },
+          end: { dateTime: '2025-10-15T15:00:00' },
+        },
+        {
+          summary: 'Event 2',
+          start: { dateTime: '2025-10-16T14:00:00' },
+          end: { dateTime: '2025-10-16T15:00:00' },
+        },
+      ];
+
+      const result = await service.batchCreateEvents(events);
+
+      expect(result.successCount).toBe(2);
+      expect(result.failureCount).toBe(0);
+      expect(result.successful.length).toBe(2);
+    });
+
+    it('should handle partial batch failures', async () => {
+      service['calendar'].events.insert = jest
+        .fn()
+        .mockResolvedValueOnce({
+          data: { id: 'event-1', summary: 'Event 1', start: {}, end: {} },
+        })
+        .mockRejectedValueOnce(new Error('API Error'));
+
+      const events: GoogleEventCreateOptions[] = [
+        {
+          summary: 'Event 1',
+          start: { dateTime: '2025-10-15T14:00:00' },
+          end: { dateTime: '2025-10-15T15:00:00' },
+        },
+        {
+          summary: 'Event 2',
+          start: { dateTime: '2025-10-16T14:00:00' },
+          end: { dateTime: '2025-10-16T15:00:00' },
+        },
+      ];
+
+      const result = await service.batchCreateEvents(events);
+
+      expect(result.successCount).toBe(1);
+      expect(result.failureCount).toBe(1);
+      expect(result.failed[0].error).toContain('API Error');
+    });
+  });
+
+  // ==========================================================================
+  // Webhook Tests
+  // ==========================================================================
+
+  describe('Webhooks', () => {
+    beforeEach(async () => {
+      await service.setCredentials({
+        access_token: 'test-token',
+        refresh_token: 'test-refresh',
+      });
+    });
+
+    it('should create watch channel', async () => {
+      const mockChannel = {
+        id: 'channel-123',
+        resourceId: 'resource-456',
+        resourceUri: 'https://calendar.google.com/resource',
+        expiration: '1699999999000',
+      };
+
+      service['calendar'].events.watch = jest.fn().mockResolvedValue({ data: mockChannel });
+
+      const channel = await service.watchEvents({
+        webhookUrl: 'https://example.com/webhook',
+        ttl: 604800000,
+      });
+
+      expect(channel.id).toBe('channel-123');
+      expect(channel.resourceId).toBe('resource-456');
+    });
+
+    it('should stop watch channel', async () => {
+      service['calendar'].channels.stop = jest.fn().mockResolvedValue({});
+
+      await service.stopWatch('channel-123', 'resource-456');
+
+      expect(service['calendar'].channels.stop).toHaveBeenCalledWith({
+        requestBody: {
+          id: 'channel-123',
+          resourceId: 'resource-456',
+        },
+      });
+    });
+
+    it('should verify webhook notification', () => {
+      const headers = {
+        'x-goog-channel-id': 'channel-123',
+        'x-goog-resource-state': 'updated',
+      };
+
+      const isValid = service.verifyWebhook(headers, 'channel-123');
+
+      expect(isValid).toBe(true);
+    });
+
+    it('should reject invalid webhook notification', () => {
+      const headers = {
+        'x-goog-channel-id': 'wrong-channel',
+        'x-goog-resource-state': 'updated',
+      };
+
+      const isValid = service.verifyWebhook(headers, 'channel-123');
+
+      expect(isValid).toBe(false);
+    });
+  });
+});

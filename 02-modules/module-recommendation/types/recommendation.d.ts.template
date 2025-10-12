@@ -1,0 +1,648 @@
+/**
+ * Type Definitions for Recommendation Module
+ *
+ * Comprehensive types for content-based and collaborative filtering
+ * recommendation systems.
+ */
+
+declare module '@/lib/recommendation' {
+  // ============================================================================
+  // Core Types
+  // ============================================================================
+
+  /**
+   * Recommendation item with features and metadata
+   */
+  export interface RecommendationItem {
+    /** Unique identifier */
+    id: string;
+
+    /** Feature attributes for content-based filtering */
+    features: Record<string, any>;
+
+    /** Optional metadata for display/context */
+    metadata?: Record<string, any>;
+  }
+
+  /**
+   * User profile for personalized recommendations
+   */
+  export interface UserProfile {
+    /** User identifier */
+    userId: string;
+
+    /** User preference weights */
+    preferences: Record<string, number>;
+
+    /** User interaction history (item IDs) */
+    history: string[];
+
+    /** Optional user metadata */
+    metadata?: Record<string, any>;
+  }
+
+  /**
+   * User-item interaction record
+   */
+  export interface UserInteraction {
+    /** User identifier */
+    userId: string;
+
+    /** Item identifier */
+    itemId: string;
+
+    /** Rating value (typically 1-5) */
+    rating: number;
+
+    /** Interaction timestamp (Unix milliseconds) */
+    timestamp: number;
+
+    /** Optional interaction context */
+    context?: Record<string, any>;
+  }
+
+  /**
+   * Recommendation result
+   */
+  export interface RecommendationResult {
+    /** Recommended item identifier */
+    itemId: string;
+
+    /** Recommendation score/confidence */
+    score: number;
+
+    /** Human-readable explanation */
+    reason?: string;
+
+    /** Additional metadata */
+    metadata?: Record<string, any>;
+  }
+
+  /**
+   * Similarity result
+   */
+  export interface SimilarityResult {
+    /** Identifier of similar entity (user/item) */
+    id: string;
+
+    /** Similarity score (0-1) */
+    similarity: number;
+  }
+
+  // ============================================================================
+  // Content-Based Filtering Types
+  // ============================================================================
+
+  /**
+   * TF-IDF configuration options
+   */
+  export interface TFIDFOptions {
+    /** List of stopwords to exclude */
+    stopwords?: string[];
+
+    /** Stemmer algorithm to use */
+    stemmer?: any;
+  }
+
+  /**
+   * Content-based recommender options
+   */
+  export interface ContentBasedOptions {
+    /** TF-IDF configuration */
+    tfidfOptions?: TFIDFOptions;
+
+    /** Minimum similarity threshold (0-1) */
+    similarityThreshold?: number;
+
+    /** Maximum number of features to use */
+    maxFeatures?: number;
+  }
+
+  /**
+   * Similar items query options
+   */
+  export interface SimilarItemsOptions {
+    /** Maximum number of results */
+    limit?: number;
+
+    /** Minimum similarity threshold */
+    threshold?: number;
+
+    /** Include similarity scores in results */
+    includeScores?: boolean;
+  }
+
+  /**
+   * General recommendation options
+   */
+  export interface RecommendOptions {
+    /** Maximum number of recommendations */
+    limit?: number;
+
+    /** Item IDs to exclude from recommendations */
+    excludeIds?: string[];
+
+    /** Minimum score threshold */
+    minScore?: number;
+
+    /** Whether to exclude already interacted items */
+    excludeInteracted?: boolean;
+  }
+
+  /**
+   * Feature vector for TF-IDF
+   */
+  export interface FeatureVector {
+    /** Item identifier */
+    itemId: string;
+
+    /** Feature term weights */
+    features: Map<string, number>;
+
+    /** Vector norm for normalization */
+    norm: number;
+  }
+
+  /**
+   * Item features interface
+   */
+  export interface ItemFeatures {
+    /** Feature category */
+    category?: string;
+
+    /** Brand/manufacturer */
+    brand?: string;
+
+    /** Tags/keywords */
+    tags?: string[];
+
+    /** Text description */
+    description?: string;
+
+    /** Price range */
+    priceRange?: string;
+
+    /** Additional attributes */
+    [key: string]: any;
+  }
+
+  // ============================================================================
+  // Collaborative Filtering Types
+  // ============================================================================
+
+  /**
+   * Collaborative filtering algorithm types
+   */
+  export type CFAlgorithm = 'user-based' | 'item-based' | 'hybrid';
+
+  /**
+   * Similarity metric types
+   */
+  export type SimilarityMetric = 'cosine' | 'pearson';
+
+  /**
+   * Collaborative filter options
+   */
+  export interface CollaborativeFilterOptions {
+    /** Algorithm to use */
+    algorithm?: CFAlgorithm;
+
+    /** Similarity metric */
+    similarityMetric?: SimilarityMetric;
+
+    /** Minimum similarity to consider */
+    minSimilarity?: number;
+
+    /** Number of neighbors to use */
+    neighborhoodSize?: number;
+
+    /** Enable matrix factorization */
+    matrixFactorization?: boolean;
+
+    /** Number of latent factors for MF */
+    numFactors?: number;
+
+    /** Learning rate for gradient descent */
+    learningRate?: number;
+
+    /** Regularization parameter */
+    regularization?: number;
+
+    /** Number of training iterations */
+    iterations?: number;
+  }
+
+  /**
+   * Similarity query options
+   */
+  export interface SimilarityOptions {
+    /** Maximum number of results */
+    limit?: number;
+
+    /** Minimum similarity threshold */
+    minSimilarity?: number;
+  }
+
+  /**
+   * Rating prediction result
+   */
+  export interface PredictionResult {
+    /** User identifier */
+    userId: string;
+
+    /** Item identifier */
+    itemId: string;
+
+    /** Predicted rating */
+    prediction: number;
+
+    /** Confidence score (0-1) */
+    confidence?: number;
+  }
+
+  /**
+   * User-user similarity matrix
+   */
+  export interface UserSimilarityMatrix {
+    /** Map of user IDs to their similar users */
+    similarities: Map<string, Map<string, number>>;
+
+    /** Timestamp of last update */
+    lastUpdated: number;
+  }
+
+  /**
+   * Item-item similarity matrix
+   */
+  export interface ItemSimilarityMatrix {
+    /** Map of item IDs to their similar items */
+    similarities: Map<string, Map<string, number>>;
+
+    /** Timestamp of last update */
+    lastUpdated: number;
+  }
+
+  /**
+   * Matrix factorization model
+   */
+  export interface MatrixFactorizationModel {
+    /** User latent factors */
+    userFactors: Map<string, number[]>;
+
+    /** Item latent factors */
+    itemFactors: Map<string, number[]>;
+
+    /** Number of latent factors */
+    numFactors: number;
+
+    /** Global bias term */
+    globalBias: number;
+
+    /** User bias terms */
+    userBias: Map<string, number>;
+
+    /** Item bias terms */
+    itemBias: Map<string, number>;
+  }
+
+  // ============================================================================
+  // Hybrid Recommendation Types
+  // ============================================================================
+
+  /**
+   * Hybrid recommendation strategy
+   */
+  export type HybridStrategy =
+    | 'weighted'      // Weighted combination of scores
+    | 'switching'     // Switch based on context
+    | 'cascade'       // Sequential filtering
+    | 'feature'       // Feature combination
+    | 'meta';         // Meta-learning
+
+  /**
+   * Hybrid recommendation options
+   */
+  export interface HybridOptions {
+    /** Hybrid strategy to use */
+    strategy: HybridStrategy;
+
+    /** Weight for content-based (0-1) */
+    contentWeight?: number;
+
+    /** Weight for collaborative (0-1) */
+    collaborativeWeight?: number;
+
+    /** Switching conditions */
+    switchingConditions?: SwitchingConditions;
+
+    /** Cascade filters */
+    cascadeFilters?: CascadeFilter[];
+  }
+
+  /**
+   * Switching conditions for hybrid strategy
+   */
+  export interface SwitchingConditions {
+    /** Use CF if user has >= N interactions */
+    minInteractionsForCF?: number;
+
+    /** Use content if item has >= N features */
+    minFeaturesForContent?: number;
+
+    /** Default strategy */
+    defaultStrategy?: 'content' | 'collaborative';
+  }
+
+  /**
+   * Cascade filter configuration
+   */
+  export interface CascadeFilter {
+    /** Filter method */
+    method: 'content' | 'collaborative';
+
+    /** Filtering threshold */
+    threshold: number;
+
+    /** Keep top N items */
+    topN: number;
+  }
+
+  // ============================================================================
+  // Evaluation Types
+  // ============================================================================
+
+  /**
+   * Evaluation metrics
+   */
+  export interface EvaluationMetrics {
+    /** Root Mean Square Error */
+    rmse?: number;
+
+    /** Mean Absolute Error */
+    mae?: number;
+
+    /** Precision at K */
+    precisionAtK?: number;
+
+    /** Recall at K */
+    recallAtK?: number;
+
+    /** F1 Score at K */
+    f1AtK?: number;
+
+    /** Normalized Discounted Cumulative Gain */
+    ndcgAtK?: number;
+
+    /** Mean Average Precision */
+    map?: number;
+
+    /** Coverage (% of items recommended) */
+    coverage?: number;
+
+    /** Diversity score */
+    diversity?: number;
+
+    /** Novelty score */
+    novelty?: number;
+  }
+
+  /**
+   * Evaluation dataset split
+   */
+  export interface DatasetSplit {
+    /** Training interactions */
+    train: UserInteraction[];
+
+    /** Test interactions */
+    test: UserInteraction[];
+
+    /** Validation interactions (optional) */
+    validation?: UserInteraction[];
+  }
+
+  /**
+   * Cross-validation configuration
+   */
+  export interface CrossValidationConfig {
+    /** Number of folds */
+    numFolds: number;
+
+    /** Random seed for reproducibility */
+    seed?: number;
+
+    /** Stratify by user/item */
+    stratify?: 'user' | 'item';
+  }
+
+  // ============================================================================
+  // A/B Testing Types
+  // ============================================================================
+
+  /**
+   * A/B test experiment
+   */
+  export interface ABTestExperiment {
+    /** Experiment identifier */
+    experimentId: string;
+
+    /** Experiment name */
+    name: string;
+
+    /** Control recommender configuration */
+    control: any;
+
+    /** Treatment recommender configuration */
+    treatment: any;
+
+    /** Traffic split (0-1) */
+    split: number;
+
+    /** Start timestamp */
+    startTime: number;
+
+    /** End timestamp */
+    endTime?: number;
+
+    /** Experiment status */
+    status: 'draft' | 'running' | 'paused' | 'completed';
+  }
+
+  /**
+   * A/B test variant assignment
+   */
+  export interface VariantAssignment {
+    /** User identifier */
+    userId: string;
+
+    /** Experiment identifier */
+    experimentId: string;
+
+    /** Assigned variant */
+    variant: 'control' | 'treatment';
+
+    /** Assignment timestamp */
+    timestamp: number;
+  }
+
+  /**
+   * A/B test metrics
+   */
+  export interface ABTestMetrics {
+    /** Click-through rate */
+    ctr: number;
+
+    /** Conversion rate */
+    conversionRate: number;
+
+    /** Average order value */
+    averageOrderValue?: number;
+
+    /** Engagement time */
+    engagementTime?: number;
+
+    /** Number of impressions */
+    impressions: number;
+
+    /** Number of clicks */
+    clicks: number;
+
+    /** Number of conversions */
+    conversions: number;
+  }
+
+  // ============================================================================
+  // Cold Start Types
+  // ============================================================================
+
+  /**
+   * Cold start strategy
+   */
+  export type ColdStartStrategy =
+    | 'popular'          // Popular items
+    | 'demographic'      // Demographic-based
+    | 'random'           // Random selection
+    | 'diverse'          // Diversity-focused
+    | 'exploration';     // Exploration/exploitation
+
+  /**
+   * Cold start options
+   */
+  export interface ColdStartOptions {
+    /** Strategy to use */
+    strategy: ColdStartStrategy;
+
+    /** Demographic attributes for matching */
+    demographics?: Record<string, any>;
+
+    /** Diversity weight (0-1) */
+    diversityWeight?: number;
+
+    /** Exploration rate (0-1) */
+    explorationRate?: number;
+  }
+
+  /**
+   * New item promotion config
+   */
+  export interface NewItemPromotion {
+    /** Item to promote */
+    itemId: string;
+
+    /** Target number of users */
+    targetUsers: number;
+
+    /** User selection strategy */
+    selectionStrategy: 'random' | 'diverse' | 'active';
+
+    /** Injection probability (0-1) */
+    injectionProbability: number;
+
+    /** Injection position */
+    injectionPosition: 'top' | 'random' | number;
+  }
+
+  // ============================================================================
+  // Utility Types
+  // ============================================================================
+
+  /**
+   * Batch recommendation request
+   */
+  export interface BatchRecommendRequest {
+    /** User IDs to generate recommendations for */
+    userIds: string[];
+
+    /** Recommendation options */
+    options: RecommendOptions;
+
+    /** Concurrency limit */
+    concurrency?: number;
+  }
+
+  /**
+   * Batch recommendation result
+   */
+  export interface BatchRecommendResult {
+    /** Map of user IDs to their recommendations */
+    recommendations: Map<string, RecommendationResult[]>;
+
+    /** Processing time in milliseconds */
+    processingTime: number;
+
+    /** Number of successful recommendations */
+    successCount: number;
+
+    /** Number of failed recommendations */
+    failureCount: number;
+  }
+
+  /**
+   * Recommendation explanation
+   */
+  export interface RecommendationExplanation {
+    /** Item identifier */
+    itemId: string;
+
+    /** Explanation text */
+    text: string;
+
+    /** Contributing factors */
+    factors: Array<{
+      name: string;
+      weight: number;
+      description: string;
+    }>;
+
+    /** Confidence score (0-1) */
+    confidence: number;
+  }
+
+  /**
+   * Index statistics
+   */
+  export interface IndexStats {
+    /** Total number of items */
+    totalItems: number;
+
+    /** Total number of users */
+    totalUsers?: number;
+
+    /** Total number of interactions */
+    totalInteractions?: number;
+
+    /** Total number of features */
+    totalFeatures?: number;
+
+    /** Average features per item */
+    avgFeaturesPerItem?: number;
+
+    /** Average interactions per user */
+    avgInteractionsPerUser?: number;
+
+    /** Sparsity (0-1) */
+    sparsity?: number;
+
+    /** Last updated timestamp */
+    lastUpdated: number;
+  }
+}

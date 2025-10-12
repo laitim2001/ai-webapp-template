@@ -1,0 +1,105 @@
+/**
+ * Sensitive Fields Configuration
+ *
+ * Centralized configuration for sensitive data fields
+ * across different resources
+ *
+ * @module Security/SensitiveFieldsConfig
+ */
+
+import { Role } from './rbac';
+
+// ============================================================================
+// Configuration
+// ============================================================================
+
+export interface SensitiveFieldConfig {
+  field: string;
+  allowedRoles: Role[];
+  description: string;
+  maskingFunction?: (value: any) => any;
+}
+
+/**
+ * Sensitive fields configuration by resource type
+ */
+export const SENSITIVE_FIELDS: Record<string, SensitiveFieldConfig[]> = {
+  user: [
+    {
+      field: 'email',
+      allowedRoles: [Role.ADMIN],
+      description: 'User email address',
+      maskingFunction: (email: string) =>
+        email.replace(/(.{2})(.*)(@.*)/, '$1***$3'),
+    },
+    {
+      field: 'phone',
+      allowedRoles: [Role.ADMIN, Role.SALES_MANAGER],
+      description: 'User phone number',
+      maskingFunction: (phone: string) =>
+        phone.replace(/(\d{3})(\d{3})(\d{4})/, '$1-***-$3'),
+    },
+    {
+      field: 'salary',
+      allowedRoles: [Role.ADMIN],
+      description: 'User salary information',
+    },
+    {
+      field: 'socialSecurityNumber',
+      allowedRoles: [Role.ADMIN],
+      description: 'Social security number',
+      maskingFunction: (ssn: string) => '***-**-' + ssn.slice(-4),
+    },
+  ],
+
+  customer: [
+    {
+      field: 'revenue',
+      allowedRoles: [Role.ADMIN, Role.SALES_MANAGER],
+      description: 'Customer annual revenue',
+    },
+    {
+      field: 'creditScore',
+      allowedRoles: [Role.ADMIN, Role.SALES_MANAGER],
+      description: 'Customer credit score',
+    },
+    {
+      field: 'internalNotes',
+      allowedRoles: [Role.ADMIN, Role.SALES_MANAGER],
+      description: 'Internal notes about customer',
+    },
+    {
+      field: 'paymentTerms',
+      allowedRoles: [Role.ADMIN, Role.SALES_MANAGER],
+      description: 'Customer payment terms',
+    },
+  ],
+
+  workflow: [
+    {
+      field: 'internalComments',
+      allowedRoles: [Role.ADMIN, Role.SALES_MANAGER],
+      description: 'Internal workflow comments',
+    },
+    {
+      field: 'approvalNotes',
+      allowedRoles: [Role.ADMIN, Role.SALES_MANAGER],
+      description: 'Approval decision notes',
+    },
+  ],
+};
+
+/**
+ * Get sensitive fields for a resource
+ */
+export function getSensitiveFields(resource: string): SensitiveFieldConfig[] {
+  return SENSITIVE_FIELDS[resource] || [];
+}
+
+/**
+ * Check if a field is sensitive
+ */
+export function isFieldSensitive(resource: string, field: string): boolean {
+  const fields = SENSITIVE_FIELDS[resource] || [];
+  return fields.some(f => f.field === field);
+}

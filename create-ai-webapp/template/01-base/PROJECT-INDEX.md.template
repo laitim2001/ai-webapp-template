@@ -1,0 +1,354 @@
+# 📁 {{PROJECT_NAME}} - 主索引目錄
+
+> **🎯 目的**: 為 AI 助手提供快速導航和文件查找指南
+> **📅 最後更新**: {{CURRENT_DATE}}
+> **🔍 使用方法**: AI 助手應首先查看此文件以了解項目結構和文件位置
+>
+> **✨ 最新添加**:
+> - (此處會自動填充最近的功能添加和更新)
+
+---
+
+## 📋 目錄分類說明
+
+### 🏗️ 項目核心文件 (主要工作區域)
+
+這些是與 {{PROJECT_NAME}} 直接相關的業務和技術文件
+
+### 🛠️ 開發工具文件 (輔助系統)
+
+這些是支援開發過程的工具、框架和自動化文件
+
+### 🗂️ 系統配置文件 (環境設定)
+
+這些是項目配置、部署和環境設定相關文件
+
+---
+
+## 🏗️ 項目核心文件結構
+
+### 📚 docs/ - 項目文檔中心
+
+**用途**: 所有項目相關的業務和技術文檔
+
+| 文檔類型 | 文件路徑 | 用途說明 | 重要程度 |
+| --- | --- | --- | --- |
+| **需求文檔** | `docs/requirements.md` | 產品需求文檔，項目核心業務需求 | 🔴 極高 |
+| **架構設計** | `docs/architecture.md` | 系統架構設計文檔 | 🔴 極高 |
+| **API規格** | `docs/api-specification.md` | API端點完整規格說明 | 🟡 高 |
+| **數據庫設計** | `docs/database-design.md` | 數據模型和關聯設計 | 🟡 高 |
+| **開發指南** | `docs/development-guide.md` | 開發環境設置和編碼規範 | 🟡 高 |
+| **部署指南** | `docs/deployment-guide.md` | 部署流程和環境配置 | 🟡 高 |
+
+---
+
+### 💻 app/ - Next.js 應用程式目錄
+
+**用途**: Next.js 14 App Router 應用程式代碼
+
+#### app/api/ - API 路由
+
+**用途**: 後端 API 端點實現
+
+| 路徑 | 功能 | 重要程度 |
+| --- | --- | --- |
+| `app/api/auth/` | 認證相關端點 | 🔴 極高 |
+| `app/api/health/` | 健康檢查端點 | 🟡 高 |
+| (根據選擇的模組自動添加) | | |
+
+#### app/(pages)/ - 頁面路由
+
+**用途**: 前端頁面組件
+
+| 路徑 | 功能 | 重要程度 |
+| --- | --- | --- |
+| `app/page.tsx` | 首頁 | 🔴 極高 |
+| `app/layout.tsx` | 根布局 | 🔴 極高 |
+| `app/dashboard/` | 儀表板頁面 | 🟡 高 |
+| (根據需求自定義) | | |
+
+---
+
+### 🧩 components/ - React 組件庫
+
+**用途**: 可重用的 React 組件
+
+#### components/ui/ - 基礎 UI 組件
+
+**用途**: 設計系統基礎組件（基於 Radix UI）
+
+| 組件名稱 | 文件路徑 | 用途 | 重要程度 |
+| --- | --- | --- | --- |
+| Button | `components/ui/button.tsx` | 按鈕組件 | 🔴 極高 |
+| Card | `components/ui/card.tsx` | 卡片組件 | 🔴 極高 |
+| Dialog | `components/ui/dialog.tsx` | 對話框組件 | 🟡 高 |
+| Form | `components/ui/form.tsx` | 表單組件 | 🟡 高 |
+| Table | `components/ui/table.tsx` | 表格組件 | 🟡 高 |
+| (查看完整清單) | `components/ui/` | 23+ 基礎組件 | |
+
+#### components/layout/ - 布局組件
+
+**用途**: 頁面布局和框架組件
+
+| 組件名稱 | 文件路徑 | 用途 | 重要程度 |
+| --- | --- | --- | --- |
+| Header | `components/layout/header.tsx` | 頁面頭部 | 🟡 高 |
+| Sidebar | `components/layout/sidebar.tsx` | 側邊欄 | 🟡 高 |
+| Footer | `components/layout/footer.tsx` | 頁面底部 | 🟢 中 |
+
+#### components/features/ - 功能特定組件
+
+**用途**: 業務功能相關組件（根據選擇的模組自動添加）
+
+---
+
+### 📚 lib/ - 核心工具庫
+
+**用途**: 共享工具函數、服務和配置
+
+#### lib/ (根目錄) - 核心文件
+
+| 文件名 | 用途 | 重要程度 |
+| --- | --- | --- |
+| `errors.ts` | 統一錯誤處理系統 | 🔴 極高 |
+| `utils.ts` | 通用工具函數庫 (36+函數) | 🔴 極高 |
+| `prisma.ts` | Prisma 客戶端單例 | 🔴 極高 |
+
+#### lib/db/ - 數據庫層
+
+| 文件名 | 用途 | 重要程度 |
+| --- | --- | --- |
+| `database-adapter.ts` | 統一數據庫適配器接口 | 🔴 極高 |
+| `postgresql-adapter.ts` | PostgreSQL 實現 | 🟡 高 |
+| `mysql-adapter.ts` | MySQL 實現 | 🟡 高 |
+| `mongodb-adapter.ts` | MongoDB 實現 | 🟡 高 |
+| `sqlite-adapter.ts` | SQLite 實現 | 🟡 高 |
+
+#### lib/(功能模組)/ - 模組特定工具
+
+(根據選擇的模組自動添加，例如：)
+- `lib/auth/` - 認證工具
+- `lib/cache/` - 緩存工具
+- `lib/ai/` - AI 整合工具
+
+---
+
+### 🗄️ prisma/ - 數據庫 Schema
+
+**用途**: Prisma ORM 配置和數據模型
+
+| 文件名 | 用途 | 重要程度 |
+| --- | --- | --- |
+| `schema.prisma` | 主 Schema 文件（CLI 生成） | 🔴 極高 |
+| `migrations/` | 數據庫遷移記錄 | 🔴 極高 |
+
+**數據模型**（根據選擇的模組自動包含）：
+- User（用戶）
+- (其他模型根據模組添加)
+
+---
+
+### 🎨 styles/ - 樣式文件
+
+**用途**: 全局樣式和 Tailwind CSS 配置
+
+| 文件名 | 用途 | 重要程度 |
+| --- | --- | --- |
+| `globals.css` | 全局樣式和 CSS 變量 | 🔴 極高 |
+
+---
+
+### 🧪 測試文件
+
+#### __tests__/ - 單元測試
+
+**用途**: Jest 單元測試
+
+| 目錄/文件 | 測試範圍 | 重要程度 |
+| --- | --- | --- |
+| `__tests__/unit/` | 單元測試 | 🟡 高 |
+| `__tests__/integration/` | 整合測試 | 🟡 高 |
+
+#### tests/ - E2E 測試
+
+**用途**: Playwright 端到端測試
+
+| 目錄/文件 | 測試範圍 | 重要程度 |
+| --- | --- | --- |
+| `tests/e2e/` | E2E 測試場景 | 🟡 高 |
+
+---
+
+## 🛠️ 開發工具文件
+
+### 📝 開發追蹤文件
+
+| 文件名 | 用途 | 重要程度 |
+| --- | --- | --- |
+| `DEVELOPMENT-LOG.md` | 開發日誌和進度追蹤 | 🟡 高 |
+| `FIXLOG.md` | Bug 追蹤和修復記錄 | 🟢 中 |
+| `AI-ASSISTANT-GUIDE.md` | AI 助手使用指南 | 🔴 極高 |
+| `INDEX-MAINTENANCE-GUIDE.md` | 索引維護指南 | 🟢 中 |
+
+### 🔧 腳本工具
+
+**scripts/** - 自動化腳本
+
+| 腳本名稱 | 用途 | 重要程度 |
+| --- | --- | --- |
+| `check-index-sync.js` | 索引同步檢查 | 🟢 中 |
+| `healthcheck.js` | 健康檢查腳本 | 🟡 高 |
+| `backup-db.sh` | 數據庫備份 | 🟡 高 |
+| `restore-db.sh` | 數據庫恢復 | 🟡 高 |
+
+---
+
+## 🗂️ 系統配置文件
+
+### ⚙️ 環境配置
+
+| 文件名 | 用途 | 重要程度 |
+| --- | --- | --- |
+| `.env.local` | 開發環境變量（不提交） | 🔴 極高 |
+| `.env.production` | 生產環境變量（不提交） | 🔴 極高 |
+| `.env.template` | 環境變量模板 | 🟡 高 |
+
+### 🐳 Docker 配置
+
+| 文件名 | 用途 | 重要程度 |
+| --- | --- | --- |
+| `Dockerfile.dev` | 開發環境 Docker 配置 | 🟡 高 |
+| `Dockerfile.prod` | 生產環境 Docker 配置 | 🟡 高 |
+| `docker-compose.dev.yml` | 開發環境服務編排 | 🟡 高 |
+| `docker-compose.prod.yml` | 生產環境服務編排 | 🟡 高 |
+| `docker-compose.monitoring.yml` | 監控堆疊配置 | 🟢 中 |
+
+### 📦 包管理
+
+| 文件名 | 用途 | 重要程度 |
+| --- | --- | --- |
+| `package.json` | NPM 依賴和腳本 | 🔴 極高 |
+| `package-lock.json` | 依賴鎖定文件 | 🔴 極高 |
+
+### ⚡ Next.js 配置
+
+| 文件名 | 用途 | 重要程度 |
+| --- | --- | --- |
+| `next.config.js` | Next.js 配置 | 🔴 極高 |
+
+### 🎨 Tailwind 配置
+
+| 文件名 | 用途 | 重要程度 |
+| --- | --- | --- |
+| `tailwind.config.js` | Tailwind CSS 配置 | 🔴 極高 |
+| `postcss.config.js` | PostCSS 配置 | 🟡 高 |
+
+### 📘 TypeScript 配置
+
+| 文件名 | 用途 | 重要程度 |
+| --- | --- | --- |
+| `tsconfig.json` | TypeScript 配置 | 🔴 極高 |
+
+### 🧪 測試配置
+
+| 文件名 | 用途 | 重要程度 |
+| --- | --- | --- |
+| `jest.config.js` | Jest 配置 | 🟡 高 |
+| `jest.setup.js` | Jest 設置腳本 | 🟡 高 |
+| `playwright.config.ts` | Playwright 配置 | 🟡 高 |
+
+### 🔍 代碼質量工具
+
+| 文件名 | 用途 | 重要程度 |
+| --- | --- | --- |
+| `.eslintrc.json` | ESLint 規則 | 🟡 高 |
+| `.prettierrc` | Prettier 格式化規則 | 🟢 中 |
+
+---
+
+## 📊 監控系統文件
+
+### 📈 OpenTelemetry 監控
+
+**用途**: 企業級可觀測性系統
+
+| 目錄/文件 | 用途 | 重要程度 |
+| --- | --- | --- |
+| `monitoring/` | 監控配置目錄 | 🟡 高 |
+| `lib/monitoring/` | 監控工具庫 | 🟡 高 |
+
+---
+
+## 🔑 關鍵路徑快速參考
+
+### 🚨 緊急問題定位
+
+| 問題類型 | 查看文件 |
+| --- | --- |
+| 應用無法啟動 | `package.json`, `.env.local`, `next.config.js` |
+| 數據庫錯誤 | `prisma/schema.prisma`, `lib/db/` |
+| 認證問題 | `app/api/auth/`, `lib/auth/` |
+| API 錯誤 | `app/api/`, `lib/errors.ts` |
+| 樣式問題 | `tailwind.config.js`, `styles/globals.css` |
+
+### 📝 常見開發任務
+
+| 任務 | 相關文件 |
+| --- | --- |
+| 添加新頁面 | `app/` 目錄 |
+| 創建 API 端點 | `app/api/` 目錄 |
+| 新增數據模型 | `prisma/schema.prisma` |
+| 創建 UI 組件 | `components/` 目錄 |
+| 編寫測試 | `__tests__/` 或 `tests/` 目錄 |
+| 修改樣式 | `styles/globals.css`, 組件級 CSS |
+
+### 🔧 系統維護
+
+| 任務 | 相關文件 |
+| --- | --- |
+| 更新依賴 | `package.json` |
+| 數據庫遷移 | `prisma/migrations/` |
+| 環境配置 | `.env.local`, `.env.production` |
+| 部署配置 | `Dockerfile.*`, `docker-compose.*.yml` |
+| 監控配置 | `monitoring/`, `lib/monitoring/` |
+
+---
+
+## 📖 文檔維護指南
+
+### 🔄 更新此索引
+
+當添加新文件或目錄時，請更新以下部分：
+1. **最新添加** 區塊（頂部）
+2. 相應的**文件結構**表格
+3. **關鍵路徑快速參考**（如適用）
+
+### ✅ 索引同步檢查
+
+運行以下命令檢查索引是否與項目同步：
+```bash
+node scripts/check-index-sync.js
+```
+
+---
+
+## 💡 AI 助手使用提示
+
+### 🎯 最佳實踐
+
+1. **查找文件**: 先查看此索引，再搜索代碼庫
+2. **理解架構**: 閱讀 `docs/architecture.md` 了解系統設計
+3. **API 開發**: 參考 `docs/api-specification.md` 了解端點規範
+4. **代碼規範**: 遵循 `docs/development-guide.md` 的編碼標準
+
+### 🔍 快速查詢模式
+
+- 搜索 "🔴 極高" 找到最關鍵的文件
+- 搜索文件路徑快速定位
+- 使用表格列快速瀏覽文件用途
+
+---
+
+**索引版本**: 1.0
+**最後更新**: {{CURRENT_DATE}}
+**維護者**: {{AUTHOR}}

@@ -1,0 +1,429 @@
+/**
+ * Analytics Tracker
+ *
+ * Event tracking system for user behavior and page views.
+ * Supports custom events, sessions, and privacy-compliant tracking.
+ */
+
+import { databaseAdapter } from '@/lib/db/database-adapter';
+
+export interface TrackerConfig {
+  projectId: string;
+  userId?: string | null;
+  sessionId?: string;
+  enableAutoTracking?: boolean;
+  batchSize?: number;
+  flushInterval?: number;
+  debug?: boolean;
+}
+
+export interface AnalyticsEvent {
+  id?: string;
+  projectId: string;
+  eventType: string;
+  eventName: string;
+  userId?: string | null;
+  sessionId?: string;
+  timestamp: Date;
+  properties?: Record<string, any>;
+  pageUrl?: string;
+  referrer?: string;
+  userAgent?: string;
+  ipAddress?: string;
+  deviceType?: 'desktop' | 'mobile' | 'tablet';
+  browser?: string;
+  os?: string;
+}
+
+export interface PageViewEvent {
+  url: string;
+  title: string;
+  referrer?: string;
+  properties?: Record<string, any>;
+}
+
+export interface SessionData {
+  sessionId: string;
+  userId?: string | null;
+  startTime: Date;
+  lastActivityTime: Date;
+  pageViews: number;
+  events: number;
+  deviceType?: string;
+  browser?: string;
+  os?: string;
+}
+
+class AnalyticsTracker {
+  private config: TrackerConfig;
+  private eventQueue: AnalyticsEvent[] = [];
+  private sessionData: SessionData | null = null;
+  private flushTimer: NodeJS.Timeout | null = null;
+
+  constructor(config: TrackerConfig) {
+    this.config = {
+      batchSize: 10,
+      flushInterval: 5000, // 5 seconds
+      enableAutoTracking: true,
+      debug: false,
+      ...config,
+    };
+
+    if (this.config.enableAutoTracking && typeof window !== 'undefined') {
+      this.setupAutoTracking();
+    }
+
+    this.startSession();
+    this.startFlushTimer();
+  }
+
+  /**
+   * Generate unique session ID
+   */
+  private generateSessionId(): string {
+    return `sess_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
+  }
+
+  /**
+   * Start new session
+   */
+  private async startSession(): Promise<void> {
+    const sessionId = this.config.sessionId || this.generateSessionId();
+
+    this.sessionData = {
+      sessionId,
+      userId: this.config.userId,
+      startTime: new Date(),
+      lastActivityTime: new Date(),
+      pageViews: 0,
+      events: 0,
+      deviceType: this.detectDeviceType(),
+      browser: this.detectBrowser(),
+      os: this.detectOS(),
+    };
+
+    if (this.config.debug) {
+      console.log('[Analytics] Session started:', this.sessionData);
+    }
+
+    // Save session to database
+    try {
+      await databaseAdapter.create('analyticsSession', {
+        data: {
+          sessionId: this.sessionData.sessionId,
+          userId: this.sessionData.userId,
+          startTime: this.sessionData.startTime,
+          lastActivityTime: this.sessionData.lastActivityTime,
+          deviceType: this.sessionData.deviceType,
+          browser: this.sessionData.browser,
+          os: this.sessionData.os,
+        },
+      });
+    } catch (error) {
+      console.error('[Analytics] Failed to save session:', error);
+    }
+  }
+
+  /**
+   * Update session activity
+   */
+  private async updateSession(): Promise<void> {
+    if (!this.sessionData) return;
+
+    this.sessionData.lastActivityTime = new Date();
+
+    try {
+      await databaseAdapter.update('analyticsSession', {
+        where: { sessionId: this.sessionData.sessionId },
+        data: {
+          lastActivityTime: this.sessionData.lastActivityTime,
+          pageViews: this.sessionData.pageViews,
+          events: this.sessionData.events,
+        },
+      });
+    } catch (error) {
+      console.error('[Analytics] Failed to update session:', error);
+    }
+  }
+
+  /**
+   * Detect device type from user agent
+   */
+  private detectDeviceType(): 'desktop' | 'mobile' | 'tablet' {
+    if (typeof navigator === 'undefined') return 'desktop';
+
+    const ua = navigator.userAgent.toLowerCase();
+    if (/(tablet|ipad|playbook|silk)|(android(?!.*mobi))/i.test(ua)) {
+      return 'tablet';
+    }
+    if (/Mobile|Android|iP(hone|od)|IEMobile|BlackBerry|Kindle|Silk-Accelerated|(hpw|web)OS|Opera M(obi|ini)/.test(ua)) {
+      return 'mobile';
+    }
+    return 'desktop';
+  }
+
+  /**
+   * Detect browser from user agent
+   */
+  private detectBrowser(): string {
+    if (typeof navigator === 'undefined') return 'unknown';
+
+    const ua = navigator.userAgent;
+    if (ua.indexOf('Firefox') > -1) return 'Firefox';
+    if (ua.indexOf('Chrome') > -1) return 'Chrome';
+    if (ua.indexOf('Safari') > -1) return 'Safari';
+    if (ua.indexOf('Edge') > -1) return 'Edge';
+    if (ua.indexOf('MSIE') > -1 || ua.indexOf('Trident') > -1) return 'IE';
+    return 'unknown';
+  }
+
+  /**
+   * Detect OS from user agent
+   */
+  private detectOS(): string {
+    if (typeof navigator === 'undefined') return 'unknown';
+
+    const ua = navigator.userAgent;
+    if (ua.indexOf('Win') > -1) return 'Windows';
+    if (ua.indexOf('Mac') > -1) return 'macOS';
+    if (ua.indexOf('Linux') > -1) return 'Linux';
+    if (ua.indexOf('Android') > -1) return 'Android';
+    if (ua.indexOf('iOS') > -1) return 'iOS';
+    return 'unknown';
+  }
+
+  /**
+   * Setup automatic page view tracking
+   */
+  private setupAutoTracking(): void {
+    if (typeof window === 'undefined') return;
+
+    // Track initial page view
+    this.trackPageView({
+      url: window.location.href,
+      title: document.title,
+      referrer: document.referrer,
+    });
+
+    // Track navigation for SPAs
+    const originalPushState = history.pushState;
+    const originalReplaceState = history.replaceState;
+
+    history.pushState = (...args) => {
+      originalPushState.apply(history, args);
+      this.trackPageView({
+        url: window.location.href,
+        title: document.title,
+      });
+    };
+
+    history.replaceState = (...args) => {
+      originalReplaceState.apply(history, args);
+      this.trackPageView({
+        url: window.location.href,
+        title: document.title,
+      });
+    };
+
+    // Track popstate (back/forward)
+    window.addEventListener('popstate', () => {
+      this.trackPageView({
+        url: window.location.href,
+        title: document.title,
+      });
+    });
+  }
+
+  /**
+   * Track page view
+   */
+  async trackPageView(event: PageViewEvent): Promise<void> {
+    if (this.sessionData) {
+      this.sessionData.pageViews++;
+    }
+
+    await this.track({
+      eventType: 'pageview',
+      eventName: 'Page View',
+      properties: {
+        url: event.url,
+        title: event.title,
+        referrer: event.referrer,
+        ...event.properties,
+      },
+      pageUrl: event.url,
+      referrer: event.referrer,
+    });
+  }
+
+  /**
+   * Track custom event
+   */
+  async track(event: Omit<AnalyticsEvent, 'id' | 'projectId' | 'userId' | 'sessionId' | 'timestamp'>): Promise<void> {
+    const analyticsEvent: AnalyticsEvent = {
+      projectId: this.config.projectId,
+      userId: this.config.userId,
+      sessionId: this.sessionData?.sessionId,
+      timestamp: new Date(),
+      userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : undefined,
+      deviceType: this.sessionData?.deviceType,
+      browser: this.sessionData?.browser,
+      os: this.sessionData?.os,
+      ...event,
+    };
+
+    this.eventQueue.push(analyticsEvent);
+
+    if (this.sessionData) {
+      this.sessionData.events++;
+    }
+
+    if (this.config.debug) {
+      console.log('[Analytics] Event tracked:', analyticsEvent);
+    }
+
+    // Update session activity
+    await this.updateSession();
+
+    // Flush if batch size reached
+    if (this.eventQueue.length >= (this.config.batchSize || 10)) {
+      await this.flush();
+    }
+  }
+
+  /**
+   * Start automatic flush timer
+   */
+  private startFlushTimer(): void {
+    if (this.flushTimer) {
+      clearInterval(this.flushTimer);
+    }
+
+    this.flushTimer = setInterval(() => {
+      this.flush();
+    }, this.config.flushInterval || 5000);
+  }
+
+  /**
+   * Flush event queue to database
+   */
+  async flush(): Promise<void> {
+    if (this.eventQueue.length === 0) return;
+
+    const events = [...this.eventQueue];
+    this.eventQueue = [];
+
+    try {
+      await databaseAdapter.createMany('analyticsEvent', {
+        data: events.map(event => ({
+          projectId: event.projectId,
+          eventType: event.eventType,
+          eventName: event.eventName,
+          userId: event.userId,
+          sessionId: event.sessionId,
+          timestamp: event.timestamp,
+          properties: event.properties,
+          pageUrl: event.pageUrl,
+          referrer: event.referrer,
+          userAgent: event.userAgent,
+          ipAddress: event.ipAddress,
+          deviceType: event.deviceType,
+          browser: event.browser,
+          os: event.os,
+        })),
+      });
+
+      if (this.config.debug) {
+        console.log(`[Analytics] Flushed ${events.length} events`);
+      }
+    } catch (error) {
+      console.error('[Analytics] Failed to flush events:', error);
+      // Re-queue failed events
+      this.eventQueue.unshift(...events);
+    }
+  }
+
+  /**
+   * Set user ID
+   */
+  setUserId(userId: string | null): void {
+    this.config.userId = userId;
+    if (this.sessionData) {
+      this.sessionData.userId = userId;
+    }
+  }
+
+  /**
+   * End session
+   */
+  async endSession(): Promise<void> {
+    await this.flush();
+
+    if (this.flushTimer) {
+      clearInterval(this.flushTimer);
+      this.flushTimer = null;
+    }
+
+    if (this.sessionData) {
+      try {
+        await databaseAdapter.update('analyticsSession', {
+          where: { sessionId: this.sessionData.sessionId },
+          data: {
+            endTime: new Date(),
+            lastActivityTime: new Date(),
+          },
+        });
+      } catch (error) {
+        console.error('[Analytics] Failed to end session:', error);
+      }
+    }
+
+    if (this.config.debug) {
+      console.log('[Analytics] Session ended');
+    }
+  }
+
+  /**
+   * Get current session ID
+   */
+  getSessionId(): string | undefined {
+    return this.sessionData?.sessionId;
+  }
+
+  /**
+   * Get queued events count
+   */
+  getQueueSize(): number {
+    return this.eventQueue.length;
+  }
+}
+
+export default AnalyticsTracker;
+
+// Singleton instance for browser usage
+let trackerInstance: AnalyticsTracker | null = null;
+
+export function initTracker(config: TrackerConfig): AnalyticsTracker {
+  trackerInstance = new AnalyticsTracker(config);
+  return trackerInstance;
+}
+
+export function getTracker(): AnalyticsTracker | null {
+  return trackerInstance;
+}
+
+export function track(event: Omit<AnalyticsEvent, 'id' | 'projectId' | 'userId' | 'sessionId' | 'timestamp'>): void {
+  if (trackerInstance) {
+    trackerInstance.track(event);
+  } else {
+    console.warn('[Analytics] Tracker not initialized. Call initTracker() first.');
+  }
+}
+
+export function trackPageView(event: PageViewEvent): void {
+  if (trackerInstance) {
+    trackerInstance.trackPageView(event);
+  } else {
+    console.warn('[Analytics] Tracker not initialized. Call initTracker() first.');
+  }
+}

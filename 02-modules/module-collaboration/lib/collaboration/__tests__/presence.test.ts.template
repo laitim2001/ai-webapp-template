@@ -1,0 +1,413 @@
+/**
+ * Presence Service Tests
+ *
+ * @jest-environment node
+ */
+
+import { PresenceService } from '../presence'
+import type { CursorPosition, UserSelection } from '@/types/collaboration'
+
+// Mock WebSocket provider
+const mockProvider = {
+  awareness: {
+    setLocalStateField: jest.fn(),
+    getStates: jest.fn(() => new Map()),
+    on: jest.fn()
+  }
+} as any
+
+describe('PresenceService', () => {
+  let service: PresenceService
+  const mockUserId = 'user-123'
+  const mockDocumentId = 'doc-456'
+
+  beforeEach(() => {
+    service = new PresenceService()
+    jest.clearAllMocks()
+  })
+
+  describe('initializePresence', () => {
+    it('should initialize user presence', () => {
+      const presence = service.initializePresence(
+        mockUserId,
+        mockDocumentId,
+        mockProvider,
+        {
+          name: 'John Doe',
+          email: 'john@example.com',
+          color: '#FF0000'
+        }
+      )
+
+      expect(presence).toBeDefined()
+      expect(presence.userId).toBe(mockUserId)
+      expect(presence.documentId).toBe(mockDocumentId)
+      expect(presence.name).toBe('John Doe')
+      expect(presence.email).toBe('john@example.com')
+      expect(presence.color).toBe('#FF0000')
+      expect(presence.isOnline).toBe(true)
+      expect(presence.cursor).toBeNull()
+      expect(presence.selection).toBeNull()
+      expect(presence.isTyping).toBe(false)
+    })
+
+    it('should generate default name if not provided', () => {
+      const presence = service.initializePresence(
+        mockUserId,
+        mockDocumentId,
+        mockProvider
+      )
+
+      expect(presence.name).toBe(`User ${mockUserId}`)
+    })
+
+    it('should generate color if not provided', () => {
+      const presence = service.initializePresence(
+        mockUserId,
+        mockDocumentId,
+        mockProvider
+      )
+
+      expect(presence.color).toMatch(/^#[0-9A-F]{6}$/i)
+    })
+
+    it('should set awareness state', () => {
+      service.initializePresence(
+        mockUserId,
+        mockDocumentId,
+        mockProvider,
+        {
+          name: 'John Doe',
+          email: 'john@example.com'
+        }
+      )
+
+      expect(mockProvider.awareness.setLocalStateField).toHaveBeenCalledWith(
+        'user',
+        expect.objectContaining({
+          id: mockUserId,
+          name: 'John Doe',
+          email: 'john@example.com'
+        })
+      )
+    })
+
+    it('should setup awareness event handlers', () => {
+      service.initializePresence(mockUserId, mockDocumentId, mockProvider)
+
+      expect(mockProvider.awareness.on).toHaveBeenCalledWith(
+        'change',
+        expect.any(Function)
+      )
+    })
+
+    it('should generate consistent colors for same userId', () => {
+      const presence1 = service.initializePresence(
+        'test-user',
+        mockDocumentId,
+        mockProvider
+      )
+
+      const service2 = new PresenceService()
+      const presence2 = service2.initializePresence(
+        'test-user',
+        mockDocumentId,
+        mockProvider
+      )
+
+      expect(presence1.color).toBe(presence2.color)
+    })
+  })
+
+  describe('updateCursor', () => {
+    beforeEach(() => {
+      service.initializePresence(mockUserId, mockDocumentId, mockProvider)
+    })
+
+    it('should update cursor position', () => {
+      const cursor: CursorPosition = {
+        x: 100,
+        y: 200,
+        line: 5,
+        column: 10
+      }
+
+      service.updateCursor(mockUserId, cursor)
+
+      const presence = service.getUserPresence(mockUserId)
+      expect(presence?.cursor).toEqual(cursor)
+    })
+
+    it('should update awareness state', () => {
+      const cursor: CursorPosition = { x: 100, y: 200 }
+
+      service.updateCursor(mockUserId, cursor)
+
+      expect(mockProvider.awareness.setLocalStateField).toHaveBeenCalledWith(
+        'cursor',
+        cursor
+      )
+    })
+
+    it('should clear cursor when set to null', () => {
+      const cursor: CursorPosition = { x: 100, y: 200 }
+      service.updateCursor(mockUserId, cursor)
+      service.updateCursor(mockUserId, null)
+
+      const presence = service.getUserPresence(mockUserId)
+      expect(presence?.cursor).toBeNull()
+    })
+
+    it('should update lastSeen timestamp', () => {
+      const before = new Date()
+      service.updateCursor(mockUserId, { x: 100, y: 200 })
+      const after = new Date()
+
+      const presence = service.getUserPresence(mockUserId)
+      expect(presence?.lastSeen.getTime()).toBeGreaterThanOrEqual(before.getTime())
+      expect(presence?.lastSeen.getTime()).toBeLessThanOrEqual(after.getTime())
+    })
+
+    it('should handle non-existent user gracefully', () => {
+      expect(() => {
+        service.updateCursor('non-existent-user', { x: 0, y: 0 })
+      }).not.toThrow()
+    })
+  })
+
+  describe('updateSelection', () => {
+    beforeEach(() => {
+      service.initializePresence(mockUserId, mockDocumentId, mockProvider)
+    })
+
+    it('should update user selection', () => {
+      const selection: UserSelection = {
+        start: { line: 1, column: 0 },
+        end: { line: 3, column: 10 }
+      }
+
+      service.updateSelection(mockUserId, selection)
+
+      const presence = service.getUserPresence(mockUserId)
+      expect(presence?.selection).toEqual(selection)
+    })
+
+    it('should update awareness state', () => {
+      const selection: UserSelection = {
+        start: { line: 1, column: 0 },
+        end: { line: 3, column: 10 }
+      }
+
+      service.updateSelection(mockUserId, selection)
+
+      expect(mockProvider.awareness.setLocalStateField).toHaveBeenCalledWith(
+        'selection',
+        selection
+      )
+    })
+
+    it('should clear selection when set to null', () => {
+      const selection: UserSelection = {
+        start: { line: 1, column: 0 },
+        end: { line: 3, column: 10 }
+      }
+      service.updateSelection(mockUserId, selection)
+      service.updateSelection(mockUserId, null)
+
+      const presence = service.getUserPresence(mockUserId)
+      expect(presence?.selection).toBeNull()
+    })
+  })
+
+  describe('updateTypingStatus', () => {
+    beforeEach(() => {
+      service.initializePresence(mockUserId, mockDocumentId, mockProvider)
+    })
+
+    it('should update typing status to true', () => {
+      service.updateTypingStatus(mockUserId, true)
+
+      const presence = service.getUserPresence(mockUserId)
+      expect(presence?.isTyping).toBe(true)
+    })
+
+    it('should update typing status to false', () => {
+      service.updateTypingStatus(mockUserId, true)
+      service.updateTypingStatus(mockUserId, false)
+
+      const presence = service.getUserPresence(mockUserId)
+      expect(presence?.isTyping).toBe(false)
+    })
+
+    it('should update awareness state', () => {
+      service.updateTypingStatus(mockUserId, true)
+
+      expect(mockProvider.awareness.setLocalStateField).toHaveBeenCalledWith(
+        'isTyping',
+        true
+      )
+    })
+  })
+
+  describe('getActiveUsers', () => {
+    it('should return active users for document', () => {
+      service.initializePresence('user-1', mockDocumentId, mockProvider)
+      service.initializePresence('user-2', mockDocumentId, mockProvider)
+      service.initializePresence('user-3', 'other-doc', mockProvider)
+
+      const activeUsers = service.getActiveUsers(mockDocumentId)
+
+      expect(activeUsers).toHaveLength(2)
+      expect(activeUsers.map(u => u.userId)).toContain('user-1')
+      expect(activeUsers.map(u => u.userId)).toContain('user-2')
+      expect(activeUsers.map(u => u.userId)).not.toContain('user-3')
+    })
+
+    it('should only return online users', () => {
+      service.initializePresence('user-1', mockDocumentId, mockProvider)
+      service.initializePresence('user-2', mockDocumentId, mockProvider)
+
+      service.removePresence('user-1')
+
+      const activeUsers = service.getActiveUsers(mockDocumentId)
+
+      expect(activeUsers).toHaveLength(1)
+      expect(activeUsers[0].userId).toBe('user-2')
+    })
+
+    it('should return empty array if no active users', () => {
+      const activeUsers = service.getActiveUsers(mockDocumentId)
+      expect(activeUsers).toEqual([])
+    })
+  })
+
+  describe('getUserPresence', () => {
+    it('should return user presence', () => {
+      service.initializePresence(mockUserId, mockDocumentId, mockProvider)
+
+      const presence = service.getUserPresence(mockUserId)
+
+      expect(presence).toBeDefined()
+      expect(presence?.userId).toBe(mockUserId)
+    })
+
+    it('should return null for non-existent user', () => {
+      const presence = service.getUserPresence('non-existent')
+      expect(presence).toBeNull()
+    })
+  })
+
+  describe('getPresenceState', () => {
+    beforeEach(() => {
+      service.initializePresence('user-1', mockDocumentId, mockProvider)
+      service.initializePresence('user-2', mockDocumentId, mockProvider)
+
+      service.updateCursor('user-1', { x: 100, y: 200 })
+      service.updateSelection('user-2', {
+        start: { line: 1, column: 0 },
+        end: { line: 2, column: 5 }
+      })
+      service.updateTypingStatus('user-1', true)
+    })
+
+    it('should return presence state for document', () => {
+      const state = service.getPresenceState(mockDocumentId)
+
+      expect(state.documentId).toBe(mockDocumentId)
+      expect(state.userCount).toBe(2)
+      expect(state.activeUsers).toHaveLength(2)
+    })
+
+    it('should include cursors', () => {
+      const state = service.getPresenceState(mockDocumentId)
+
+      expect(state.cursors).toHaveLength(1)
+      expect(state.cursors[0].userId).toBe('user-1')
+      expect(state.cursors[0].cursor).toEqual({ x: 100, y: 200 })
+    })
+
+    it('should include selections', () => {
+      const state = service.getPresenceState(mockDocumentId)
+
+      expect(state.selections).toHaveLength(1)
+      expect(state.selections[0].userId).toBe('user-2')
+    })
+
+    it('should include typing users', () => {
+      const state = service.getPresenceState(mockDocumentId)
+
+      expect(state.typingUsers).toContain('user-1')
+      expect(state.typingUsers).not.toContain('user-2')
+    })
+  })
+
+  describe('removePresence', () => {
+    beforeEach(() => {
+      service.initializePresence(mockUserId, mockDocumentId, mockProvider)
+    })
+
+    it('should mark user as offline', () => {
+      service.removePresence(mockUserId)
+
+      const presence = service.getUserPresence(mockUserId)
+      expect(presence?.isOnline).toBe(false)
+    })
+
+    it('should update awareness state', () => {
+      service.removePresence(mockUserId)
+
+      expect(mockProvider.awareness.setLocalStateField).toHaveBeenCalledWith(
+        'user',
+        null
+      )
+    })
+
+    it('should handle non-existent user gracefully', () => {
+      expect(() => {
+        service.removePresence('non-existent')
+      }).not.toThrow()
+    })
+  })
+
+  describe('cleanupDocument', () => {
+    it('should cleanup all presences for document', () => {
+      service.initializePresence('user-1', mockDocumentId, mockProvider)
+      service.initializePresence('user-2', mockDocumentId, mockProvider)
+      service.initializePresence('user-3', 'other-doc', mockProvider)
+
+      service.cleanupDocument(mockDocumentId)
+
+      const activeUsers = service.getActiveUsers(mockDocumentId)
+      expect(activeUsers).toHaveLength(0)
+
+      const otherUsers = service.getActiveUsers('other-doc')
+      expect(otherUsers).toHaveLength(0) // Will be marked offline
+    })
+  })
+
+  describe('getPresenceStats', () => {
+    it('should return presence statistics', () => {
+      service.initializePresence('user-1', mockDocumentId, mockProvider)
+      service.initializePresence('user-2', mockDocumentId, mockProvider)
+
+      service.updateCursor('user-1', { x: 100, y: 200 })
+      service.updateTypingStatus('user-2', true)
+
+      const stats = service.getPresenceStats(mockDocumentId)
+
+      expect(stats.totalUsers).toBe(2)
+      expect(stats.onlineUsers).toBe(2)
+      expect(stats.typingUsers).toBe(1)
+      expect(stats.activeCursors).toBe(1)
+    })
+
+    it('should return zero stats for empty document', () => {
+      const stats = service.getPresenceStats(mockDocumentId)
+
+      expect(stats.totalUsers).toBe(0)
+      expect(stats.onlineUsers).toBe(0)
+      expect(stats.typingUsers).toBe(0)
+      expect(stats.activeCursors).toBe(0)
+    })
+  })
+})

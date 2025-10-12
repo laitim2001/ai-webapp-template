@@ -1,0 +1,113 @@
+/**
+ * Resource Conditions
+ *
+ * Conditional access control based on resource properties:
+ * - Status-based access
+ * - Ownership validation
+ * - Team/department boundaries
+ * - Time-based expiration
+ *
+ * @module Security/ResourceConditions
+ */
+
+import { databaseAdapter } from '@/lib/db/database-adapter';
+
+// ============================================================================
+// Resource Condition Evaluators
+// ============================================================================
+
+/**
+ * Check if resource has specific status
+ */
+export async function resourceHasStatus(
+  resource: string,
+  resourceId: string,
+  allowedStatuses: string[]
+): Promise<boolean> {
+  try {
+    const item = await databaseAdapter.findUnique(resource, {
+      where: { id: resourceId },
+      select: { status: true, state: true },
+    });
+
+    const status = item?.status || item?.state;
+    return status && allowedStatuses.includes(status);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Check if user owns the resource
+ */
+export async function userOwnsResource(
+  userId: string,
+  resource: string,
+  resourceId: string
+): Promise<boolean> {
+  try {
+    const item = await databaseAdapter.findUnique(resource, {
+      where: { id: resourceId },
+      select: { ownerId: true, createdBy: true },
+    });
+
+    return item?.ownerId === userId || item?.createdBy === userId;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Check if user is in same team as resource owner
+ */
+export async function userInSameTeam(
+  userId: string,
+  resource: string,
+  resourceId: string
+): Promise<boolean> {
+  try {
+    const [user, item] = await Promise.all([
+      databaseAdapter.findUnique('user', {
+        where: { id: userId },
+        select: { teamId: true },
+      }),
+      databaseAdapter.findUnique(resource, {
+        where: { id: resourceId },
+        select: { ownerId: true },
+      }),
+    ]);
+
+    if (!user?.teamId || !item?.ownerId) return false;
+
+    const owner = await databaseAdapter.findUnique('user', {
+      where: { id: item.ownerId },
+      select: { teamId: true },
+    });
+
+    return user.teamId === owner?.teamId;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Check if resource is not expired
+ */
+export async function resourceNotExpired(
+  resource: string,
+  resourceId: string
+): Promise<boolean> {
+  try {
+    const item = await databaseAdapter.findUnique(resource, {
+      where: { id: resourceId },
+      select: { expiresAt: true, validUntil: true },
+    });
+
+    const expiryDate = item?.expiresAt || item?.validUntil;
+    if (!expiryDate) return true; // No expiry
+
+    return new Date(expiryDate) > new Date();
+  } catch {
+    return false;
+  }
+}

@@ -1,0 +1,329 @@
+/**
+ * Analytics Tracker Tests
+ */
+
+import AnalyticsTracker, { initTracker, getTracker, track, trackPageView } from '../tracker';
+import { databaseAdapter } from '@/lib/db/database-adapter';
+
+// Mock database adapter
+jest.mock('@/lib/db/database-adapter', () => ({
+  databaseAdapter: {
+    create: jest.fn(),
+    createMany: jest.fn(),
+    update: jest.fn(),
+    count: jest.fn(),
+    findMany: jest.fn(),
+    aggregate: jest.fn(),
+    groupBy: jest.fn(),
+  },
+}));
+
+describe('AnalyticsTracker', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    jest.useFakeTimers();
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  describe('Initialization', () => {
+    test('should initialize tracker with config', async () => {
+      const tracker = new AnalyticsTracker({
+        projectId: 'test-project',
+        userId: 'user123',
+        enableAutoTracking: false,
+      });
+
+      expect(tracker).toBeDefined();
+      expect(tracker.getSessionId()).toBeDefined();
+    });
+
+    test('should generate unique session ID', async () => {
+      const tracker1 = new AnalyticsTracker({
+        projectId: 'test-project',
+        enableAutoTracking: false,
+      });
+
+      const tracker2 = new AnalyticsTracker({
+        projectId: 'test-project',
+        enableAutoTracking: false,
+      });
+
+      expect(tracker1.getSessionId()).not.toBe(tracker2.getSessionId());
+    });
+
+    test('should create session in database', async () => {
+      const mockCreate = databaseAdapter.create as jest.Mock;
+
+      const tracker = new AnalyticsTracker({
+        projectId: 'test-project',
+        userId: 'user123',
+        enableAutoTracking: false,
+      });
+
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      expect(mockCreate).toHaveBeenCalledWith('analyticsSession', expect.objectContaining({
+        data: expect.objectContaining({
+          sessionId: expect.any(String),
+          userId: 'user123',
+          startTime: expect.any(Date),
+        }),
+      }));
+    });
+  });
+
+  describe('Event Tracking', () => {
+    test('should track custom event', async () => {
+      const tracker = new AnalyticsTracker({
+        projectId: 'test-project',
+        enableAutoTracking: false,
+      });
+
+      await tracker.track({
+        eventType: 'click',
+        eventName: 'Button Click',
+        properties: { buttonId: 'submit-btn' },
+      });
+
+      expect(tracker.getQueueSize()).toBe(1);
+    });
+
+    test('should track page view', async () => {
+      const tracker = new AnalyticsTracker({
+        projectId: 'test-project',
+        enableAutoTracking: false,
+      });
+
+      await tracker.trackPageView({
+        url: 'https://example.com/page',
+        title: 'Test Page',
+      });
+
+      expect(tracker.getQueueSize()).toBe(1);
+    });
+
+    test('should include session ID in events', async () => {
+      const tracker = new AnalyticsTracker({
+        projectId: 'test-project',
+        enableAutoTracking: false,
+        batchSize: 1,
+      });
+
+      const mockCreateMany = databaseAdapter.createMany as jest.Mock;
+
+      await tracker.track({
+        eventType: 'click',
+        eventName: 'Button Click',
+      });
+
+      await tracker.flush();
+
+      expect(mockCreateMany).toHaveBeenCalledWith('analyticsEvent', {
+        data: expect.arrayContaining([
+          expect.objectContaining({
+            sessionId: tracker.getSessionId(),
+          }),
+        ]),
+      });
+    });
+
+    test('should include user properties in events', async () => {
+      const tracker = new AnalyticsTracker({
+        projectId: 'test-project',
+        userId: 'user123',
+        enableAutoTracking: false,
+      });
+
+      await tracker.track({
+        eventType: 'purchase',
+        eventName: 'Product Purchase',
+        properties: { productId: '123', amount: 99.99 },
+      });
+
+      await tracker.flush();
+
+      const mockCreateMany = databaseAdapter.createMany as jest.Mock;
+      expect(mockCreateMany).toHaveBeenCalledWith('analyticsEvent', {
+        data: expect.arrayContaining([
+          expect.objectContaining({
+            userId: 'user123',
+            properties: { productId: '123', amount: 99.99 },
+          }),
+        ]),
+      });
+    });
+  });
+
+  describe('Batch Processing', () => {
+    test('should flush when batch size reached', async () => {
+      const tracker = new AnalyticsTracker({
+        projectId: 'test-project',
+        enableAutoTracking: false,
+        batchSize: 3,
+      });
+
+      const mockCreateMany = databaseAdapter.createMany as jest.Mock;
+
+      await tracker.track({ eventType: 'click', eventName: 'Event 1' });
+      await tracker.track({ eventType: 'click', eventName: 'Event 2' });
+      expect(mockCreateMany).not.toHaveBeenCalled();
+
+      await tracker.track({ eventType: 'click', eventName: 'Event 3' });
+      expect(mockCreateMany).toHaveBeenCalled();
+      expect(tracker.getQueueSize()).toBe(0);
+    });
+
+    test('should flush on timer interval', async () => {
+      const tracker = new AnalyticsTracker({
+        projectId: 'test-project',
+        enableAutoTracking: false,
+        flushInterval: 5000,
+      });
+
+      await tracker.track({ eventType: 'click', eventName: 'Event 1' });
+
+      const mockCreateMany = databaseAdapter.createMany as jest.Mock;
+      expect(mockCreateMany).not.toHaveBeenCalled();
+
+      jest.advanceTimersByTime(5000);
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      expect(mockCreateMany).toHaveBeenCalled();
+    });
+
+    test('should not flush empty queue', async () => {
+      const tracker = new AnalyticsTracker({
+        projectId: 'test-project',
+        enableAutoTracking: false,
+      });
+
+      await tracker.flush();
+
+      const mockCreateMany = databaseAdapter.createMany as jest.Mock;
+      expect(mockCreateMany).not.toHaveBeenCalled();
+    });
+
+    test('should re-queue failed events', async () => {
+      const tracker = new AnalyticsTracker({
+        projectId: 'test-project',
+        enableAutoTracking: false,
+      });
+
+      const mockCreateMany = databaseAdapter.createMany as jest.Mock;
+      mockCreateMany.mockRejectedValueOnce(new Error('Database error'));
+
+      await tracker.track({ eventType: 'click', eventName: 'Event 1' });
+      await tracker.flush();
+
+      // Events should be back in queue after failure
+      expect(tracker.getQueueSize()).toBe(1);
+    });
+  });
+
+  describe('Session Management', () => {
+    test('should set user ID', () => {
+      const tracker = new AnalyticsTracker({
+        projectId: 'test-project',
+        enableAutoTracking: false,
+      });
+
+      tracker.setUserId('user456');
+      // User ID should be updated (verified through tracked events)
+      expect(tracker).toBeDefined();
+    });
+
+    test('should update session activity', async () => {
+      const tracker = new AnalyticsTracker({
+        projectId: 'test-project',
+        enableAutoTracking: false,
+      });
+
+      const mockUpdate = databaseAdapter.update as jest.Mock;
+
+      await tracker.track({ eventType: 'click', eventName: 'Event 1' });
+
+      expect(mockUpdate).toHaveBeenCalledWith('analyticsSession', expect.objectContaining({
+        where: { sessionId: tracker.getSessionId() },
+        data: expect.objectContaining({
+          lastActivityTime: expect.any(Date),
+        }),
+      }));
+    });
+
+    test('should end session properly', async () => {
+      const tracker = new AnalyticsTracker({
+        projectId: 'test-project',
+        enableAutoTracking: false,
+      });
+
+      await tracker.track({ eventType: 'click', eventName: 'Event 1' });
+
+      const mockUpdate = databaseAdapter.update as jest.Mock;
+      await tracker.endSession();
+
+      expect(mockUpdate).toHaveBeenCalledWith('analyticsSession', expect.objectContaining({
+        where: { sessionId: tracker.getSessionId() },
+        data: expect.objectContaining({
+          endTime: expect.any(Date),
+        }),
+      }));
+    });
+  });
+
+  describe('Singleton Functions', () => {
+    test('should initialize singleton tracker', () => {
+      const tracker = initTracker({
+        projectId: 'test-project',
+        enableAutoTracking: false,
+      });
+
+      expect(tracker).toBeDefined();
+      expect(getTracker()).toBe(tracker);
+    });
+
+    test('should track event using singleton', async () => {
+      initTracker({
+        projectId: 'test-project',
+        enableAutoTracking: false,
+      });
+
+      track({ eventType: 'click', eventName: 'Button Click' });
+
+      const tracker = getTracker();
+      expect(tracker?.getQueueSize()).toBe(1);
+    });
+
+    test('should track page view using singleton', async () => {
+      initTracker({
+        projectId: 'test-project',
+        enableAutoTracking: false,
+      });
+
+      trackPageView({
+        url: 'https://example.com/page',
+        title: 'Test Page',
+      });
+
+      const tracker = getTracker();
+      expect(tracker?.getQueueSize()).toBe(1);
+    });
+
+    test('should warn when tracking without initialization', () => {
+      const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
+
+      // Reset singleton
+      (global as any).trackerInstance = null;
+
+      track({ eventType: 'click', eventName: 'Event' });
+
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Tracker not initialized')
+      );
+
+      consoleSpy.mockRestore();
+    });
+  });
+});

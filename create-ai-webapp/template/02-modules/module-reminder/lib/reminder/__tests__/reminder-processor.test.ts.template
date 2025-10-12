@@ -1,0 +1,445 @@
+/**
+ * Tests for ReminderProcessor
+ */
+
+import { ReminderProcessor } from '../reminder-processor';
+import { databaseAdapter } from '@/lib/db/database-adapter';
+import type { Reminder, ReminderStatus } from '@/types/reminder';
+
+jest.mock('@/lib/db/database-adapter');
+jest.mock('node-cron');
+
+describe('ReminderProcessor', () => {
+  let processor: ReminderProcessor;
+  const mockUserId = 'user123';
+
+  beforeEach(() => {
+    processor = new ReminderProcessor({
+      batchSize: 10,
+      processingInterval: 1000,
+      maxRetries: 3,
+      retryDelay: 5000
+    });
+    jest.clearAllMocks();
+  });
+
+  afterEach(async () => {
+    await processor.stop();
+  });
+
+  describe('start/stop', () => {
+    it('should start the processor', async () => {
+      const startSpy = jest.fn();
+      processor.on('processor:started', startSpy);
+
+      await processor.start();
+
+      expect(startSpy).toHaveBeenCalled();
+      expect(processor.getStatus().isRunning).toBe(true);
+    });
+
+    it('should stop the processor', async () => {
+      const stopSpy = jest.fn();
+      processor.on('processor:stopped', stopSpy);
+
+      await processor.start();
+      await processor.stop();
+
+      expect(stopSpy).toHaveBeenCalled();
+      expect(processor.getStatus().isRunning).toBe(false);
+    });
+
+    it('should not start if already running', async () => {
+      await processor.start();
+      const consoleSpy = jest.spyOn(console, 'log');
+
+      await processor.start();
+
+      expect(consoleSpy).toHaveBeenCalledWith('Reminder processor is already running');
+    });
+  });
+
+  describe('processReminder', () => {
+    it('should process a scheduled reminder', async () => {
+      const reminder: Reminder = {
+        id: 'reminder123',
+        userId: mockUserId,
+        title: 'Test Reminder',
+        type: 'ONE_TIME',
+        status: 'SCHEDULED' as ReminderStatus,
+        priority: 3,
+        scheduledAt: new Date(Date.now() - 1000), // Past time
+        timezone: 'UTC',
+        channels: [{ type: 'EMAIL', enabled: true }],
+        retryCount: 0,
+        maxRetries: 3,
+        smartTiming: false,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+
+      (databaseAdapter.findUnique as jest.Mock).mockResolvedValue(reminder);
+      (databaseAdapter.update as jest.Mock).mockResolvedValue({
+        ...reminder,
+        status: 'DELIVERED',
+        deliveredAt: new Date()
+      });
+
+      const deliveredSpy = jest.fn();
+      processor.on('reminder:delivered', deliveredSpy);
+
+      const result = await processor.processReminder('reminder123');
+
+      expect(result).toBe(true);
+      expect(deliveredSpy).toHaveBeenCalledWith(reminder);
+    });
+
+    it('should not process reminder if not scheduled', async () => {
+      const reminder: Reminder = {
+        id: 'reminder123',
+        userId: mockUserId,
+        title: 'Test',
+        type: 'ONE_TIME',
+        status: 'DELIVERED' as ReminderStatus,
+        priority: 3,
+        scheduledAt: new Date(),
+        timezone: 'UTC',
+        channels: [{ type: 'EMAIL', enabled: true }],
+        retryCount: 0,
+        maxRetries: 3,
+        smartTiming: false,
+        deliveredAt: new Date(),
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+
+      (databaseAdapter.findUnique as jest.Mock).mockResolvedValue(reminder);
+
+      const result = await processor.processReminder('reminder123');
+
+      expect(result).toBe(false);
+    });
+
+    it('should not process if scheduled time is in future', async () => {
+      const reminder: Reminder = {
+        id: 'reminder123',
+        userId: mockUserId,
+        title: 'Test',
+        type: 'ONE_TIME',
+        status: 'SCHEDULED' as ReminderStatus,
+        priority: 3,
+        scheduledAt: new Date(Date.now() + 60000), // Future time
+        timezone: 'UTC',
+        channels: [{ type: 'EMAIL', enabled: true }],
+        retryCount: 0,
+        maxRetries: 3,
+        smartTiming: false,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+
+      (databaseAdapter.findUnique as jest.Mock).mockResolvedValue(reminder);
+
+      const result = await processor.processReminder('reminder123');
+
+      expect(result).toBe(false);
+    });
+
+    it('should handle delivery failure and schedule retry', async () => {
+      const reminder: Reminder = {
+        id: 'reminder123',
+        userId: mockUserId,
+        title: 'Test',
+        type: 'ONE_TIME',
+        status: 'SCHEDULED' as ReminderStatus,
+        priority: 3,
+        scheduledAt: new Date(Date.now() - 1000),
+        timezone: 'UTC',
+        channels: [{ type: 'EMAIL', enabled: true }],
+        retryCount: 0,
+        maxRetries: 3,
+        smartTiming: false,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+
+      (databaseAdapter.findUnique as jest.Mock).mockResolvedValue(reminder);
+      (databaseAdapter.update as jest.Mock).mockResolvedValue({
+        ...reminder,
+        retryCount: 1
+      });
+
+      // Mock delivery failure
+      const processorSpy = jest.spyOn(processor as any, 'deliver');
+      processorSpy.mockResolvedValue({
+        reminderId: 'reminder123',
+        success: false,
+        channels: [{ type: 'EMAIL', success: false, error: 'Network error' }],
+        error: new Error('Network error')
+      });
+
+      const failedSpy = jest.fn();
+      const retrySpy = jest.fn();
+      processor.on('reminder:failed', failedSpy);
+      processor.on('reminder:retry', retrySpy);
+
+      await processor.processReminder('reminder123');
+
+      expect(failedSpy).toHaveBeenCalled();
+      expect(retrySpy).toHaveBeenCalled();
+    });
+
+    it('should mark as failed after max retries', async () => {
+      const reminder: Reminder = {
+        id: 'reminder123',
+        userId: mockUserId,
+        title: 'Test',
+        type: 'ONE_TIME',
+        status: 'SCHEDULED' as ReminderStatus,
+        priority: 3,
+        scheduledAt: new Date(Date.now() - 1000),
+        timezone: 'UTC',
+        channels: [{ type: 'EMAIL', enabled: true }],
+        retryCount: 3, // Already at max
+        maxRetries: 3,
+        smartTiming: false,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+
+      (databaseAdapter.findUnique as jest.Mock).mockResolvedValue(reminder);
+      (databaseAdapter.update as jest.Mock).mockResolvedValue({
+        ...reminder,
+        status: 'FAILED'
+      });
+
+      const processorSpy = jest.spyOn(processor as any, 'deliver');
+      processorSpy.mockResolvedValue({
+        reminderId: 'reminder123',
+        success: false,
+        channels: [],
+        error: new Error('Failed')
+      });
+
+      await processor.processReminder('reminder123');
+
+      expect(databaseAdapter.update).toHaveBeenCalledWith('reminder', expect.objectContaining({
+        where: { id: 'reminder123' },
+        data: {
+          status: 'FAILED'
+        }
+      }));
+    });
+  });
+
+  describe('processBatch', () => {
+    it('should process multiple reminders', async () => {
+      const reminders: Reminder[] = [
+        {
+          id: 'reminder1',
+          userId: mockUserId,
+          title: 'Reminder 1',
+          type: 'ONE_TIME',
+          status: 'SCHEDULED' as ReminderStatus,
+          priority: 3,
+          scheduledAt: new Date(Date.now() - 1000),
+          timezone: 'UTC',
+          channels: [{ type: 'EMAIL', enabled: true }],
+          retryCount: 0,
+          maxRetries: 3,
+          smartTiming: false,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        },
+        {
+          id: 'reminder2',
+          userId: mockUserId,
+          title: 'Reminder 2',
+          type: 'ONE_TIME',
+          status: 'SCHEDULED' as ReminderStatus,
+          priority: 3,
+          scheduledAt: new Date(Date.now() - 1000),
+          timezone: 'UTC',
+          channels: [{ type: 'EMAIL', enabled: true }],
+          retryCount: 0,
+          maxRetries: 3,
+          smartTiming: false,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        }
+      ];
+
+      (databaseAdapter.findMany as jest.Mock).mockResolvedValue(reminders);
+      (databaseAdapter.update as jest.Mock).mockResolvedValue({});
+
+      const processorSpy = jest.spyOn(processor as any, 'deliver');
+      processorSpy.mockResolvedValue({
+        reminderId: 'test',
+        success: true,
+        channels: [{ type: 'EMAIL', success: true }]
+      });
+
+      const batchCompleteSpy = jest.fn();
+      processor.on('batch:complete', batchCompleteSpy);
+
+      const count = await processor.processBatch(10);
+
+      expect(count).toBe(2);
+      expect(batchCompleteSpy).toHaveBeenCalled();
+    });
+
+    it('should handle empty batch', async () => {
+      (databaseAdapter.findMany as jest.Mock).mockResolvedValue([]);
+
+      const count = await processor.processBatch(10);
+
+      expect(count).toBe(0);
+    });
+  });
+
+  describe('retryFailed', () => {
+    it('should retry failed reminders', async () => {
+      const failedReminders: Reminder[] = [
+        {
+          id: 'failed1',
+          userId: mockUserId,
+          title: 'Failed',
+          type: 'ONE_TIME',
+          status: 'FAILED' as ReminderStatus,
+          priority: 3,
+          scheduledAt: new Date(),
+          timezone: 'UTC',
+          channels: [{ type: 'EMAIL', enabled: true }],
+          retryCount: 1,
+          maxRetries: 3,
+          smartTiming: false,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        }
+      ];
+
+      (databaseAdapter.findMany as jest.Mock).mockResolvedValue(failedReminders);
+      (databaseAdapter.update as jest.Mock).mockResolvedValue({});
+
+      const count = await processor.retryFailed();
+
+      expect(count).toBe(1);
+      expect(databaseAdapter.update).toHaveBeenCalledWith('reminder', expect.objectContaining({
+        data: expect.objectContaining({
+          status: 'SCHEDULED'
+        })
+      }));
+    });
+  });
+
+  describe('getStatus', () => {
+    it('should return processor status', () => {
+      const status = processor.getStatus();
+
+      expect(status).toHaveProperty('isRunning');
+      expect(status).toHaveProperty('config');
+      expect(status.config).toHaveProperty('batchSize');
+      expect(status.config).toHaveProperty('processingInterval');
+    });
+  });
+
+  describe('events', () => {
+    it('should emit processor:started event', async () => {
+      const startedSpy = jest.fn();
+      processor.on('processor:started', startedSpy);
+
+      await processor.start();
+
+      expect(startedSpy).toHaveBeenCalled();
+    });
+
+    it('should emit processor:stopped event', async () => {
+      const stoppedSpy = jest.fn();
+      processor.on('processor:stopped', stoppedSpy);
+
+      await processor.start();
+      await processor.stop();
+
+      expect(stoppedSpy).toHaveBeenCalled();
+    });
+
+    it('should emit reminder:delivered event', async () => {
+      const reminder: Reminder = {
+        id: 'reminder123',
+        userId: mockUserId,
+        title: 'Test',
+        type: 'ONE_TIME',
+        status: 'SCHEDULED' as ReminderStatus,
+        priority: 3,
+        scheduledAt: new Date(Date.now() - 1000),
+        timezone: 'UTC',
+        channels: [{ type: 'EMAIL', enabled: true }],
+        retryCount: 0,
+        maxRetries: 3,
+        smartTiming: false,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+
+      (databaseAdapter.findUnique as jest.Mock).mockResolvedValue(reminder);
+      (databaseAdapter.update as jest.Mock).mockResolvedValue({
+        ...reminder,
+        status: 'DELIVERED'
+      });
+
+      const deliveredSpy = jest.fn();
+      processor.on('reminder:delivered', deliveredSpy);
+
+      await processor.processReminder('reminder123');
+
+      expect(deliveredSpy).toHaveBeenCalledWith(reminder);
+    });
+
+    it('should emit reminder:failed event', async () => {
+      const reminder: Reminder = {
+        id: 'reminder123',
+        userId: mockUserId,
+        title: 'Test',
+        type: 'ONE_TIME',
+        status: 'SCHEDULED' as ReminderStatus,
+        priority: 3,
+        scheduledAt: new Date(Date.now() - 1000),
+        timezone: 'UTC',
+        channels: [{ type: 'EMAIL', enabled: true }],
+        retryCount: 0,
+        maxRetries: 3,
+        smartTiming: false,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+
+      (databaseAdapter.findUnique as jest.Mock).mockResolvedValue(reminder);
+
+      const processorSpy = jest.spyOn(processor as any, 'deliver');
+      processorSpy.mockResolvedValue({
+        reminderId: 'reminder123',
+        success: false,
+        channels: [],
+        error: new Error('Failed')
+      });
+
+      const failedSpy = jest.fn();
+      processor.on('reminder:failed', failedSpy);
+
+      await processor.processReminder('reminder123');
+
+      expect(failedSpy).toHaveBeenCalled();
+    });
+
+    it('should emit batch:complete event', async () => {
+      (databaseAdapter.findMany as jest.Mock).mockResolvedValue([]);
+
+      const batchCompleteSpy = jest.fn();
+      processor.on('batch:complete', batchCompleteSpy);
+
+      await processor.processBatch(10);
+
+      expect(batchCompleteSpy).toHaveBeenCalled();
+    });
+  });
+});

@@ -1,0 +1,107 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
+import { DemoBanner } from '@/components/demo-banner';
+import { ArrowLeft, Save } from 'lucide-react';
+import { demoGetSettings } from '@/lib/demo-api';
+
+export default function SettingsPage() {
+  const [settings, setSettings] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const response = await demoGetSettings();
+        if (response.success) setSettings(response.data);
+      } catch (error) {
+        console.error('Failed to fetch settings:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  if (isLoading || !settings) return <div>Loading...</div>;
+
+  return (
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      <header className="sticky top-0 z-10 border-b bg-white dark:bg-gray-800">
+        <div className="flex h-16 items-center justify-between px-6">
+          <div className="flex items-center gap-4">
+            <Button variant="ghost" size="icon" asChild>
+              <Link href="/(demo)/dashboard"><ArrowLeft className="h-5 w-5" /></Link>
+            </Button>
+            <h1 className="text-xl font-bold">設置</h1>
+          </div>
+          <Button><Save className="mr-2 h-4 w-4" />保存更改</Button>
+        </div>
+      </header>
+
+      <main className="p-6 max-w-4xl mx-auto">
+        <DemoBanner />
+
+        <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>個人資料</CardTitle>
+              <CardDescription>更新您的個人信息</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="name">姓名</Label>
+                <Input id="name" defaultValue={settings.profile.name} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="email">電子郵件</Label>
+                <Input id="email" type="email" defaultValue={settings.profile.email} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="bio">簡介</Label>
+                <Input id="bio" defaultValue={settings.profile.bio} />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>偏好設置</CardTitle>
+              <CardDescription>自定義您的體驗</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label>電子郵件通知</Label>
+                  <p className="text-sm text-muted-foreground">接收重要更新的電子郵件</p>
+                </div>
+                <Switch defaultChecked={settings.preferences.emailNotifications} />
+              </div>
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label>推送通知</Label>
+                  <p className="text-sm text-muted-foreground">接收即時通知</p>
+                </div>
+                <Switch defaultChecked={settings.preferences.pushNotifications} />
+              </div>
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label>每週摘要</Label>
+                  <p className="text-sm text-muted-foreground">每週接收活動摘要</p>
+                </div>
+                <Switch defaultChecked={settings.preferences.weeklyDigest} />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </main>
+    </div>
+  );
+}

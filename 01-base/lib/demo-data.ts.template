@@ -1,0 +1,755 @@
+/**
+ * 演示數據層
+ *
+ * 為零模組配置提供模擬數據
+ * 用於展示UI效果而不需要後端功能
+ */
+
+// ============================================
+// 演示模式標誌
+// ============================================
+export const DEMO_MODE = true;
+
+// ============================================
+// 用戶數據
+// ============================================
+export const demoUser = {
+  id: 'demo-user-001',
+  name: '演示用戶',
+  email: 'demo@example.com',
+  role: 'admin',
+  avatar: '/avatars/demo-avatar.png',
+  createdAt: '2025-01-01',
+  emailVerified: true,
+};
+
+// ============================================
+// 儀表板統計數據
+// ============================================
+export const demoDashboardStats = {
+  totalProjects: 24,
+  activeUsers: 156,
+  totalDocuments: 2847,
+  totalRevenue: 486750,
+  revenueGrowth: 12.5,
+  projectsGrowth: 8.3,
+  usersGrowth: 15.2,
+  documentsGrowth: 23.7,
+};
+
+// ============================================
+// 最近活動數據
+// ============================================
+export const demoRecentActivities = [
+  {
+    id: '1',
+    type: 'document_created',
+    title: '創建新知識庫文檔',
+    description: '產品需求文檔 v2.0',
+    user: '張三',
+    timestamp: '2小時前',
+    icon: 'file-text',
+  },
+  {
+    id: '2',
+    type: 'user_joined',
+    title: '新用戶加入',
+    description: '李四加入了團隊',
+    user: '系統',
+    timestamp: '4小時前',
+    icon: 'user-plus',
+  },
+  {
+    id: '3',
+    type: 'project_updated',
+    title: '項目更新',
+    description: 'AI助手項目進度更新至75%',
+    user: '王五',
+    timestamp: '6小時前',
+    icon: 'folder',
+  },
+  {
+    id: '4',
+    type: 'search_performed',
+    title: '執行搜索',
+    description: '搜索關鍵詞: Next.js 最佳實踐',
+    user: '趙六',
+    timestamp: '8小時前',
+    icon: 'search',
+  },
+  {
+    id: '5',
+    type: 'notification_sent',
+    title: '發送通知',
+    description: '系統維護通知已發送給所有用戶',
+    user: '系統',
+    timestamp: '1天前',
+    icon: 'bell',
+  },
+];
+
+// ============================================
+// 知識庫數據
+// ============================================
+export const demoKnowledgeBase = [
+  {
+    id: 'kb-001',
+    title: 'Next.js 14 完整指南',
+    description: '全面介紹Next.js 14的新特性和最佳實踐',
+    category: '技術文檔',
+    tags: ['Next.js', 'React', 'Web開發'],
+    author: '張三',
+    views: 1245,
+    likes: 89,
+    updatedAt: '2025-10-09',
+    status: 'published',
+  },
+  {
+    id: 'kb-002',
+    title: 'TypeScript 高級技巧',
+    description: 'TypeScript進階使用技巧和類型系統深度解析',
+    category: '技術文檔',
+    tags: ['TypeScript', '類型系統', '最佳實踐'],
+    author: '李四',
+    views: 967,
+    likes: 72,
+    updatedAt: '2025-10-08',
+    status: 'published',
+  },
+  {
+    id: 'kb-003',
+    title: 'Prisma ORM 使用指南',
+    description: 'Prisma數據庫ORM的完整使用教程',
+    category: '數據庫',
+    tags: ['Prisma', 'Database', 'ORM'],
+    author: '王五',
+    views: 834,
+    likes: 65,
+    updatedAt: '2025-10-07',
+    status: 'published',
+  },
+  {
+    id: 'kb-004',
+    title: 'Tailwind CSS 設計系統',
+    description: '基於Tailwind CSS構建企業級設計系統',
+    category: 'UI設計',
+    tags: ['Tailwind', 'CSS', '設計系統'],
+    author: '趙六',
+    views: 1523,
+    likes: 128,
+    updatedAt: '2025-10-06',
+    status: 'published',
+  },
+  {
+    id: 'kb-005',
+    title: 'API設計最佳實踐',
+    description: 'RESTful API和GraphQL設計指南',
+    category: 'API文檔',
+    tags: ['API', 'REST', 'GraphQL'],
+    author: '張三',
+    views: 756,
+    likes: 54,
+    updatedAt: '2025-10-05',
+    status: 'draft',
+  },
+];
+
+// ============================================
+// 搜索結果數據
+// ============================================
+export const demoSearchResults = [
+  {
+    id: 'search-001',
+    title: 'Next.js 14 App Router 路由系統',
+    snippet: 'App Router是Next.js 14的核心特性,提供了基於文件系統的路由...',
+    type: 'document',
+    score: 0.95,
+    source: 'knowledge-base',
+    url: '/dashboard/knowledge/kb-001',
+  },
+  {
+    id: 'search-002',
+    title: 'React Server Components',
+    snippet: 'Server Components允許你在服務器上渲染組件,減少客戶端JavaScript...',
+    type: 'document',
+    score: 0.88,
+    source: 'knowledge-base',
+    url: '/dashboard/knowledge/kb-001',
+  },
+  {
+    id: 'search-003',
+    title: 'TypeScript泛型使用',
+    snippet: '泛型是TypeScript中最強大的特性之一,允許創建可重用的組件...',
+    type: 'document',
+    score: 0.82,
+    source: 'knowledge-base',
+    url: '/dashboard/knowledge/kb-002',
+  },
+];
+
+// ============================================
+// 通知數據
+// ============================================
+export const demoNotifications = [
+  {
+    id: 'notif-001',
+    type: 'info',
+    title: '系統更新',
+    message: '系統將於今晚23:00進行維護更新,預計持續1小時',
+    timestamp: '30分鐘前',
+    read: false,
+  },
+  {
+    id: 'notif-002',
+    type: 'success',
+    title: '文檔審核通過',
+    message: '你的文檔"Next.js 14完整指南"已通過審核並發布',
+    timestamp: '2小時前',
+    read: false,
+  },
+  {
+    id: 'notif-003',
+    type: 'warning',
+    title: '存儲空間提醒',
+    message: '你的存儲空間已使用85%,建議清理不必要的文件',
+    timestamp: '5小時前',
+    read: true,
+  },
+  {
+    id: 'notif-004',
+    type: 'info',
+    title: '新用戶加入',
+    message: '李四已加入你的團隊',
+    timestamp: '1天前',
+    read: true,
+  },
+];
+
+// ============================================
+// 設置數據
+// ============================================
+export const demoSettings = {
+  profile: {
+    name: '演示用戶',
+    email: 'demo@example.com',
+    avatar: '/avatars/demo-avatar.png',
+    bio: '這是一個演示賬戶,用於展示系統功能',
+    location: '台北, 台灣',
+    website: 'https://example.com',
+  },
+  preferences: {
+    language: 'zh-TW',
+    timezone: 'Asia/Taipei',
+    theme: 'light',
+    emailNotifications: true,
+    pushNotifications: false,
+    weeklyDigest: true,
+  },
+  security: {
+    twoFactorEnabled: false,
+    lastPasswordChange: '2025-09-01',
+    activeSessions: 2,
+  },
+};
+
+// ============================================
+// 客戶數據
+// ============================================
+export const demoCustomers = [
+  {
+    id: 'cust-001',
+    name: 'ABC科技有限公司',
+    email: 'contact@abc-tech.com',
+    phone: '+886-2-1234-5678',
+    industry: '軟件開發',
+    status: 'active',
+    revenue: 450000,
+    projects: 5,
+    lastContact: '2025-10-08',
+  },
+  {
+    id: 'cust-002',
+    name: 'XYZ企業集團',
+    email: 'info@xyz-corp.com',
+    phone: '+886-2-8765-4321',
+    industry: '金融服務',
+    status: 'active',
+    revenue: 780000,
+    projects: 8,
+    lastContact: '2025-10-07',
+  },
+  {
+    id: 'cust-003',
+    name: '創新設計工作室',
+    email: 'hello@creative-design.com',
+    phone: '+886-2-5555-6666',
+    industry: '設計服務',
+    status: 'inactive',
+    revenue: 120000,
+    projects: 2,
+    lastContact: '2025-09-15',
+  },
+];
+
+// ============================================
+// 任務數據
+// ============================================
+export const demoTasks = [
+  {
+    id: 'task-001',
+    title: '更新產品文檔',
+    description: '更新Q4產品路線圖文檔',
+    priority: 'high',
+    status: 'in-progress',
+    assignee: '張三',
+    dueDate: '2025-10-15',
+    progress: 60,
+  },
+  {
+    id: 'task-002',
+    title: '客戶需求分析',
+    description: '分析ABC公司的新需求',
+    priority: 'medium',
+    status: 'pending',
+    assignee: '李四',
+    dueDate: '2025-10-18',
+    progress: 0,
+  },
+  {
+    id: 'task-003',
+    title: '系統性能優化',
+    description: '優化數據庫查詢性能',
+    priority: 'high',
+    status: 'completed',
+    assignee: '王五',
+    dueDate: '2025-10-10',
+    progress: 100,
+  },
+];
+
+// ============================================
+// 提案數據
+// ============================================
+export const demoProposals = [
+  {
+    id: 'prop-001',
+    title: 'ABC科技 - 數位轉型方案',
+    customer: 'ABC科技有限公司',
+    status: 'draft',
+    value: 450000,
+    createdBy: '張三',
+    createdAt: '2025-10-08',
+    dueDate: '2025-10-20',
+    progress: 40,
+    sections: ['需求分析', '解決方案', '實施計劃', '預算報價'],
+  },
+  {
+    id: 'prop-002',
+    title: 'XYZ企業 - AI客服系統',
+    customer: 'XYZ企業集團',
+    status: 'in-review',
+    value: 780000,
+    createdBy: '李四',
+    createdAt: '2025-10-05',
+    dueDate: '2025-10-15',
+    progress: 85,
+    sections: ['需求分析', '解決方案', '實施計劃', '預算報價'],
+  },
+  {
+    id: 'prop-003',
+    title: '創新設計 - 品牌升級方案',
+    customer: '創新設計工作室',
+    status: 'approved',
+    value: 120000,
+    createdBy: '王五',
+    createdAt: '2025-09-28',
+    dueDate: '2025-10-10',
+    progress: 100,
+    sections: ['需求分析', '解決方案', '實施計劃', '預算報價'],
+  },
+];
+
+// ============================================
+// 模板數據
+// ============================================
+export const demoTemplates = [
+  {
+    id: 'tmpl-001',
+    name: '標準提案模板',
+    description: '適用於一般企業客戶的標準提案格式',
+    category: '提案',
+    sections: ['封面頁', '需求分析', '解決方案', '實施計劃', '預算報價', '團隊介紹'],
+    usageCount: 45,
+    lastUsed: '2025-10-08',
+    createdBy: '系統管理員',
+    isPublic: true,
+  },
+  {
+    id: 'tmpl-002',
+    name: '技術方案模板',
+    description: '適用於技術導向項目的方案模板',
+    category: '技術文檔',
+    sections: ['技術背景', '架構設計', '技術選型', '實施路線', '風險評估'],
+    usageCount: 32,
+    lastUsed: '2025-10-07',
+    createdBy: '張三',
+    isPublic: true,
+  },
+  {
+    id: 'tmpl-003',
+    name: '客戶需求分析模板',
+    description: '客戶需求調研和分析文檔模板',
+    category: '需求分析',
+    sections: ['客戶背景', '業務目標', '痛點分析', '需求清單', '成功指標'],
+    usageCount: 28,
+    lastUsed: '2025-10-05',
+    createdBy: '李四',
+    isPublic: false,
+  },
+  {
+    id: 'tmpl-004',
+    name: '項目實施計劃模板',
+    description: '項目實施階段和時程規劃模板',
+    category: '項目管理',
+    sections: ['項目概述', '階段劃分', '時程規劃', '資源分配', '里程碑'],
+    usageCount: 38,
+    lastUsed: '2025-10-06',
+    createdBy: '王五',
+    isPublic: true,
+  },
+];
+
+// ============================================
+// 系統管理數據
+// ============================================
+export const demoAdminStats = {
+  systemHealth: {
+    status: 'healthy',
+    uptime: '99.98%',
+    lastIncident: '30天前',
+    activeAlerts: 0,
+  },
+  userStats: {
+    totalUsers: 156,
+    activeToday: 89,
+    newThisWeek: 12,
+    growth: 15.2,
+  },
+  storageStats: {
+    totalStorage: '500 GB',
+    usedStorage: '342 GB',
+    usagePercent: 68.4,
+    documentsCount: 2847,
+  },
+  performanceStats: {
+    avgResponseTime: '245ms',
+    requestsPerMinute: 1250,
+    errorRate: '0.03%',
+    cacheHitRate: '94.2%',
+  },
+};
+
+export const demoSystemUsers = [
+  {
+    id: 'user-001',
+    name: '張三',
+    email: 'zhang.san@example.com',
+    role: 'admin',
+    status: 'active',
+    lastActive: '5分鐘前',
+    createdAt: '2025-01-15',
+  },
+  {
+    id: 'user-002',
+    name: '李四',
+    email: 'li.si@example.com',
+    role: 'user',
+    status: 'active',
+    lastActive: '1小時前',
+    createdAt: '2025-02-20',
+  },
+  {
+    id: 'user-003',
+    name: '王五',
+    email: 'wang.wu@example.com',
+    role: 'editor',
+    status: 'active',
+    lastActive: '30分鐘前',
+    createdAt: '2025-03-10',
+  },
+  {
+    id: 'user-004',
+    name: '趙六',
+    email: 'zhao.liu@example.com',
+    role: 'user',
+    status: 'inactive',
+    lastActive: '7天前',
+    createdAt: '2025-04-05',
+  },
+];
+
+export const demoSystemLogs = [
+  {
+    id: 'log-001',
+    level: 'info',
+    message: '用戶登錄成功',
+    user: 'zhang.san@example.com',
+    timestamp: '2025-10-11 14:30:25',
+    metadata: { ip: '192.168.1.100', userAgent: 'Chrome/118.0' },
+  },
+  {
+    id: 'log-002',
+    level: 'warning',
+    message: '多次登錄失敗嘗試',
+    user: 'unknown@example.com',
+    timestamp: '2025-10-11 14:25:10',
+    metadata: { ip: '203.45.67.89', attempts: 5 },
+  },
+  {
+    id: 'log-003',
+    level: 'info',
+    message: '數據庫備份完成',
+    user: 'system',
+    timestamp: '2025-10-11 03:00:00',
+    metadata: { size: '2.3GB', duration: '45s' },
+  },
+  {
+    id: 'log-004',
+    level: 'error',
+    message: 'API請求失敗',
+    user: 'li.si@example.com',
+    timestamp: '2025-10-11 10:15:33',
+    metadata: { endpoint: '/api/documents', status: 500 },
+  },
+];
+
+// ============================================
+// 圖表數據
+// ============================================
+export const demoChartData = {
+  // 月度收入數據
+  monthlyRevenue: [
+    { month: '1月', revenue: 125000 },
+    { month: '2月', revenue: 142000 },
+    { month: '3月', revenue: 138000 },
+    { month: '4月', revenue: 165000 },
+    { month: '5月', revenue: 178000 },
+    { month: '6月', revenue: 195000 },
+    { month: '7月', revenue: 210000 },
+    { month: '8月', revenue: 198000 },
+    { month: '9月', revenue: 225000 },
+    { month: '10月', revenue: 248000 },
+  ],
+
+  // 用戶增長數據
+  userGrowth: [
+    { date: '10/01', users: 120 },
+    { date: '10/02', users: 125 },
+    { date: '10/03', users: 132 },
+    { date: '10/04', users: 138 },
+    { date: '10/05', users: 145 },
+    { date: '10/06', users: 150 },
+    { date: '10/07', users: 156 },
+  ],
+
+  // 項目狀態分佈
+  projectStatus: [
+    { status: '進行中', count: 12, color: '#3b82f6' },
+    { status: '已完成', count: 8, color: '#10b981' },
+    { status: '待開始', count: 4, color: '#f59e0b' },
+  ],
+};
+
+// ============================================
+// API文檔數據
+// ============================================
+export const demoApiEndpoints = [
+  {
+    id: 'auth-001',
+    category: '認證',
+    method: 'POST',
+    path: '/api/auth/login',
+    description: '用戶登錄',
+    params: [
+      { name: 'email', type: 'string', required: true, description: '用戶郵箱' },
+      { name: 'password', type: 'string', required: true, description: '用戶密碼' },
+    ],
+    response: {
+      success: true,
+      data: {
+        user: '用戶對象',
+        token: 'JWT令牌',
+      },
+    },
+  },
+  {
+    id: 'auth-002',
+    category: '認證',
+    method: 'POST',
+    path: '/api/auth/register',
+    description: '用戶註冊',
+    params: [
+      { name: 'name', type: 'string', required: true, description: '用戶姓名' },
+      { name: 'email', type: 'string', required: true, description: '用戶郵箱' },
+      { name: 'password', type: 'string', required: true, description: '用戶密碼' },
+    ],
+    response: {
+      success: true,
+      data: { user: '用戶對象', message: '註冊成功' },
+    },
+  },
+  {
+    id: 'kb-001',
+    category: '知識庫',
+    method: 'GET',
+    path: '/api/knowledge',
+    description: '獲取知識庫列表',
+    params: [
+      { name: 'category', type: 'string', required: false, description: '分類篩選' },
+      { name: 'status', type: 'string', required: false, description: '狀態篩選' },
+      { name: 'limit', type: 'number', required: false, description: '返回數量限制' },
+    ],
+    response: {
+      success: true,
+      data: {
+        items: '知識庫文檔數組',
+        total: '總數',
+        page: '當前頁',
+        pageSize: '每頁數量',
+      },
+    },
+  },
+  {
+    id: 'kb-002',
+    category: '知識庫',
+    method: 'GET',
+    path: '/api/knowledge/:id',
+    description: '獲取單個知識庫文檔',
+    params: [
+      { name: 'id', type: 'string', required: true, description: '文檔ID' },
+    ],
+    response: {
+      success: true,
+      data: '知識庫文檔對象',
+    },
+  },
+  {
+    id: 'search-001',
+    category: '搜索',
+    method: 'GET',
+    path: '/api/search',
+    description: '執行搜索',
+    params: [
+      { name: 'query', type: 'string', required: true, description: '搜索關鍵詞' },
+      { name: 'type', type: 'string', required: false, description: '結果類型篩選' },
+      { name: 'source', type: 'string', required: false, description: '來源篩選' },
+    ],
+    response: {
+      success: true,
+      data: {
+        query: '搜索關鍵詞',
+        results: '搜索結果數組',
+        total: '結果總數',
+        took: '搜索耗時',
+      },
+    },
+  },
+  {
+    id: 'customer-001',
+    category: '客戶',
+    method: 'GET',
+    path: '/api/customers',
+    description: '獲取客戶列表',
+    params: [
+      { name: 'status', type: 'string', required: false, description: '狀態篩選' },
+      { name: 'industry', type: 'string', required: false, description: '行業篩選' },
+    ],
+    response: {
+      success: true,
+      data: {
+        customers: '客戶數組',
+        total: '總數',
+      },
+    },
+  },
+  {
+    id: 'task-001',
+    category: '任務',
+    method: 'GET',
+    path: '/api/tasks',
+    description: '獲取任務列表',
+    params: [
+      { name: 'status', type: 'string', required: false, description: '狀態篩選' },
+      { name: 'priority', type: 'string', required: false, description: '優先級篩選' },
+    ],
+    response: {
+      success: true,
+      data: {
+        tasks: '任務數組',
+        total: '總數',
+      },
+    },
+  },
+  {
+    id: 'proposal-001',
+    category: '提案',
+    method: 'GET',
+    path: '/api/proposals',
+    description: '獲取提案列表',
+    params: [
+      { name: 'status', type: 'string', required: false, description: '狀態篩選' },
+      { name: 'customer', type: 'string', required: false, description: '客戶篩選' },
+    ],
+    response: {
+      success: true,
+      data: {
+        proposals: '提案數組',
+        total: '總數',
+      },
+    },
+  },
+  {
+    id: 'template-001',
+    category: '模板',
+    method: 'GET',
+    path: '/api/templates',
+    description: '獲取模板列表',
+    params: [
+      { name: 'category', type: 'string', required: false, description: '分類篩選' },
+      { name: 'isPublic', type: 'boolean', required: false, description: '公開/私有篩選' },
+    ],
+    response: {
+      success: true,
+      data: {
+        templates: '模板數組',
+        total: '總數',
+      },
+    },
+  },
+];
+
+// ============================================
+// 輔助函數
+// ============================================
+
+/**
+ * 模擬API延遲
+ */
+export function simulateDelay(ms: number = 500): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+/**
+ * 生成隨機ID
+ */
+export function generateDemoId(prefix: string = 'demo'): string {
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+}
+
+/**
+ * 格式化演示數據的時間戳
+ */
+export function formatDemoTimestamp(timestamp: string): string {
+  // 簡單的演示格式化
+  return timestamp;
+}

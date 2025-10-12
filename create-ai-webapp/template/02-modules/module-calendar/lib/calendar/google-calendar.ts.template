@@ -1,0 +1,615 @@
+/**
+ * Google Calendar Service
+ *
+ * Comprehensive Google Calendar API integration with OAuth 2.0,
+ * event management, recurring events, and webhook support.
+ *
+ * @module lib/calendar/google-calendar
+ * @version 5.0.0
+ */
+
+import { google, calendar_v3 } from 'googleapis';
+import { OAuth2Client } from 'google-auth-library';
+import { databaseAdapter } from '@/lib/db/database-adapter';
+import type {
+  GoogleCalendarConfig,
+  GoogleCredentials,
+  GoogleEventCreateOptions,
+  GoogleEventListOptions,
+  CalendarEvent,
+  GoogleWatchChannel,
+  ICalendarService,
+  BatchOperationResult,
+} from '@/types/calendar';
+
+/**
+ * Google Calendar Service
+ *
+ * Handles all Google Calendar API operations including:
+ * - OAuth 2.0 authentication
+ * - Event CRUD operations
+ * - Recurring events
+ * - Batch operations
+ * - Webhook notifications
+ */
+export class GoogleCalendarService implements ICalendarService {
+  private oauth2Client: OAuth2Client;
+  private calendar: calendar_v3.Calendar;
+  private config: GoogleCalendarConfig;
+  private userId?: number;
+
+  /**
+   * Default OAuth scopes
+   */
+  private static readonly DEFAULT_SCOPES = [
+    'https://www.googleapis.com/auth/calendar',
+    'https://www.googleapis.com/auth/calendar.events',
+  ];
+
+  constructor(config: GoogleCalendarConfig) {
+    this.config = {
+      ...config,
+      scopes: config.scopes || GoogleCalendarService.DEFAULT_SCOPES,
+    };
+
+    this.oauth2Client = new google.auth.OAuth2(
+      this.config.clientId,
+      this.config.clientSecret,
+      this.config.redirectUri
+    );
+
+    this.calendar = google.calendar({ version: 'v3', auth: this.oauth2Client });
+  }
+
+  // ============================================================================
+  // Authentication Methods
+  // ============================================================================
+
+  /**
+   * Generate OAuth authorization URL
+   *
+   * @param state - Optional state parameter for CSRF protection
+   * @returns Authorization URL
+   */
+  getAuthUrl(state?: string): string {
+    return this.oauth2Client.generateAuthUrl({
+      access_type: 'offline',
+      scope: this.config.scopes,
+      state: state,
+      prompt: 'consent', // Force consent to get refresh token
+    });
+  }
+
+  /**
+   * Exchange authorization code for tokens
+   *
+   * @param code - Authorization code from OAuth callback
+   * @returns OAuth credentials
+   */
+  async getTokensFromCode(code: string): Promise<GoogleCredentials> {
+    const { tokens } = await this.oauth2Client.getToken(code);
+    return tokens as GoogleCredentials;
+  }
+
+  /**
+   * Set OAuth credentials
+   *
+   * @param credentials - OAuth credentials
+   * @param userId - Optional user ID for database storage
+   */
+  async setCredentials(credentials: GoogleCredentials, userId?: number): Promise<void> {
+    this.oauth2Client.setCredentials(credentials);
+    this.userId = userId;
+
+    // Save credentials to database if userId provided
+    if (userId) {
+      await this.saveCredentials(userId, credentials);
+    }
+
+    // Setup auto-refresh
+    this.oauth2Client.on('tokens', async (tokens) => {
+      if (tokens.refresh_token) {
+        // We have a new refresh token
+        await this.saveCredentials(userId!, {
+          ...credentials,
+          ...tokens,
+        } as GoogleCredentials);
+      }
+    });
+  }
+
+  /**
+   * Refresh access token
+   *
+   * @returns New credentials
+   */
+  async refreshAccessToken(): Promise<GoogleCredentials> {
+    const { credentials } = await this.oauth2Client.refreshAccessToken();
+    return credentials as GoogleCredentials;
+  }
+
+  /**
+   * Save credentials to database
+   *
+   * @param userId - User ID
+   * @param credentials - OAuth credentials
+   */
+  private async saveCredentials(userId: number, credentials: GoogleCredentials): Promise<void> {
+    const connection = await databaseAdapter.findFirst('calendarConnection', {
+      where: {
+        userId,
+        provider: 'google',
+      },
+    });
+
+    const data = {
+      userId,
+      provider: 'google',
+      calendarId: 'primary',
+      accessToken: credentials.access_token,
+      refreshToken: credentials.refresh_token,
+      tokenExpiry: credentials.expiry_date ? new Date(credentials.expiry_date) : undefined,
+      isActive: true,
+    };
+
+    if (connection) {
+      await databaseAdapter.update('calendarConnection', {
+        where: { id: connection.id },
+        data,
+      });
+    } else {
+      await databaseAdapter.create('calendarConnection', { data });
+    }
+  }
+
+  // ============================================================================
+  // Event CRUD Operations
+  // ============================================================================
+
+  /**
+   * Create calendar event
+   *
+   * @param options - Event creation options
+   * @returns Created event
+   */
+  async createEvent(options: GoogleEventCreateOptions): Promise<CalendarEvent> {
+    const calendarId = options.calendarId || 'primary';
+
+    const event: calendar_v3.Schema$Event = {
+      summary: options.summary,
+      description: options.description,
+      location: options.location,
+      start: options.start,
+      end: options.end,
+      attendees: options.attendees,
+      recurrence: options.recurrence,
+      reminders: options.reminders,
+      visibility: options.visibility,
+      colorId: options.colorId,
+      guestsCanModify: options.guestsCanModify,
+      guestsCanInviteOthers: options.guestsCanInviteOthers,
+      guestsCanSeeOtherGuests: options.guestsCanSeeOtherGuests,
+      conferenceData: options.conferenceData,
+    };
+
+    const response = await this.calendar.events.insert({
+      calendarId,
+      requestBody: event,
+      sendNotifications: options.sendNotifications,
+      conferenceDataVersion: options.conferenceData ? 1 : undefined,
+    });
+
+    const createdEvent = this.mapGoogleEventToCalendarEvent(response.data, calendarId);
+
+    // Save to database
+    await this.saveEventToDatabase(createdEvent);
+
+    return createdEvent;
+  }
+
+  /**
+   * Get event by ID
+   *
+   * @param eventId - Event ID
+   * @param calendarId - Calendar ID (default: 'primary')
+   * @returns Event
+   */
+  async getEvent(eventId: string, calendarId: string = 'primary'): Promise<CalendarEvent> {
+    const response = await this.calendar.events.get({
+      calendarId,
+      eventId,
+    });
+
+    return this.mapGoogleEventToCalendarEvent(response.data, calendarId);
+  }
+
+  /**
+   * Update event
+   *
+   * @param eventId - Event ID
+   * @param updates - Update data
+   * @returns Updated event
+   */
+  async updateEvent(
+    eventId: string,
+    updates: Partial<GoogleEventCreateOptions>
+  ): Promise<CalendarEvent> {
+    const calendarId = updates.calendarId || 'primary';
+
+    // Get existing event
+    const existing = await this.calendar.events.get({
+      calendarId,
+      eventId,
+    });
+
+    // Merge updates
+    const event: calendar_v3.Schema$Event = {
+      ...existing.data,
+      ...updates,
+    };
+
+    const response = await this.calendar.events.update({
+      calendarId,
+      eventId,
+      requestBody: event,
+      sendNotifications: updates.sendNotifications,
+    });
+
+    const updatedEvent = this.mapGoogleEventToCalendarEvent(response.data, calendarId);
+
+    // Update database
+    await this.updateEventInDatabase(updatedEvent);
+
+    return updatedEvent;
+  }
+
+  /**
+   * Delete event
+   *
+   * @param eventId - Event ID
+   * @param calendarId - Calendar ID (default: 'primary')
+   */
+  async deleteEvent(eventId: string, calendarId: string = 'primary'): Promise<void> {
+    await this.calendar.events.delete({
+      calendarId,
+      eventId,
+      sendNotifications: true,
+    });
+
+    // Mark as deleted in database
+    await this.deleteEventFromDatabase(eventId, calendarId);
+  }
+
+  /**
+   * List events
+   *
+   * @param options - List options
+   * @returns Array of events
+   */
+  async listEvents(options: GoogleEventListOptions = {}): Promise<CalendarEvent[]> {
+    const calendarId = options.calendarId || 'primary';
+
+    const response = await this.calendar.events.list({
+      calendarId,
+      timeMin: options.timeMin,
+      timeMax: options.timeMax,
+      maxResults: options.maxResults || 100,
+      pageToken: options.pageToken,
+      showDeleted: options.showDeleted || false,
+      singleEvents: options.singleEvents ?? true,
+      orderBy: options.orderBy,
+      q: options.q,
+    });
+
+    return (response.data.items || []).map((event) =>
+      this.mapGoogleEventToCalendarEvent(event, calendarId)
+    );
+  }
+
+  // ============================================================================
+  // Batch Operations
+  // ============================================================================
+
+  /**
+   * Batch create events
+   *
+   * @param events - Array of event creation options
+   * @returns Batch operation result
+   */
+  async batchCreateEvents(
+    events: GoogleEventCreateOptions[]
+  ): Promise<BatchOperationResult<CalendarEvent>> {
+    const results: CalendarEvent[] = [];
+    const failed: Array<{ index: number; error: string; data: any }> = [];
+
+    for (let i = 0; i < events.length; i++) {
+      try {
+        const event = await this.createEvent(events[i]);
+        results.push(event);
+      } catch (error) {
+        failed.push({
+          index: i,
+          error: error instanceof Error ? error.message : 'Unknown error',
+          data: events[i],
+        });
+      }
+    }
+
+    return {
+      successful: results,
+      failed,
+      total: events.length,
+      successCount: results.length,
+      failureCount: failed.length,
+    };
+  }
+
+  /**
+   * Batch update events
+   *
+   * @param updates - Array of event updates
+   * @returns Batch operation result
+   */
+  async batchUpdateEvents(
+    updates: Array<{ id: string; updates: Partial<GoogleEventCreateOptions> }>
+  ): Promise<BatchOperationResult<CalendarEvent>> {
+    const results: CalendarEvent[] = [];
+    const failed: Array<{ index: number; error: string; data: any }> = [];
+
+    for (let i = 0; i < updates.length; i++) {
+      try {
+        const event = await this.updateEvent(updates[i].id, updates[i].updates);
+        results.push(event);
+      } catch (error) {
+        failed.push({
+          index: i,
+          error: error instanceof Error ? error.message : 'Unknown error',
+          data: updates[i],
+        });
+      }
+    }
+
+    return {
+      successful: results,
+      failed,
+      total: updates.length,
+      successCount: results.length,
+      failureCount: failed.length,
+    };
+  }
+
+  /**
+   * Batch delete events
+   *
+   * @param eventIds - Array of event IDs
+   * @param calendarId - Calendar ID
+   * @returns Batch operation result
+   */
+  async batchDeleteEvents(
+    eventIds: string[],
+    calendarId: string = 'primary'
+  ): Promise<BatchOperationResult<string>> {
+    const results: string[] = [];
+    const failed: Array<{ index: number; error: string; data: any }> = [];
+
+    for (let i = 0; i < eventIds.length; i++) {
+      try {
+        await this.deleteEvent(eventIds[i], calendarId);
+        results.push(eventIds[i]);
+      } catch (error) {
+        failed.push({
+          index: i,
+          error: error instanceof Error ? error.message : 'Unknown error',
+          data: eventIds[i],
+        });
+      }
+    }
+
+    return {
+      successful: results,
+      failed,
+      total: eventIds.length,
+      successCount: results.length,
+      failureCount: failed.length,
+    };
+  }
+
+  // ============================================================================
+  // Webhook / Change Notifications
+  // ============================================================================
+
+  /**
+   * Watch calendar for changes
+   *
+   * @param options - Watch options
+   * @returns Watch channel
+   */
+  async watchEvents(options: {
+    calendarId?: string;
+    webhookUrl: string;
+    ttl?: number;
+  }): Promise<GoogleWatchChannel> {
+    const calendarId = options.calendarId || 'primary';
+    const channelId = `google-calendar-${calendarId}-${Date.now()}`;
+
+    const response = await this.calendar.events.watch({
+      calendarId,
+      requestBody: {
+        id: channelId,
+        type: 'web_hook',
+        address: options.webhookUrl,
+        expiration: options.ttl ? Date.now() + options.ttl : undefined,
+      },
+    });
+
+    return {
+      id: response.data.id!,
+      resourceId: response.data.resourceId!,
+      resourceUri: response.data.resourceUri!,
+      expiration: parseInt(response.data.expiration!),
+    };
+  }
+
+  /**
+   * Stop watching calendar
+   *
+   * @param channelId - Channel ID
+   * @param resourceId - Resource ID
+   */
+  async stopWatch(channelId: string, resourceId: string): Promise<void> {
+    await this.calendar.channels.stop({
+      requestBody: {
+        id: channelId,
+        resourceId: resourceId,
+      },
+    });
+  }
+
+  /**
+   * Verify webhook notification
+   *
+   * @param headers - Request headers
+   * @param channelId - Expected channel ID
+   * @returns Whether notification is valid
+   */
+  verifyWebhook(headers: Record<string, string>, channelId: string): boolean {
+    const receivedChannelId = headers['x-goog-channel-id'];
+    const resourceState = headers['x-goog-resource-state'];
+
+    return receivedChannelId === channelId && !!resourceState;
+  }
+
+  // ============================================================================
+  // Helper Methods
+  // ============================================================================
+
+  /**
+   * Map Google Calendar event to CalendarEvent
+   *
+   * @param googleEvent - Google Calendar event
+   * @param calendarId - Calendar ID
+   * @returns CalendarEvent
+   */
+  private mapGoogleEventToCalendarEvent(
+    googleEvent: calendar_v3.Schema$Event,
+    calendarId: string
+  ): CalendarEvent {
+    return {
+      id: googleEvent.id!,
+      provider: 'google',
+      calendarId,
+      summary: googleEvent.summary || '',
+      description: googleEvent.description,
+      location: googleEvent.location,
+      start: googleEvent.start!,
+      end: googleEvent.end!,
+      attendees: googleEvent.attendees?.map((a) => ({
+        email: a.email!,
+        displayName: a.displayName,
+        optional: a.optional,
+        responseStatus: a.responseStatus as any,
+        comment: a.comment,
+      })),
+      organizer: googleEvent.organizer
+        ? {
+            email: googleEvent.organizer.email!,
+            displayName: googleEvent.organizer.displayName,
+          }
+        : undefined,
+      status: googleEvent.status as any,
+      visibility: googleEvent.visibility as any,
+      reminders: googleEvent.reminders as any,
+      recurrence: googleEvent.recurrence,
+      recurringEventId: googleEvent.recurringEventId,
+      created: googleEvent.created,
+      updated: googleEvent.updated,
+      iCalUID: googleEvent.iCalUID,
+      htmlLink: googleEvent.htmlLink,
+      attachments: googleEvent.attachments?.map((a) => ({
+        fileUrl: a.fileUrl!,
+        title: a.title,
+        mimeType: a.mimeType,
+        iconLink: a.iconLink,
+        fileId: a.fileId,
+      })),
+      colorId: googleEvent.colorId,
+      metadata: {
+        hangoutLink: googleEvent.hangoutLink,
+        conferenceData: googleEvent.conferenceData,
+      },
+    };
+  }
+
+  /**
+   * Save event to database
+   *
+   * @param event - Calendar event
+   */
+  private async saveEventToDatabase(event: CalendarEvent): Promise<void> {
+    if (!this.userId) return;
+
+    await databaseAdapter.create('calendarEvent', {
+      data: {
+        externalId: event.id,
+        provider: event.provider,
+        calendarId: event.calendarId,
+        userId: this.userId,
+        summary: event.summary,
+        description: event.description,
+        location: typeof event.location === 'string' ? event.location : undefined,
+        startTime: 'dateTime' in event.start ? new Date(event.start.dateTime) : undefined,
+        endTime: 'dateTime' in event.end ? new Date(event.end.dateTime) : undefined,
+        isAllDay: 'date' in event.start,
+        recurrence: event.recurrence,
+        status: event.status,
+        metadata: event,
+      },
+    });
+  }
+
+  /**
+   * Update event in database
+   *
+   * @param event - Calendar event
+   */
+  private async updateEventInDatabase(event: CalendarEvent): Promise<void> {
+    if (!this.userId) return;
+
+    const existing = await databaseAdapter.findFirst('calendarEvent', {
+      where: {
+        externalId: event.id,
+        provider: 'google',
+      },
+    });
+
+    if (existing) {
+      await databaseAdapter.update('calendarEvent', {
+        where: { id: existing.id },
+        data: {
+          summary: event.summary,
+          description: event.description,
+          location: typeof event.location === 'string' ? event.location : undefined,
+          startTime: 'dateTime' in event.start ? new Date(event.start.dateTime) : undefined,
+          endTime: 'dateTime' in event.end ? new Date(event.end.dateTime) : undefined,
+          metadata: event,
+        },
+      });
+    }
+  }
+
+  /**
+   * Delete event from database
+   *
+   * @param eventId - Event ID
+   * @param calendarId - Calendar ID
+   */
+  private async deleteEventFromDatabase(eventId: string, calendarId: string): Promise<void> {
+    await databaseAdapter.deleteMany('calendarEvent', {
+      where: {
+        externalId: eventId,
+        provider: 'google',
+        calendarId,
+      },
+    });
+  }
+}

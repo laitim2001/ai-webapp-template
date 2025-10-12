@@ -47,5 +47,8 @@ Thumbs.db
 Docs/*.backup
 Docs/*-insert.txt
 
+# Machine-readable index (auto-generated)
+.template-files.json
+
 # Test projects (integration tests)
 test-projects/

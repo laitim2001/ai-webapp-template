@@ -1,0 +1,349 @@
+/**
+ * Analytics Type Definitions
+ *
+ * TypeScript type definitions for analytics module.
+ */
+
+/**
+ * Analytics event types
+ */
+export type AnalyticsEventType =
+  | 'pageview'
+  | 'click'
+  | 'form_submit'
+  | 'purchase'
+  | 'signup'
+  | 'login'
+  | 'logout'
+  | 'search'
+  | 'video_play'
+  | 'video_complete'
+  | 'download'
+  | 'share'
+  | 'custom';
+
+/**
+ * Device types
+ */
+export type DeviceType = 'desktop' | 'mobile' | 'tablet';
+
+/**
+ * Time grouping options
+ */
+export type TimeGrouping = 'hour' | 'day' | 'week' | 'month' | 'year';
+
+/**
+ * Analytics event interface
+ */
+export interface AnalyticsEvent {
+  id?: string;
+  projectId: string;
+  eventType: AnalyticsEventType | string;
+  eventName: string;
+  userId?: string | null;
+  sessionId?: string;
+  timestamp: Date;
+  properties?: Record<string, any>;
+  pageUrl?: string;
+  referrer?: string;
+  userAgent?: string;
+  ipAddress?: string;
+  deviceType?: DeviceType;
+  browser?: string;
+  os?: string;
+  createdAt?: Date;
+  updatedAt?: Date;
+}
+
+/**
+ * Tracker configuration
+ */
+export interface TrackerConfig {
+  projectId: string;
+  userId?: string | null;
+  sessionId?: string;
+  enableAutoTracking?: boolean;
+  batchSize?: number;
+  flushInterval?: number;
+  debug?: boolean;
+}
+
+/**
+ * Page view event
+ */
+export interface PageViewEvent {
+  url: string;
+  title: string;
+  referrer?: string;
+  properties?: Record<string, any>;
+}
+
+/**
+ * Custom event
+ */
+export interface CustomEvent {
+  eventType: string;
+  eventName: string;
+  properties?: Record<string, any>;
+}
+
+/**
+ * Session data
+ */
+export interface SessionData {
+  id?: string;
+  sessionId: string;
+  projectId?: string;
+  userId?: string | null;
+  startTime: Date;
+  endTime?: Date;
+  lastActivityTime: Date;
+  pageViews: number;
+  events: number;
+  deviceType?: DeviceType;
+  browser?: string;
+  os?: string;
+  ipAddress?: string;
+  createdAt?: Date;
+  updatedAt?: Date;
+}
+
+/**
+ * Report options
+ */
+export interface ReportOptions {
+  projectId: string;
+  startDate: Date;
+  endDate: Date;
+  userId?: string;
+  eventType?: AnalyticsEventType | string;
+  groupBy?: TimeGrouping;
+  timezone?: string;
+}
+
+/**
+ * Analytics metrics
+ */
+export interface AnalyticsMetrics {
+  totalEvents: number;
+  totalUsers: number;
+  totalSessions: number;
+  avgSessionDuration: number;
+  avgEventsPerSession: number;
+  avgPageViewsPerSession: number;
+  bounceRate: number;
+  topEvents: EventCount[];
+  topPages: PageCount[];
+  deviceBreakdown: DeviceCount[];
+  browserBreakdown: BrowserCount[];
+}
+
+/**
+ * Event count
+ */
+export interface EventCount {
+  eventName: string;
+  count: number;
+}
+
+/**
+ * Page count
+ */
+export interface PageCount {
+  url: string;
+  count: number;
+}
+
+/**
+ * Device count
+ */
+export interface DeviceCount {
+  deviceType: string;
+  count: number;
+}
+
+/**
+ * Browser count
+ */
+export interface BrowserCount {
+  browser: string;
+  count: number;
+}
+
+/**
+ * Time series data point
+ */
+export interface TimeSeriesData {
+  date: string;
+  events: number;
+  users: number;
+  sessions: number;
+}
+
+/**
+ * Funnel step definition
+ */
+export interface FunnelStep {
+  name: string;
+  eventName: string;
+  users?: number;
+  conversionRate?: number;
+}
+
+/**
+ * Funnel analysis result
+ */
+export interface FunnelAnalysis {
+  steps: FunnelStep[];
+  totalUsers: number;
+  overallConversionRate: number;
+}
+
+/**
+ * Cohort retention data
+ */
+export interface CohortData {
+  cohortDate: string;
+  cohortSize: number;
+  retention: RetentionPeriod[];
+}
+
+/**
+ * Retention period data
+ */
+export interface RetentionPeriod {
+  period: number;
+  users: number;
+  rate: number;
+}
+
+/**
+ * Export format
+ */
+export interface ExportFormat {
+  format: 'csv' | 'json';
+  data: any[];
+}
+
+/**
+ * Dashboard metrics
+ */
+export interface DashboardMetrics {
+  overview: {
+    totalUsers: number;
+    totalSessions: number;
+    totalPageViews: number;
+    avgSessionDuration: number;
+    bounceRate: number;
+  };
+  trends: {
+    usersChange: number;
+    sessionsChange: number;
+    pageViewsChange: number;
+    durationChange: number;
+  };
+  topPages: PageCount[];
+  topEvents: EventCount[];
+  deviceStats: DeviceCount[];
+  browserStats: BrowserCount[];
+}
+
+/**
+ * Date range preset
+ */
+export type DateRangePreset =
+  | 'today'
+  | 'yesterday'
+  | 'last7days'
+  | 'last30days'
+  | 'last90days'
+  | 'thisMonth'
+  | 'lastMonth'
+  | 'custom';
+
+/**
+ * Date range
+ */
+export interface DateRange {
+  startDate: Date;
+  endDate: Date;
+  preset?: DateRangePreset;
+}
+
+/**
+ * Chart data point
+ */
+export interface ChartDataPoint {
+  label: string;
+  value: number;
+  date?: string;
+}
+
+/**
+ * Metric card data
+ */
+export interface MetricCard {
+  title: string;
+  value: number | string;
+  change?: number;
+  changeType?: 'increase' | 'decrease' | 'neutral';
+  format?: 'number' | 'percentage' | 'duration' | 'currency';
+}
+
+/**
+ * Analytics tracker instance
+ */
+export interface AnalyticsTracker {
+  track(event: Omit<AnalyticsEvent, 'id' | 'projectId' | 'userId' | 'sessionId' | 'timestamp'>): Promise<void>;
+  trackPageView(event: PageViewEvent): Promise<void>;
+  setUserId(userId: string | null): void;
+  endSession(): Promise<void>;
+  flush(): Promise<void>;
+  getSessionId(): string | undefined;
+  getQueueSize(): number;
+}
+
+/**
+ * Analytics reporter instance
+ */
+export interface AnalyticsReporter {
+  getMetrics(options: ReportOptions): Promise<AnalyticsMetrics>;
+  getTimeSeries(options: ReportOptions): Promise<TimeSeriesData[]>;
+  analyzeFunnel(projectId: string, steps: FunnelStep[], startDate: Date, endDate: Date): Promise<FunnelAnalysis>;
+  analyzeCohorts(projectId: string, startDate: Date, endDate: Date, periods?: number): Promise<CohortData[]>;
+  exportData(options: ReportOptions, format?: 'csv' | 'json'): Promise<ExportFormat>;
+  convertToCSV(data: any[]): string;
+}
+
+/**
+ * Analytics service configuration
+ */
+export interface AnalyticsServiceConfig {
+  projectId: string;
+  enableTracking?: boolean;
+  enableAutoPageViews?: boolean;
+  batchSize?: number;
+  flushInterval?: number;
+  debug?: boolean;
+}
+
+/**
+ * Analytics hook return type
+ */
+export interface UseAnalyticsReturn {
+  track: (event: CustomEvent) => void;
+  trackPageView: (event: PageViewEvent) => void;
+  setUserId: (userId: string | null) => void;
+  sessionId?: string;
+  isReady: boolean;
+}
+
+/**
+ * Dashboard filter options
+ */
+export interface DashboardFilters {
+  dateRange: DateRange;
+  userId?: string;
+  deviceType?: DeviceType;
+  eventType?: AnalyticsEventType | string;
+}

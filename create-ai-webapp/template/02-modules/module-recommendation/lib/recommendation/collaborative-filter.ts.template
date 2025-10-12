@@ -1,0 +1,735 @@
+/**
+ * Collaborative Filtering Recommender
+ *
+ * Implements user-based, item-based, and hybrid collaborative filtering
+ * with matrix factorization support.
+ */
+
+import { Matrix, SingularValueDecomposition } from 'ml-matrix';
+
+export interface UserInteraction {
+  userId: string;
+  itemId: string;
+  rating: number;
+  timestamp: number;
+  context?: Record<string, any>;
+}
+
+export interface RecommendationResult {
+  itemId: string;
+  score: number;
+  reason?: string;
+  metadata?: Record<string, any>;
+}
+
+export interface SimilarityResult {
+  id: string;
+  similarity: number;
+}
+
+export interface CollaborativeFilterOptions {
+  algorithm?: 'user-based' | 'item-based' | 'hybrid';
+  similarityMetric?: 'cosine' | 'pearson';
+  minSimilarity?: number;
+  neighborhoodSize?: number;
+  matrixFactorization?: boolean;
+  numFactors?: number;
+  learningRate?: number;
+  regularization?: number;
+  iterations?: number;
+}
+
+export interface RecommendOptions {
+  limit?: number;
+  excludeInteracted?: boolean;
+  minScore?: number;
+}
+
+export interface SimilarityOptions {
+  limit?: number;
+  minSimilarity?: number;
+}
+
+/**
+ * Collaborative Filtering Recommender
+ */
+export class CollaborativeFilterRecommender {
+  private options: Required<CollaborativeFilterOptions>;
+  private userItemMatrix: Map<string, Map<string, number>> = new Map();
+  private itemUserMatrix: Map<string, Map<string, number>> = new Map();
+  private userSimilarities: Map<string, Map<string, number>> = new Map();
+  private itemSimilarities: Map<string, Map<string, number>> = new Map();
+  private userFactors: Map<string, number[]> = new Map();
+  private itemFactors: Map<string, number[]> = new Map();
+  private globalMean: number = 0;
+  private userMeans: Map<string, number> = new Map();
+  private itemMeans: Map<string, number> = new Map();
+
+  constructor(options: CollaborativeFilterOptions = {}) {
+    this.options = {
+      algorithm: options.algorithm || 'user-based',
+      similarityMetric: options.similarityMetric || 'cosine',
+      minSimilarity: options.minSimilarity ?? 0.0,
+      neighborhoodSize: options.neighborhoodSize ?? 20,
+      matrixFactorization: options.matrixFactorization ?? false,
+      numFactors: options.numFactors ?? 10,
+      learningRate: options.learningRate ?? 0.01,
+      regularization: options.regularization ?? 0.1,
+      iterations: options.iterations ?? 100,
+    };
+  }
+
+  /**
+   * Train the recommender model
+   */
+  async train(interactions: UserInteraction[]): Promise<void> {
+    // Build rating matrices
+    this.buildMatrices(interactions);
+
+    // Calculate means
+    this.calculateMeans();
+
+    // Train based on algorithm
+    if (this.options.matrixFactorization) {
+      await this.trainMatrixFactorization();
+    } else {
+      if (this.options.algorithm === 'user-based' || this.options.algorithm === 'hybrid') {
+        await this.calculateUserSimilarities();
+      }
+      if (this.options.algorithm === 'item-based' || this.options.algorithm === 'hybrid') {
+        await this.calculateItemSimilarities();
+      }
+    }
+  }
+
+  /**
+   * Recommend items for a user
+   */
+  async recommendForUser(
+    userId: string,
+    options: RecommendOptions = {}
+  ): Promise<RecommendationResult[]> {
+    const {
+      limit = 10,
+      excludeInteracted = true,
+      minScore = 0,
+    } = options;
+
+    const userRatings = this.userItemMatrix.get(userId);
+    if (!userRatings && !this.options.matrixFactorization) {
+      // Cold start - return popular items
+      return this.getPopularItems(limit);
+    }
+
+    const predictions = new Map<string, number>();
+
+    // Get all items
+    const allItems = new Set<string>();
+    for (const items of this.userItemMatrix.values()) {
+      for (const itemId of items.keys()) {
+        allItems.add(itemId);
+      }
+    }
+
+    // Predict ratings for all items
+    for (const itemId of allItems) {
+      // Skip if user already interacted and excludeInteracted is true
+      if (excludeInteracted && userRatings?.has(itemId)) {
+        continue;
+      }
+
+      const prediction = await this.predictRating(userId, itemId);
+
+      if (prediction >= minScore) {
+        predictions.set(itemId, prediction);
+      }
+    }
+
+    // Sort by predicted rating
+    const sorted = Array.from(predictions.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, limit);
+
+    return sorted.map(([itemId, score]) => ({
+      itemId,
+      score,
+      reason: this.getRecommendationReason(),
+    }));
+  }
+
+  /**
+   * Predict rating for a user-item pair
+   */
+  async predictRating(userId: string, itemId: string): Promise<number> {
+    if (this.options.matrixFactorization) {
+      return this.predictWithMatrixFactorization(userId, itemId);
+    }
+
+    switch (this.options.algorithm) {
+      case 'user-based':
+        return this.predictWithUserBased(userId, itemId);
+      case 'item-based':
+        return this.predictWithItemBased(userId, itemId);
+      case 'hybrid':
+        const userPred = this.predictWithUserBased(userId, itemId);
+        const itemPred = this.predictWithItemBased(userId, itemId);
+        return (userPred + itemPred) / 2;
+      default:
+        return this.globalMean;
+    }
+  }
+
+  /**
+   * Get similar users
+   */
+  async getSimilarUsers(
+    userId: string,
+    options: SimilarityOptions = {}
+  ): Promise<SimilarityResult[]> {
+    const {
+      limit = 10,
+      minSimilarity = this.options.minSimilarity,
+    } = options;
+
+    const similarities = this.userSimilarities.get(userId);
+    if (!similarities) {
+      return [];
+    }
+
+    return Array.from(similarities.entries())
+      .filter(([_, sim]) => sim >= minSimilarity)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, limit)
+      .map(([id, similarity]) => ({ id, similarity }));
+  }
+
+  /**
+   * Get similar items
+   */
+  async getSimilarItems(
+    itemId: string,
+    options: SimilarityOptions = {}
+  ): Promise<SimilarityResult[]> {
+    const {
+      limit = 10,
+      minSimilarity = this.options.minSimilarity,
+    } = options;
+
+    const similarities = this.itemSimilarities.get(itemId);
+    if (!similarities) {
+      return [];
+    }
+
+    return Array.from(similarities.entries())
+      .filter(([_, sim]) => sim >= minSimilarity)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, limit)
+      .map(([id, similarity]) => ({ id, similarity }));
+  }
+
+  /**
+   * Update a single interaction
+   */
+  async updateInteraction(interaction: UserInteraction): Promise<void> {
+    const { userId, itemId, rating } = interaction;
+
+    // Update matrices
+    if (!this.userItemMatrix.has(userId)) {
+      this.userItemMatrix.set(userId, new Map());
+    }
+    this.userItemMatrix.get(userId)!.set(itemId, rating);
+
+    if (!this.itemUserMatrix.has(itemId)) {
+      this.itemUserMatrix.set(itemId, new Map());
+    }
+    this.itemUserMatrix.get(itemId)!.set(userId, rating);
+
+    // Recalculate affected similarities (incremental update)
+    if (!this.options.matrixFactorization) {
+      if (this.options.algorithm === 'user-based' || this.options.algorithm === 'hybrid') {
+        await this.updateUserSimilarities(userId);
+      }
+      if (this.options.algorithm === 'item-based' || this.options.algorithm === 'hybrid') {
+        await this.updateItemSimilarities(itemId);
+      }
+    }
+  }
+
+  /**
+   * Build rating matrices from interactions
+   */
+  private buildMatrices(interactions: UserInteraction[]): void {
+    this.userItemMatrix.clear();
+    this.itemUserMatrix.clear();
+
+    for (const interaction of interactions) {
+      const { userId, itemId, rating } = interaction;
+
+      // User-Item matrix
+      if (!this.userItemMatrix.has(userId)) {
+        this.userItemMatrix.set(userId, new Map());
+      }
+      this.userItemMatrix.get(userId)!.set(itemId, rating);
+
+      // Item-User matrix
+      if (!this.itemUserMatrix.has(itemId)) {
+        this.itemUserMatrix.set(itemId, new Map());
+      }
+      this.itemUserMatrix.get(itemId)!.set(userId, rating);
+    }
+  }
+
+  /**
+   * Calculate mean ratings
+   */
+  private calculateMeans(): void {
+    let totalRating = 0;
+    let totalCount = 0;
+
+    // Calculate global mean and user means
+    for (const [userId, items] of this.userItemMatrix.entries()) {
+      let userTotal = 0;
+      let userCount = 0;
+
+      for (const rating of items.values()) {
+        userTotal += rating;
+        userCount++;
+        totalRating += rating;
+        totalCount++;
+      }
+
+      this.userMeans.set(userId, userTotal / userCount);
+    }
+
+    this.globalMean = totalCount > 0 ? totalRating / totalCount : 0;
+
+    // Calculate item means
+    for (const [itemId, users] of this.itemUserMatrix.entries()) {
+      let itemTotal = 0;
+      let itemCount = 0;
+
+      for (const rating of users.values()) {
+        itemTotal += rating;
+        itemCount++;
+      }
+
+      this.itemMeans.set(itemId, itemTotal / itemCount);
+    }
+  }
+
+  /**
+   * Calculate user-user similarities
+   */
+  private async calculateUserSimilarities(): Promise<void> {
+    const users = Array.from(this.userItemMatrix.keys());
+
+    for (let i = 0; i < users.length; i++) {
+      const userA = users[i];
+      const similarities = new Map<string, number>();
+
+      for (let j = 0; j < users.length; j++) {
+        if (i === j) continue;
+
+        const userB = users[j];
+        const similarity = this.calculateSimilarity(
+          this.userItemMatrix.get(userA)!,
+          this.userItemMatrix.get(userB)!,
+          this.options.similarityMetric
+        );
+
+        if (similarity >= this.options.minSimilarity) {
+          similarities.set(userB, similarity);
+        }
+      }
+
+      this.userSimilarities.set(userA, similarities);
+    }
+  }
+
+  /**
+   * Calculate item-item similarities
+   */
+  private async calculateItemSimilarities(): Promise<void> {
+    const items = Array.from(this.itemUserMatrix.keys());
+
+    for (let i = 0; i < items.length; i++) {
+      const itemA = items[i];
+      const similarities = new Map<string, number>();
+
+      for (let j = 0; j < items.length; j++) {
+        if (i === j) continue;
+
+        const itemB = items[j];
+        const similarity = this.calculateSimilarity(
+          this.itemUserMatrix.get(itemA)!,
+          this.itemUserMatrix.get(itemB)!,
+          this.options.similarityMetric
+        );
+
+        if (similarity >= this.options.minSimilarity) {
+          similarities.set(itemB, similarity);
+        }
+      }
+
+      this.itemSimilarities.set(itemA, similarities);
+    }
+  }
+
+  /**
+   * Update user similarities incrementally
+   */
+  private async updateUserSimilarities(userId: string): Promise<void> {
+    const similarities = new Map<string, number>();
+    const userRatings = this.userItemMatrix.get(userId);
+
+    if (!userRatings) return;
+
+    for (const [otherUserId, otherRatings] of this.userItemMatrix.entries()) {
+      if (userId === otherUserId) continue;
+
+      const similarity = this.calculateSimilarity(
+        userRatings,
+        otherRatings,
+        this.options.similarityMetric
+      );
+
+      if (similarity >= this.options.minSimilarity) {
+        similarities.set(otherUserId, similarity);
+      }
+    }
+
+    this.userSimilarities.set(userId, similarities);
+  }
+
+  /**
+   * Update item similarities incrementally
+   */
+  private async updateItemSimilarities(itemId: string): Promise<void> {
+    const similarities = new Map<string, number>();
+    const itemRatings = this.itemUserMatrix.get(itemId);
+
+    if (!itemRatings) return;
+
+    for (const [otherItemId, otherRatings] of this.itemUserMatrix.entries()) {
+      if (itemId === otherItemId) continue;
+
+      const similarity = this.calculateSimilarity(
+        itemRatings,
+        otherRatings,
+        this.options.similarityMetric
+      );
+
+      if (similarity >= this.options.minSimilarity) {
+        similarities.set(otherItemId, similarity);
+      }
+    }
+
+    this.itemSimilarities.set(itemId, similarities);
+  }
+
+  /**
+   * Calculate similarity between two rating vectors
+   */
+  private calculateSimilarity(
+    ratingsA: Map<string, number>,
+    ratingsB: Map<string, number>,
+    metric: 'cosine' | 'pearson'
+  ): number {
+    // Find common items/users
+    const commonKeys = new Set<string>();
+    for (const key of ratingsA.keys()) {
+      if (ratingsB.has(key)) {
+        commonKeys.add(key);
+      }
+    }
+
+    if (commonKeys.size === 0) {
+      return 0;
+    }
+
+    if (metric === 'cosine') {
+      return this.cosineSimilarity(ratingsA, ratingsB, commonKeys);
+    } else {
+      return this.pearsonCorrelation(ratingsA, ratingsB, commonKeys);
+    }
+  }
+
+  /**
+   * Calculate cosine similarity
+   */
+  private cosineSimilarity(
+    ratingsA: Map<string, number>,
+    ratingsB: Map<string, number>,
+    commonKeys: Set<string>
+  ): number {
+    let dotProduct = 0;
+    let normA = 0;
+    let normB = 0;
+
+    for (const key of commonKeys) {
+      const a = ratingsA.get(key)!;
+      const b = ratingsB.get(key)!;
+      dotProduct += a * b;
+      normA += a * a;
+      normB += b * b;
+    }
+
+    normA = Math.sqrt(normA);
+    normB = Math.sqrt(normB);
+
+    if (normA === 0 || normB === 0) {
+      return 0;
+    }
+
+    return dotProduct / (normA * normB);
+  }
+
+  /**
+   * Calculate Pearson correlation
+   */
+  private pearsonCorrelation(
+    ratingsA: Map<string, number>,
+    ratingsB: Map<string, number>,
+    commonKeys: Set<string>
+  ): number {
+    // Calculate means
+    let sumA = 0;
+    let sumB = 0;
+    const n = commonKeys.size;
+
+    for (const key of commonKeys) {
+      sumA += ratingsA.get(key)!;
+      sumB += ratingsB.get(key)!;
+    }
+
+    const meanA = sumA / n;
+    const meanB = sumB / n;
+
+    // Calculate correlation
+    let numerator = 0;
+    let denomA = 0;
+    let denomB = 0;
+
+    for (const key of commonKeys) {
+      const diffA = ratingsA.get(key)! - meanA;
+      const diffB = ratingsB.get(key)! - meanB;
+      numerator += diffA * diffB;
+      denomA += diffA * diffA;
+      denomB += diffB * diffB;
+    }
+
+    const denominator = Math.sqrt(denomA * denomB);
+
+    if (denominator === 0) {
+      return 0;
+    }
+
+    return numerator / denominator;
+  }
+
+  /**
+   * Predict rating using user-based CF
+   */
+  private predictWithUserBased(userId: string, itemId: string): number {
+    const userSims = this.userSimilarities.get(userId);
+    if (!userSims) {
+      return this.itemMeans.get(itemId) || this.globalMean;
+    }
+
+    // Get neighbors who rated this item
+    const neighbors: Array<{ userId: string; similarity: number; rating: number }> = [];
+
+    for (const [neighborId, similarity] of userSims.entries()) {
+      const neighborRating = this.userItemMatrix.get(neighborId)?.get(itemId);
+      if (neighborRating !== undefined) {
+        neighbors.push({ userId: neighborId, similarity, rating: neighborRating });
+      }
+    }
+
+    if (neighbors.length === 0) {
+      return this.itemMeans.get(itemId) || this.globalMean;
+    }
+
+    // Sort by similarity and take top K
+    neighbors.sort((a, b) => b.similarity - a.similarity);
+    const topNeighbors = neighbors.slice(0, this.options.neighborhoodSize);
+
+    // Calculate weighted average
+    const userMean = this.userMeans.get(userId) || this.globalMean;
+    let numerator = 0;
+    let denominator = 0;
+
+    for (const neighbor of topNeighbors) {
+      const neighborMean = this.userMeans.get(neighbor.userId) || this.globalMean;
+      numerator += neighbor.similarity * (neighbor.rating - neighborMean);
+      denominator += Math.abs(neighbor.similarity);
+    }
+
+    if (denominator === 0) {
+      return this.itemMeans.get(itemId) || this.globalMean;
+    }
+
+    return userMean + numerator / denominator;
+  }
+
+  /**
+   * Predict rating using item-based CF
+   */
+  private predictWithItemBased(userId: string, itemId: string): number {
+    const itemSims = this.itemSimilarities.get(itemId);
+    if (!itemSims) {
+      return this.userMeans.get(userId) || this.globalMean;
+    }
+
+    const userRatings = this.userItemMatrix.get(userId);
+    if (!userRatings) {
+      return this.itemMeans.get(itemId) || this.globalMean;
+    }
+
+    // Get similar items that user has rated
+    const similarItems: Array<{ itemId: string; similarity: number; rating: number }> = [];
+
+    for (const [similarItemId, similarity] of itemSims.entries()) {
+      const rating = userRatings.get(similarItemId);
+      if (rating !== undefined) {
+        similarItems.push({ itemId: similarItemId, similarity, rating });
+      }
+    }
+
+    if (similarItems.length === 0) {
+      return this.userMeans.get(userId) || this.globalMean;
+    }
+
+    // Sort by similarity and take top K
+    similarItems.sort((a, b) => b.similarity - a.similarity);
+    const topItems = similarItems.slice(0, this.options.neighborhoodSize);
+
+    // Calculate weighted average
+    let numerator = 0;
+    let denominator = 0;
+
+    for (const item of topItems) {
+      numerator += item.similarity * item.rating;
+      denominator += Math.abs(item.similarity);
+    }
+
+    if (denominator === 0) {
+      return this.userMeans.get(userId) || this.globalMean;
+    }
+
+    return numerator / denominator;
+  }
+
+  /**
+   * Train matrix factorization model
+   */
+  private async trainMatrixFactorization(): Promise<void> {
+    // Initialize factors randomly
+    const users = Array.from(this.userItemMatrix.keys());
+    const items = Array.from(this.itemUserMatrix.keys());
+
+    for (const userId of users) {
+      this.userFactors.set(userId, this.randomVector(this.options.numFactors));
+    }
+
+    for (const itemId of items) {
+      this.itemFactors.set(itemId, this.randomVector(this.options.numFactors));
+    }
+
+    // Stochastic gradient descent
+    for (let iter = 0; iter < this.options.iterations; iter++) {
+      for (const [userId, items] of this.userItemMatrix.entries()) {
+        for (const [itemId, rating] of items.entries()) {
+          const prediction = this.dotProduct(
+            this.userFactors.get(userId)!,
+            this.itemFactors.get(itemId)!
+          );
+
+          const error = rating - prediction;
+
+          // Update factors
+          const userFactor = this.userFactors.get(userId)!;
+          const itemFactor = this.itemFactors.get(itemId)!;
+
+          for (let f = 0; f < this.options.numFactors; f++) {
+            const uf = userFactor[f];
+            const if_ = itemFactor[f];
+
+            userFactor[f] += this.options.learningRate * (error * if_ - this.options.regularization * uf);
+            itemFactor[f] += this.options.learningRate * (error * uf - this.options.regularization * if_);
+          }
+        }
+      }
+    }
+  }
+
+  /**
+   * Predict with matrix factorization
+   */
+  private predictWithMatrixFactorization(userId: string, itemId: string): number {
+    const userFactor = this.userFactors.get(userId);
+    const itemFactor = this.itemFactors.get(itemId);
+
+    if (!userFactor || !itemFactor) {
+      return this.globalMean;
+    }
+
+    return this.dotProduct(userFactor, itemFactor);
+  }
+
+  /**
+   * Generate random vector
+   */
+  private randomVector(length: number): number[] {
+    return Array.from({ length }, () => Math.random() * 0.1);
+  }
+
+  /**
+   * Calculate dot product of two vectors
+   */
+  private dotProduct(vecA: number[], vecB: number[]): number {
+    let sum = 0;
+    for (let i = 0; i < vecA.length; i++) {
+      sum += vecA[i] * vecB[i];
+    }
+    return sum;
+  }
+
+  /**
+   * Get popular items (for cold start)
+   */
+  private getPopularItems(limit: number): RecommendationResult[] {
+    const itemPopularity = new Map<string, number>();
+
+    for (const users of this.itemUserMatrix.values()) {
+      for (const [itemId] of users.entries()) {
+        itemPopularity.set(itemId, (itemPopularity.get(itemId) || 0) + 1);
+      }
+    }
+
+    return Array.from(itemPopularity.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, limit)
+      .map(([itemId, count]) => ({
+        itemId,
+        score: count,
+        reason: 'Popular item',
+      }));
+  }
+
+  /**
+   * Get recommendation reason based on algorithm
+   */
+  private getRecommendationReason(): string {
+    switch (this.options.algorithm) {
+      case 'user-based':
+        return 'Users similar to you liked this';
+      case 'item-based':
+        return 'Similar to items you liked';
+      case 'hybrid':
+        return 'Recommended based on similar users and items';
+      default:
+        return 'Recommended for you';
+    }
+  }
+}

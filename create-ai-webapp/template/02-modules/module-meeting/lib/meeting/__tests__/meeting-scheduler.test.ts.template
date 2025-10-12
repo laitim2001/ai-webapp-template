@@ -1,0 +1,467 @@
+/**
+ * Tests for Meeting Scheduler
+ *
+ * @module lib/meeting/__tests__/meeting-scheduler.test
+ */
+
+import { MeetingScheduler, createMeetingScheduler } from '../meeting-scheduler';
+import { addDays, addWeeks, addMonths } from 'date-fns';
+
+describe('MeetingScheduler', () => {
+  let scheduler: MeetingScheduler;
+
+  beforeEach(() => {
+    scheduler = new MeetingScheduler();
+  });
+
+  describe('findOptimalTimeSlots', () => {
+    it('should find available time slots for all participants', async () => {
+      const schedule = {
+        duration: 60,
+        participants: ['user1@example.com', 'user2@example.com'],
+        workingHours: { start: 9, end: 17 },
+        excludeWeekends: true,
+        timeZone: 'UTC',
+      };
+
+      const availabilityData = [
+        {
+          email: 'user1@example.com',
+          availability: [],
+          timeZone: 'UTC',
+        },
+        {
+          email: 'user2@example.com',
+          availability: [],
+          timeZone: 'UTC',
+        },
+      ];
+
+      const dateRange = {
+        start: new Date('2025-10-15T00:00:00Z'),
+        end: new Date('2025-10-16T00:00:00Z'),
+      };
+
+      const result = await scheduler.findOptimalTimeSlots(
+        schedule,
+        availabilityData,
+        dateRange
+      );
+
+      expect(result.recommendedSlots.length).toBeGreaterThan(0);
+      expect(result.statistics.totalSlotsChecked).toBeGreaterThan(0);
+      expect(result.statistics.participantsAvailable).toBe(2);
+    });
+
+    it('should detect conflicts with existing meetings', async () => {
+      const schedule = {
+        duration: 60,
+        participants: ['user1@example.com'],
+        workingHours: { start: 9, end: 17 },
+        excludeWeekends: true,
+      };
+
+      const conflictStart = new Date('2025-10-15T10:00:00Z');
+      const conflictEnd = new Date('2025-10-15T11:00:00Z');
+
+      const availabilityData = [
+        {
+          email: 'user1@example.com',
+          availability: [
+            {
+              start: conflictStart,
+              end: conflictEnd,
+              available: false,
+            },
+          ],
+          timeZone: 'UTC',
+        },
+      ];
+
+      const dateRange = {
+        start: new Date('2025-10-15T00:00:00Z'),
+        end: new Date('2025-10-16T00:00:00Z'),
+      };
+
+      const result = await scheduler.findOptimalTimeSlots(
+        schedule,
+        availabilityData,
+        dateRange
+      );
+
+      // Should have available slots outside the conflict
+      expect(result.allAvailableSlots.length).toBeGreaterThan(0);
+
+      // Should not recommend the conflicting slot
+      const hasConflict = result.allAvailableSlots.some((slot) => {
+        return (
+          slot.start.getTime() === conflictStart.getTime() &&
+          slot.end.getTime() === conflictEnd.getTime() &&
+          !slot.available
+        );
+      });
+
+      expect(hasConflict).toBe(false);
+    });
+
+    it('should exclude weekends when configured', async () => {
+      const schedule = {
+        duration: 60,
+        participants: [],
+        excludeWeekends: true,
+        workingHours: { start: 9, end: 17 },
+      };
+
+      const dateRange = {
+        start: new Date('2025-10-11T00:00:00Z'), // Saturday
+        end: new Date('2025-10-13T00:00:00Z'), // Monday
+      };
+
+      const result = await scheduler.findOptimalTimeSlots(
+        schedule,
+        [],
+        dateRange
+      );
+
+      // All slots should be on Monday (not Saturday or Sunday)
+      result.allAvailableSlots.forEach((slot) => {
+        const dayOfWeek = slot.start.getDay();
+        expect(dayOfWeek).not.toBe(0); // Not Sunday
+        expect(dayOfWeek).not.toBe(6); // Not Saturday
+      });
+    });
+
+    it('should respect working hours', async () => {
+      const schedule = {
+        duration: 60,
+        participants: [],
+        workingHours: { start: 9, end: 17 },
+        excludeWeekends: true,
+      };
+
+      const dateRange = {
+        start: new Date('2025-10-15T00:00:00Z'),
+        end: new Date('2025-10-16T00:00:00Z'),
+      };
+
+      const result = await scheduler.findOptimalTimeSlots(
+        schedule,
+        [],
+        dateRange
+      );
+
+      // All slots should be within working hours
+      result.allAvailableSlots.forEach((slot) => {
+        const hour = slot.start.getHours();
+        expect(hour).toBeGreaterThanOrEqual(9);
+        expect(hour).toBeLessThan(17);
+      });
+    });
+  });
+
+  describe('detectConflicts', () => {
+    it('should detect scheduling conflicts', async () => {
+      const proposedTime = new Date('2025-10-15T10:00:00Z');
+      const duration = 60;
+      const participants = ['user1@example.com', 'user2@example.com'];
+
+      const existingMeetings = [
+        {
+          start: new Date('2025-10-15T10:30:00Z'),
+          end: new Date('2025-10-15T11:30:00Z'),
+          participants: ['user1@example.com'],
+        },
+      ];
+
+      const conflicts = await scheduler.detectConflicts(
+        participants,
+        proposedTime,
+        duration,
+        existingMeetings
+      );
+
+      expect(conflicts).toHaveLength(1);
+      expect(conflicts[0].participant).toBe('user1@example.com');
+      expect(conflicts[0].conflictingMeetings).toHaveLength(1);
+    });
+
+    it('should not report conflicts for non-overlapping meetings', async () => {
+      const proposedTime = new Date('2025-10-15T10:00:00Z');
+      const duration = 60;
+      const participants = ['user1@example.com'];
+
+      const existingMeetings = [
+        {
+          start: new Date('2025-10-15T12:00:00Z'),
+          end: new Date('2025-10-15T13:00:00Z'),
+          participants: ['user1@example.com'],
+        },
+      ];
+
+      const conflicts = await scheduler.detectConflicts(
+        participants,
+        proposedTime,
+        duration,
+        existingMeetings
+      );
+
+      expect(conflicts).toHaveLength(0);
+    });
+
+    it('should not report conflicts for non-participant meetings', async () => {
+      const proposedTime = new Date('2025-10-15T10:00:00Z');
+      const duration = 60;
+      const participants = ['user1@example.com'];
+
+      const existingMeetings = [
+        {
+          start: new Date('2025-10-15T10:30:00Z'),
+          end: new Date('2025-10-15T11:30:00Z'),
+          participants: ['user2@example.com'],
+        },
+      ];
+
+      const conflicts = await scheduler.detectConflicts(
+        participants,
+        proposedTime,
+        duration,
+        existingMeetings
+      );
+
+      expect(conflicts).toHaveLength(0);
+    });
+  });
+
+  describe('generateRecurringInstances', () => {
+    it('should generate daily recurring instances', () => {
+      const baseDate = new Date('2025-10-15T10:00:00Z');
+      const pattern = {
+        type: 'daily' as const,
+        interval: 1,
+        occurrences: 5,
+      };
+
+      const instances = scheduler.generateRecurringInstances(baseDate, pattern, 60);
+
+      expect(instances).toHaveLength(5);
+      expect(instances[0].start).toEqual(baseDate);
+      expect(instances[1].start).toEqual(addDays(baseDate, 1));
+      expect(instances[4].start).toEqual(addDays(baseDate, 4));
+    });
+
+    it('should generate weekly recurring instances', () => {
+      const baseDate = new Date('2025-10-15T10:00:00Z');
+      const pattern = {
+        type: 'weekly' as const,
+        interval: 1,
+        occurrences: 4,
+      };
+
+      const instances = scheduler.generateRecurringInstances(baseDate, pattern, 60);
+
+      expect(instances).toHaveLength(4);
+      expect(instances[0].start).toEqual(baseDate);
+      expect(instances[1].start).toEqual(addWeeks(baseDate, 1));
+    });
+
+    it('should generate monthly recurring instances', () => {
+      const baseDate = new Date('2025-10-15T10:00:00Z');
+      const pattern = {
+        type: 'monthly' as const,
+        interval: 1,
+        occurrences: 3,
+      };
+
+      const instances = scheduler.generateRecurringInstances(baseDate, pattern, 60);
+
+      expect(instances).toHaveLength(3);
+      expect(instances[0].start).toEqual(baseDate);
+      expect(instances[1].start).toEqual(addMonths(baseDate, 1));
+    });
+
+    it('should respect end date', () => {
+      const baseDate = new Date('2025-10-15T10:00:00Z');
+      const endDate = new Date('2025-10-20T10:00:00Z');
+      const pattern = {
+        type: 'daily' as const,
+        interval: 1,
+        endDate,
+      };
+
+      const instances = scheduler.generateRecurringInstances(baseDate, pattern, 60);
+
+      expect(instances.length).toBeLessThanOrEqual(6);
+      instances.forEach((instance) => {
+        expect(instance.start.getTime()).toBeLessThanOrEqual(endDate.getTime());
+      });
+    });
+
+    it('should filter by days of week for weekly recurrence', () => {
+      const baseDate = new Date('2025-10-13T10:00:00Z'); // Monday
+      const pattern = {
+        type: 'weekly' as const,
+        interval: 1,
+        daysOfWeek: [1, 3, 5], // Monday, Wednesday, Friday
+        occurrences: 3,
+      };
+
+      const instances = scheduler.generateRecurringInstances(baseDate, pattern, 60);
+
+      instances.forEach((instance) => {
+        const dayOfWeek = instance.start.getDay();
+        expect([1, 3, 5]).toContain(dayOfWeek);
+      });
+    });
+  });
+
+  describe('findAvailableRooms', () => {
+    it('should find rooms with sufficient capacity', async () => {
+      const startTime = new Date('2025-10-15T10:00:00Z');
+      const endTime = new Date('2025-10-15T11:00:00Z');
+      const requiredCapacity = 10;
+
+      const rooms = [
+        {
+          id: 'room-1',
+          name: 'Small Room',
+          capacity: 5,
+          availability: [],
+        },
+        {
+          id: 'room-2',
+          name: 'Medium Room',
+          capacity: 15,
+          availability: [],
+        },
+        {
+          id: 'room-3',
+          name: 'Large Room',
+          capacity: 50,
+          availability: [],
+        },
+      ];
+
+      const available = await scheduler.findAvailableRooms(
+        startTime,
+        endTime,
+        requiredCapacity,
+        rooms
+      );
+
+      expect(available).toHaveLength(2);
+      expect(available[0].capacity).toBeGreaterThanOrEqual(requiredCapacity);
+      expect(available[1].capacity).toBeGreaterThanOrEqual(requiredCapacity);
+    });
+
+    it('should exclude rooms with conflicts', async () => {
+      const startTime = new Date('2025-10-15T10:00:00Z');
+      const endTime = new Date('2025-10-15T11:00:00Z');
+
+      const rooms = [
+        {
+          id: 'room-1',
+          name: 'Room 1',
+          capacity: 10,
+          availability: [
+            {
+              start: new Date('2025-10-15T10:30:00Z'),
+              end: new Date('2025-10-15T11:30:00Z'),
+              available: false,
+            },
+          ],
+        },
+        {
+          id: 'room-2',
+          name: 'Room 2',
+          capacity: 10,
+          availability: [],
+        },
+      ];
+
+      const available = await scheduler.findAvailableRooms(
+        startTime,
+        endTime,
+        5,
+        rooms
+      );
+
+      expect(available).toHaveLength(1);
+      expect(available[0].id).toBe('room-2');
+    });
+
+    it('should sort rooms by capacity', async () => {
+      const startTime = new Date('2025-10-15T10:00:00Z');
+      const endTime = new Date('2025-10-15T11:00:00Z');
+
+      const rooms = [
+        { id: 'room-1', name: 'Large', capacity: 50, availability: [] },
+        { id: 'room-2', name: 'Small', capacity: 10, availability: [] },
+        { id: 'room-3', name: 'Medium', capacity: 20, availability: [] },
+      ];
+
+      const available = await scheduler.findAvailableRooms(
+        startTime,
+        endTime,
+        5,
+        rooms
+      );
+
+      expect(available[0].capacity).toBeLessThanOrEqual(available[1].capacity);
+      expect(available[1].capacity).toBeLessThanOrEqual(available[2].capacity);
+    });
+  });
+
+  describe('suggestOptimalTime', () => {
+    it('should suggest times during working hours for all participants', async () => {
+      const participants = [
+        { email: 'user1@example.com', timeZone: 'America/New_York' },
+        { email: 'user2@example.com', timeZone: 'Europe/London' },
+      ];
+
+      const duration = 60;
+      const dateRange = {
+        start: new Date('2025-10-15T00:00:00Z'),
+        end: new Date('2025-10-16T00:00:00Z'),
+      };
+
+      const suggestions = await scheduler.suggestOptimalTime(
+        participants,
+        duration,
+        dateRange
+      );
+
+      expect(suggestions.length).toBeGreaterThan(0);
+      expect(suggestions.length).toBeLessThanOrEqual(5);
+    });
+
+    it('should prioritize times when more participants are in working hours', async () => {
+      const participants = [
+        { email: 'user1@example.com', timeZone: 'UTC' },
+        { email: 'user2@example.com', timeZone: 'UTC' },
+        { email: 'user3@example.com', timeZone: 'Asia/Tokyo' },
+      ];
+
+      const duration = 60;
+      const dateRange = {
+        start: new Date('2025-10-15T00:00:00Z'),
+        end: new Date('2025-10-16T00:00:00Z'),
+      };
+
+      const suggestions = await scheduler.suggestOptimalTime(
+        participants,
+        duration,
+        dateRange
+      );
+
+      expect(suggestions.length).toBeGreaterThan(0);
+      // First suggestion should have highest score
+    });
+  });
+
+  describe('createMeetingScheduler', () => {
+    it('should create a new scheduler instance', () => {
+      const instance = createMeetingScheduler();
+      expect(instance).toBeInstanceOf(MeetingScheduler);
+    });
+  });
+});

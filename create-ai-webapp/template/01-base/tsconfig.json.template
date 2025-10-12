@@ -1,0 +1,110 @@
+{
+  "compilerOptions": {
+    /* ================================================
+     * 基本配置
+     * ================================================ */
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "jsx": "preserve",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    
+    /* ================================================
+     * Next.js 特定配置
+     * ================================================ */
+    "incremental": true,
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    
+    /* ================================================
+     * 嚴格模式（最高級別）
+     * ================================================ */
+    "strict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "strictFunctionTypes": true,
+    "strictBindCallApply": true,
+    "strictPropertyInitialization": true,
+    "noImplicitThis": true,
+    "alwaysStrict": true,
+    
+    /* ================================================
+     * 額外檢查
+     * ================================================ */
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "noPropertyAccessFromIndexSignature": false,
+    
+    /* ================================================
+     * 模組解析
+     * ================================================ */
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    
+    /* ================================================
+     * 路徑別名（Path Mapping）
+     * ================================================ */
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./*"],
+      "@/app/*": ["./app/*"],
+      "@/components/*": ["./components/*"],
+      "@/lib/*": ["./lib/*"],
+      "@/hooks/*": ["./hooks/*"],
+      "@/types/*": ["./types/*"],
+      "@/styles/*": ["./styles/*"],
+      "@/public/*": ["./public/*"]
+    },
+    
+    /* ================================================
+     * 輸出配置
+     * ================================================ */
+    "skipLibCheck": true,
+    "allowJs": true,
+    "noEmit": true,
+    
+    /* ================================================
+     * 裝飾器支援（未來可能需要）
+     * ================================================ */
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true
+  },
+  
+  /* ================================================
+   * 包含的文件
+   * ================================================ */
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts",
+    "instrumentation.ts"
+  ],
+  
+  /* ================================================
+   * 排除的文件
+   * ================================================ */
+  "exclude": [
+    "node_modules",
+    ".next",
+    "out",
+    "dist",
+    "build",
+    "coverage",
+    "**/*.test.ts",
+    "**/*.test.tsx",
+    "**/*.spec.ts",
+    "**/*.spec.tsx"
+  ]
+}
+

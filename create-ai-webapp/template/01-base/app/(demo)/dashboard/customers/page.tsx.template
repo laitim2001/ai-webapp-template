@@ -1,0 +1,114 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { DemoBanner } from '@/components/demo-banner';
+import { ArrowLeft, Search, Plus, Phone, Mail, Building, TrendingUp } from 'lucide-react';
+import { demoGetCustomers } from '@/lib/demo-api';
+
+export default function CustomersPage() {
+  const [customers, setCustomers] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const response = await demoGetCustomers();
+        if (response.success && response.data) {
+          setCustomers(response.data.customers || []);
+        }
+      } catch (error) {
+        console.error('Failed to fetch customers:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  const filteredCustomers = customers.filter(customer =>
+    customer.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  return (
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      <header className="sticky top-0 z-10 border-b bg-white dark:bg-gray-800">
+        <div className="flex h-16 items-center justify-between px-6">
+          <div className="flex items-center gap-4">
+            <Button variant="ghost" size="icon" asChild>
+              <Link href="/(demo)/dashboard"><ArrowLeft className="h-5 w-5" /></Link>
+            </Button>
+            <h1 className="text-xl font-bold">客戶管理</h1>
+          </div>
+          <Button><Plus className="mr-2 h-4 w-4" />新增客戶</Button>
+        </div>
+      </header>
+
+      <main className="p-6">
+        <DemoBanner />
+        <div className="mb-6">
+          <div className="relative">
+            <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="搜索客戶..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {filteredCustomers.map((customer) => (
+            <Card key={customer.id} className="hover:shadow-lg transition-shadow">
+              <CardContent className="pt-6">
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-lg mb-1">{customer.name}</h3>
+                    <Badge variant={customer.status === 'active' ? 'default' : 'secondary'}>
+                      {customer.status === 'active' ? '活躍' : '非活躍'}
+                    </Badge>
+                  </div>
+                </div>
+
+                <div className="space-y-2 text-sm">
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <Mail className="h-4 w-4" />
+                    <span>{customer.email}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <Phone className="h-4 w-4" />
+                    <span>{customer.phone}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <Building className="h-4 w-4" />
+                    <span>{customer.industry}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <TrendingUp className="h-4 w-4" />
+                    <span>收入: NT$ {customer.revenue.toLocaleString()}</span>
+                  </div>
+                </div>
+
+                <div className="mt-4 pt-4 border-t">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">項目數: {customer.projects}</span>
+                    <span className="text-muted-foreground">最後聯繫: {customer.lastContact}</span>
+                  </div>
+                </div>
+
+                <Button variant="outline" className="w-full mt-4">查看詳情</Button>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </main>
+    </div>
+  );
+}

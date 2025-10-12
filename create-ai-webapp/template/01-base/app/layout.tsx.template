@@ -1,0 +1,96 @@
+/**
+ * ================================================================
+ * 根佈局組件
+ * Root Layout Component
+ * ================================================================
+ * 
+ * 【功能】
+ * Next.js 14 App Router 的根佈局，包含全局配置和提供者。
+ */
+
+import './globals.css';
+import type { Metadata } from 'next';
+import { Inter } from 'next/font/google';
+import { Toaster } from '@/components/ui/toaster';
+
+// =====================================================
+// 字體配置
+// =====================================================
+
+const inter = Inter({
+  subsets: ['latin'],
+  variable: '--font-sans',
+  display: 'swap',
+});
+
+// =====================================================
+// 元數據
+// =====================================================
+
+export const metadata: Metadata = {
+  title: {
+    default: '{{PROJECT_NAME}}',
+    template: '%s | {{PROJECT_NAME}}',
+  },
+  description: '{{PROJECT_DESCRIPTION}}',
+  keywords: ['AI', 'Web App', 'Next.js', 'TypeScript'],
+  authors: [{ name: '{{AUTHOR}}' }],
+  creator: '{{AUTHOR}}',
+  
+  // Open Graph
+  openGraph: {
+    type: 'website',
+    locale: 'zh_TW',
+    url: process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
+    title: '{{PROJECT_NAME}}',
+    description: '{{PROJECT_DESCRIPTION}}',
+    siteName: '{{PROJECT_NAME}}',
+  },
+  
+  // Twitter
+  twitter: {
+    card: 'summary_large_image',
+    title: '{{PROJECT_NAME}}',
+    description: '{{PROJECT_DESCRIPTION}}',
+  },
+  
+  // Icons
+  icons: {
+    icon: '/favicon.ico',
+    apple: '/apple-touch-icon.png',
+  },
+  
+  // Manifest
+  manifest: '/site.webmanifest',
+  
+  // 其他
+  robots: {
+    index: true,
+    follow: true,
+  },
+};
+
+// =====================================================
+// 根佈局組件
+// =====================================================
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <html lang="zh-TW" suppressHydrationWarning>
+      <body className={inter.className}>
+        {/* 主要內容 */}
+        <div className="relative min-h-screen">
+          {children}
+        </div>
+        
+        {/* Toast 通知 */}
+        <Toaster />
+      </body>
+    </html>
+  );
+}
+

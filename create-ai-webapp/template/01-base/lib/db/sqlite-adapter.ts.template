@@ -1,0 +1,323 @@
+/**
+ * ================================================================
+ * SQLite 數據庫適配器 (SQLite Database Adapter)
+ * ================================================================
+ * 
+ * 【檔案功能】
+ * SQLite 數據庫的適配器實現，提供輕量級的數據庫操作。
+ * 
+ * 【特點】
+ * • 零配置 - 無需安裝數據庫服務器
+ * • 單文件 - 整個數據庫存儲在單個文件
+ * • 輕量級 - 資源占用極小
+ * • 嵌入式 - 直接集成到應用中
+ * • 跨平台 - 文件可在不同系統間移植
+ * 
+ * 【限制】
+ * • 並發寫入 - 寫入操作是串行的
+ * • 不支援向量搜索
+ * • 全文搜索功能較弱
+ * • 不適合生產環境
+ * 
+ * 【使用場景】
+ * • 開發環境（推薦）
+ * • 測試環境
+ * • 小型應用
+ * • 原型開發
+ * • 桌面應用
+ */
+
+import { PrismaClient } from '@prisma/client';
+import {
+  DatabaseAdapter,
+  DatabaseType,
+  QueryOptions,
+  CreateOptions,
+  UpdateOptions,
+  DeleteOptions,
+  CountOptions,
+  BatchOptions,
+  TransactionCallback,
+  DatabaseAdapterError,
+} from './database-adapter';
+
+/**
+ * SQLite 適配器實現
+ */
+export class SQLiteAdapter implements DatabaseAdapter {
+  private prisma: PrismaClient;
+  private readonly databaseType: DatabaseType = 'sqlite';
+
+  constructor(prisma?: PrismaClient) {
+    this.prisma = prisma || new PrismaClient();
+  }
+
+  getDatabaseType(): DatabaseType {
+    return this.databaseType;
+  }
+
+  async findUnique<T = any>(model: string, options: QueryOptions): Promise<T | null> {
+    try {
+      const modelName = this.getModelName(model);
+      return await (this.prisma as any)[modelName].findUnique(options);
+    } catch (error) {
+      throw this.handleError('findUnique', error);
+    }
+  }
+
+  async findMany<T = any>(model: string, options: QueryOptions = {}): Promise<T[]> {
+    try {
+      const modelName = this.getModelName(model);
+      return await (this.prisma as any)[modelName].findMany(options);
+    } catch (error) {
+      throw this.handleError('findMany', error);
+    }
+  }
+
+  async findFirst<T = any>(model: string, options: QueryOptions = {}): Promise<T | null> {
+    try {
+      const modelName = this.getModelName(model);
+      return await (this.prisma as any)[modelName].findFirst(options);
+    } catch (error) {
+      throw this.handleError('findFirst', error);
+    }
+  }
+
+  async create<T = any>(model: string, options: CreateOptions): Promise<T> {
+    try {
+      const modelName = this.getModelName(model);
+      return await (this.prisma as any)[modelName].create(options);
+    } catch (error) {
+      throw this.handleError('create', error);
+    }
+  }
+
+  async createMany(model: string, options: BatchOptions): Promise<{ count: number }> {
+    try {
+      const modelName = this.getModelName(model);
+      return await (this.prisma as any)[modelName].createMany(options);
+    } catch (error) {
+      throw this.handleError('createMany', error);
+    }
+  }
+
+  async update<T = any>(model: string, options: UpdateOptions): Promise<T> {
+    try {
+      const modelName = this.getModelName(model);
+      return await (this.prisma as any)[modelName].update(options);
+    } catch (error) {
+      throw this.handleError('update', error);
+    }
+  }
+
+  async updateMany(model: string, options: UpdateOptions): Promise<{ count: number }> {
+    try {
+      const modelName = this.getModelName(model);
+      return await (this.prisma as any)[modelName].updateMany(options);
+    } catch (error) {
+      throw this.handleError('updateMany', error);
+    }
+  }
+
+  async upsert<T = any>(
+    model: string,
+    options: {
+      where: Record<string, any>;
+      create: Record<string, any>;
+      update: Record<string, any>;
+    }
+  ): Promise<T> {
+    try {
+      const modelName = this.getModelName(model);
+      return await (this.prisma as any)[modelName].upsert(options);
+    } catch (error) {
+      throw this.handleError('upsert', error);
+    }
+  }
+
+  async delete<T = any>(model: string, options: DeleteOptions): Promise<T> {
+    try {
+      const modelName = this.getModelName(model);
+      return await (this.prisma as any)[modelName].delete(options);
+    } catch (error) {
+      throw this.handleError('delete', error);
+    }
+  }
+
+  async deleteMany(model: string, options: DeleteOptions): Promise<{ count: number }> {
+    try {
+      const modelName = this.getModelName(model);
+      return await (this.prisma as any)[modelName].deleteMany(options);
+    } catch (error) {
+      throw this.handleError('deleteMany', error);
+    }
+  }
+
+  async count(model: string, options: CountOptions = {}): Promise<number> {
+    try {
+      const modelName = this.getModelName(model);
+      return await (this.prisma as any)[modelName].count(options);
+    } catch (error) {
+      throw this.handleError('count', error);
+    }
+  }
+
+  /**
+   * 執行事務
+   * 
+   * SQLite 支援事務，但寫入操作是串行的。
+   */
+  async transaction<T>(callback: TransactionCallback<T>): Promise<T> {
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        const txAdapter = new SQLiteAdapter(tx as PrismaClient);
+        return await callback(txAdapter);
+      });
+    } catch (error) {
+      throw this.handleError('transaction', error);
+    }
+  }
+
+  /**
+   * 執行原始 SQL 查詢
+   * 
+   * SQLite 支援標準 SQL，但某些高級功能可能不可用。
+   * 
+   * @example
+   * ```typescript
+   * // 原始查詢
+   * const result = await db.raw(
+   *   'SELECT * FROM users WHERE email = ?',
+   *   ['user@example.com']
+   * );
+   * ```
+   */
+  async raw<T = any>(query: string, params: any[] = []): Promise<T> {
+    try {
+      return await this.prisma.$queryRawUnsafe(query, ...params);
+    } catch (error) {
+      throw this.handleError('raw', error);
+    }
+  }
+
+  async connect(): Promise<void> {
+    try {
+      await this.prisma.$connect();
+    } catch (error) {
+      throw this.handleError('connect', error);
+    }
+  }
+
+  async disconnect(): Promise<void> {
+    try {
+      await this.prisma.$disconnect();
+    } catch (error) {
+      throw this.handleError('disconnect', error);
+    }
+  }
+
+  async healthCheck(): Promise<boolean> {
+    try {
+      await this.prisma.$queryRaw`SELECT 1`;
+      return true;
+    } catch (error) {
+      console.error('[SQLite] Health check failed:', error);
+      return false;
+    }
+  }
+
+  /**
+   * SQLite 特定功能：基礎全文搜索
+   * 
+   * SQLite 的全文搜索功能需要 FTS5 擴展。
+   * 注意：需要事先創建 FTS5 虛擬表。
+   * 
+   * @param table - FTS 表名
+   * @param query - 搜索查詢
+   * @param limit - 返回結果數量
+   * @returns 匹配的記錄
+   * 
+   * @example
+   * ```typescript
+   * // 創建 FTS5 表（僅需一次）
+   * // CREATE VIRTUAL TABLE knowledge_fts USING fts5(title, content);
+   * 
+   * const results = await adapter.fullTextSearch(
+   *   'knowledge_fts',
+   *   'artificial intelligence',
+   *   20
+   * );
+   * ```
+   */
+  async fullTextSearch<T = any>(
+    table: string,
+    query: string,
+    limit: number = 20
+  ): Promise<T[]> {
+    try {
+      const sqlQuery = `
+        SELECT *
+        FROM ${table}
+        WHERE ${table} MATCH ?
+        ORDER BY rank
+        LIMIT ?
+      `;
+      return await this.raw<T[]>(sqlQuery, [query, limit]);
+    } catch (error) {
+      throw this.handleError('fullTextSearch', error);
+    }
+  }
+
+  /**
+   * SQLite 特定功能：數據庫優化
+   * 
+   * 執行 VACUUM 命令以優化數據庫文件大小。
+   */
+  async vacuum(): Promise<void> {
+    try {
+      await this.raw('VACUUM');
+    } catch (error) {
+      throw this.handleError('vacuum', error);
+    }
+  }
+
+  /**
+   * SQLite 特定功能：數據庫完整性檢查
+   * 
+   * 執行 PRAGMA integrity_check 以檢查數據庫完整性。
+   */
+  async integrityCheck(): Promise<boolean> {
+    try {
+      const result = await this.raw<any[]>('PRAGMA integrity_check');
+      return result.length > 0 && result[0].integrity_check === 'ok';
+    } catch (error) {
+      console.error('[SQLite] Integrity check failed:', error);
+      return false;
+    }
+  }
+
+  // =====================================================
+  // 私有輔助方法
+  // =====================================================
+
+  private getModelName(model: string): string {
+    return model.charAt(0).toLowerCase() + model.slice(1);
+  }
+
+  private handleError(operation: string, error: any): DatabaseAdapterError {
+    const message = error.message || `SQLite ${operation} operation failed`;
+    const code = error.code || 'UNKNOWN_ERROR';
+
+    return new DatabaseAdapterError(
+      message,
+      code,
+      this.databaseType,
+      error
+    );
+  }
+}
+
+export function createSQLiteAdapter(prisma?: PrismaClient): SQLiteAdapter {
+  return new SQLiteAdapter(prisma);
+}
+

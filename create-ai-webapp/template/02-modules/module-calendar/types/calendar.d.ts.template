@@ -1,0 +1,849 @@
+/**
+ * Calendar Module Type Definitions
+ *
+ * Comprehensive type definitions for Google Calendar, Outlook Calendar,
+ * and Calendar Sync functionality.
+ *
+ * @module types/calendar
+ * @version 5.0.0
+ */
+
+// ============================================================================
+// Common Calendar Types
+// ============================================================================
+
+/**
+ * Calendar provider types
+ */
+export type CalendarProvider = 'google' | 'outlook';
+
+/**
+ * Event status
+ */
+export type EventStatus = 'confirmed' | 'tentative' | 'cancelled';
+
+/**
+ * Event response status
+ */
+export type ResponseStatus = 'accepted' | 'declined' | 'tentative' | 'needsAction';
+
+/**
+ * Reminder method
+ */
+export type ReminderMethod = 'email' | 'popup' | 'sms';
+
+/**
+ * Recurrence frequency
+ */
+export type RecurrenceFrequency = 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY';
+
+/**
+ * Day of week
+ */
+export type DayOfWeek = 'MO' | 'TU' | 'WE' | 'TH' | 'FR' | 'SA' | 'SU';
+
+/**
+ * Visibility level
+ */
+export type Visibility = 'default' | 'public' | 'private' | 'confidential';
+
+/**
+ * Time zone identifier (IANA format)
+ */
+export type TimeZone = string;  // e.g., 'Asia/Taipei', 'America/New_York'
+
+// ============================================================================
+// Base Event Types
+// ============================================================================
+
+/**
+ * Date-time with timezone
+ */
+export interface DateTime {
+  /** ISO 8601 date-time string */
+  dateTime: string;
+  /** IANA timezone identifier */
+  timeZone?: TimeZone;
+}
+
+/**
+ * All-day date
+ */
+export interface DateOnly {
+  /** ISO 8601 date string (YYYY-MM-DD) */
+  date: string;
+}
+
+/**
+ * Event time (either date-time or all-day)
+ */
+export type EventTime = DateTime | DateOnly;
+
+/**
+ * Event attendee
+ */
+export interface Attendee {
+  /** Email address */
+  email: string;
+  /** Display name */
+  displayName?: string;
+  /** Whether attendance is optional */
+  optional?: boolean;
+  /** Response status */
+  responseStatus?: ResponseStatus;
+  /** Comment from attendee */
+  comment?: string;
+  /** Whether to send notifications */
+  sendNotifications?: boolean;
+}
+
+/**
+ * Event reminder
+ */
+export interface Reminder {
+  /** Reminder method */
+  method: ReminderMethod;
+  /** Minutes before event */
+  minutes: number;
+}
+
+/**
+ * Reminder configuration
+ */
+export interface ReminderConfig {
+  /** Use calendar default reminders */
+  useDefault: boolean;
+  /** Custom reminder overrides */
+  overrides?: Reminder[];
+}
+
+/**
+ * Event location
+ */
+export interface Location {
+  /** Display name */
+  displayName: string;
+  /** Physical address */
+  address?: string;
+  /** Geographic coordinates */
+  coordinates?: {
+    latitude: number;
+    longitude: number;
+  };
+}
+
+/**
+ * Recurrence pattern
+ */
+export interface RecurrencePattern {
+  /** Frequency */
+  frequency: RecurrenceFrequency;
+  /** Interval (e.g., every 2 weeks) */
+  interval?: number;
+  /** Days of week (for weekly) */
+  byDay?: DayOfWeek[];
+  /** Days of month (1-31) */
+  byMonthDay?: number[];
+  /** Months of year (1-12) */
+  byMonth?: number[];
+  /** End date */
+  until?: string;
+  /** Number of occurrences */
+  count?: number;
+}
+
+/**
+ * Base calendar event
+ */
+export interface CalendarEvent {
+  /** Event ID */
+  id: string;
+  /** Provider */
+  provider: CalendarProvider;
+  /** Calendar ID */
+  calendarId: string;
+  /** Event title/summary */
+  summary: string;
+  /** Event description */
+  description?: string;
+  /** Location */
+  location?: Location | string;
+  /** Start time */
+  start: EventTime;
+  /** End time */
+  end: EventTime;
+  /** Attendees */
+  attendees?: Attendee[];
+  /** Organizer email */
+  organizer?: {
+    email: string;
+    displayName?: string;
+  };
+  /** Event status */
+  status?: EventStatus;
+  /** Visibility */
+  visibility?: Visibility;
+  /** Reminders */
+  reminders?: ReminderConfig;
+  /** Recurrence rules (RRULE format) */
+  recurrence?: string[];
+  /** Recurring event ID */
+  recurringEventId?: string;
+  /** Created timestamp */
+  created?: string;
+  /** Updated timestamp */
+  updated?: string;
+  /** iCalendar UID */
+  iCalUID?: string;
+  /** HTML link to event */
+  htmlLink?: string;
+  /** Attachments */
+  attachments?: EventAttachment[];
+  /** Color ID */
+  colorId?: string;
+  /** Custom metadata */
+  metadata?: Record<string, any>;
+}
+
+/**
+ * Event attachment
+ */
+export interface EventAttachment {
+  /** File URL */
+  fileUrl: string;
+  /** File name */
+  title?: string;
+  /** MIME type */
+  mimeType?: string;
+  /** Icon link */
+  iconLink?: string;
+  /** File ID */
+  fileId?: string;
+}
+
+// ============================================================================
+// Google Calendar Types
+// ============================================================================
+
+/**
+ * Google OAuth credentials
+ */
+export interface GoogleCredentials {
+  /** Access token */
+  access_token: string;
+  /** Refresh token */
+  refresh_token?: string;
+  /** Token type */
+  token_type?: string;
+  /** Expiry timestamp */
+  expiry_date?: number;
+}
+
+/**
+ * Google Calendar configuration
+ */
+export interface GoogleCalendarConfig {
+  /** OAuth Client ID */
+  clientId: string;
+  /** OAuth Client Secret */
+  clientSecret: string;
+  /** OAuth Redirect URI */
+  redirectUri: string;
+  /** API scopes */
+  scopes?: string[];
+}
+
+/**
+ * Google Calendar event creation options
+ */
+export interface GoogleEventCreateOptions {
+  /** Event summary */
+  summary: string;
+  /** Event description */
+  description?: string;
+  /** Location */
+  location?: string;
+  /** Start time */
+  start: EventTime;
+  /** End time */
+  end: EventTime;
+  /** Attendees */
+  attendees?: Array<{
+    email: string;
+    displayName?: string;
+    optional?: boolean;
+  }>;
+  /** Recurrence rules */
+  recurrence?: string[];
+  /** Reminders */
+  reminders?: ReminderConfig;
+  /** Calendar ID (default: 'primary') */
+  calendarId?: string;
+  /** Send notifications */
+  sendNotifications?: boolean;
+  /** Conference data */
+  conferenceData?: {
+    createRequest?: {
+      requestId: string;
+      conferenceSolutionKey: {
+        type: 'hangoutsMeet' | 'eventHangout' | 'eventNamedHangout';
+      };
+    };
+  };
+  /** Visibility */
+  visibility?: Visibility;
+  /** Color ID */
+  colorId?: string;
+  /** Guest can modify */
+  guestsCanModify?: boolean;
+  /** Guest can invite others */
+  guestsCanInviteOthers?: boolean;
+  /** Guest can see other guests */
+  guestsCanSeeOtherGuests?: boolean;
+}
+
+/**
+ * Google Calendar event list options
+ */
+export interface GoogleEventListOptions {
+  /** Calendar ID (default: 'primary') */
+  calendarId?: string;
+  /** Start time filter */
+  timeMin?: string;
+  /** End time filter */
+  timeMax?: string;
+  /** Max results */
+  maxResults?: number;
+  /** Page token for pagination */
+  pageToken?: string;
+  /** Show deleted events */
+  showDeleted?: boolean;
+  /** Single events only (expand recurring) */
+  singleEvents?: boolean;
+  /** Order by */
+  orderBy?: 'startTime' | 'updated';
+  /** Search query */
+  q?: string;
+}
+
+/**
+ * Google Calendar watch channel
+ */
+export interface GoogleWatchChannel {
+  /** Channel ID */
+  id: string;
+  /** Resource ID */
+  resourceId: string;
+  /** Resource URI */
+  resourceUri: string;
+  /** Expiration timestamp */
+  expiration: number;
+}
+
+// ============================================================================
+// Outlook Calendar Types
+// ============================================================================
+
+/**
+ * Outlook OAuth credentials
+ */
+export interface OutlookCredentials {
+  /** Access token */
+  access_token: string;
+  /** Refresh token */
+  refresh_token?: string;
+  /** Token type */
+  token_type?: string;
+  /** Expires in (seconds) */
+  expires_in?: number;
+}
+
+/**
+ * Outlook Calendar configuration
+ */
+export interface OutlookCalendarConfig {
+  /** OAuth Client ID */
+  clientId: string;
+  /** OAuth Client Secret */
+  clientSecret: string;
+  /** Azure AD Tenant ID */
+  tenantId: string;
+  /** OAuth Redirect URI */
+  redirectUri: string;
+  /** API scopes */
+  scopes?: string[];
+}
+
+/**
+ * Outlook event body
+ */
+export interface OutlookEventBody {
+  /** Content type */
+  contentType: 'Text' | 'HTML';
+  /** Content */
+  content: string;
+}
+
+/**
+ * Outlook attendee type
+ */
+export type OutlookAttendeeType = 'required' | 'optional' | 'resource';
+
+/**
+ * Outlook event attendee
+ */
+export interface OutlookAttendee {
+  /** Email address */
+  emailAddress: {
+    address: string;
+    name?: string;
+  };
+  /** Attendee type */
+  type: OutlookAttendeeType;
+  /** Response status */
+  status?: {
+    response: 'none' | 'organizer' | 'tentativelyAccepted' | 'accepted' | 'declined' | 'notResponded';
+    time?: string;
+  };
+}
+
+/**
+ * Outlook event creation options
+ */
+export interface OutlookEventCreateOptions {
+  /** Event subject */
+  subject: string;
+  /** Event body */
+  body?: OutlookEventBody;
+  /** Start time */
+  start: DateTime;
+  /** End time */
+  end: DateTime;
+  /** Location */
+  location?: {
+    displayName: string;
+    address?: {
+      street?: string;
+      city?: string;
+      state?: string;
+      countryOrRegion?: string;
+      postalCode?: string;
+    };
+  };
+  /** Attendees */
+  attendees?: OutlookAttendee[];
+  /** Calendar ID */
+  calendarId?: string;
+  /** Is all day event */
+  isAllDay?: boolean;
+  /** Is online meeting */
+  isOnlineMeeting?: boolean;
+  /** Online meeting provider */
+  onlineMeetingProvider?: 'teamsForBusiness' | 'skypeForBusiness' | 'skypeForConsumer';
+  /** Recurrence pattern */
+  recurrence?: {
+    pattern: {
+      type: 'daily' | 'weekly' | 'absoluteMonthly' | 'relativeMonthly' | 'absoluteYearly' | 'relativeYearly';
+      interval: number;
+      daysOfWeek?: ('sunday' | 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday')[];
+      dayOfMonth?: number;
+      month?: number;
+      firstDayOfWeek?: 'sunday' | 'monday';
+    };
+    range: {
+      type: 'endDate' | 'noEnd' | 'numbered';
+      startDate: string;
+      endDate?: string;
+      numberOfOccurrences?: number;
+    };
+  };
+  /** Reminder minutes before start */
+  reminderMinutesBeforeStart?: number;
+  /** Is reminder on */
+  isReminderOn?: boolean;
+  /** Show as */
+  showAs?: 'free' | 'tentative' | 'busy' | 'oof' | 'workingElsewhere' | 'unknown';
+  /** Sensitivity */
+  sensitivity?: 'normal' | 'personal' | 'private' | 'confidential';
+  /** Categories */
+  categories?: string[];
+}
+
+/**
+ * Outlook event list options
+ */
+export interface OutlookEventListOptions {
+  /** Calendar ID */
+  calendarId?: string;
+  /** Start time filter */
+  startDateTime?: string;
+  /** End time filter */
+  endDateTime?: string;
+  /** Top (limit) */
+  top?: number;
+  /** Skip */
+  skip?: number;
+  /** Filter */
+  filter?: string;
+  /** Order by */
+  orderBy?: string;
+  /** Select fields */
+  select?: string[];
+}
+
+/**
+ * Outlook free/busy time slot
+ */
+export interface OutlookFreeBusySlot {
+  /** Start time */
+  start: string;
+  /** End time */
+  end: string;
+  /** Status */
+  status: 'free' | 'tentative' | 'busy' | 'oof' | 'workingElsewhere' | 'unknown';
+}
+
+/**
+ * Outlook schedule information
+ */
+export interface OutlookScheduleInformation {
+  /** Attendee email */
+  scheduleId: string;
+  /** Availability view */
+  availabilityView: string;
+  /** Schedule items */
+  scheduleItems: OutlookFreeBusySlot[];
+  /** Working hours */
+  workingHours?: {
+    daysOfWeek: string[];
+    startTime: string;
+    endTime: string;
+    timeZone: TimeZone;
+  };
+}
+
+// ============================================================================
+// Calendar Sync Types
+// ============================================================================
+
+/**
+ * Sync direction
+ */
+export type SyncDirection = 'bidirectional' | 'google_to_outlook' | 'outlook_to_google';
+
+/**
+ * Conflict resolution strategy
+ */
+export type ConflictStrategy = 'latest' | 'oldest' | 'manual' | 'google_priority' | 'outlook_priority';
+
+/**
+ * Sync status
+ */
+export type SyncStatus = 'idle' | 'syncing' | 'error' | 'paused';
+
+/**
+ * Calendar connection
+ */
+export interface CalendarConnection {
+  /** Connection ID */
+  id: number;
+  /** User ID */
+  userId: number;
+  /** Provider */
+  provider: CalendarProvider;
+  /** Calendar ID */
+  calendarId: string;
+  /** Calendar name */
+  calendarName?: string;
+  /** Access token (encrypted) */
+  accessToken: string;
+  /** Refresh token (encrypted) */
+  refreshToken?: string;
+  /** Token expiry */
+  tokenExpiry?: Date;
+  /** Is active */
+  isActive: boolean;
+  /** Last sync timestamp */
+  lastSync?: Date;
+  /** Created timestamp */
+  createdAt: Date;
+  /** Updated timestamp */
+  updatedAt: Date;
+}
+
+/**
+ * Calendar sync configuration
+ */
+export interface CalendarSyncConfig {
+  /** Sync ID */
+  id: number;
+  /** User ID */
+  userId: number;
+  /** Google calendar connection */
+  googleConnectionId: number;
+  /** Outlook calendar connection */
+  outlookConnectionId: number;
+  /** Sync direction */
+  direction: SyncDirection;
+  /** Conflict strategy */
+  conflictStrategy: ConflictStrategy;
+  /** Sync interval (milliseconds) */
+  syncInterval: number;
+  /** Is enabled */
+  isEnabled: boolean;
+  /** Last sync timestamp */
+  lastSync?: Date;
+  /** Next sync timestamp */
+  nextSync?: Date;
+  /** Sync status */
+  status: SyncStatus;
+  /** Error message */
+  errorMessage?: string;
+  /** Created timestamp */
+  createdAt: Date;
+  /** Updated timestamp */
+  updatedAt: Date;
+}
+
+/**
+ * Sync result
+ */
+export interface SyncResult {
+  /** Sync config ID */
+  syncId: number;
+  /** Start timestamp */
+  startTime: Date;
+  /** End timestamp */
+  endTime: Date;
+  /** Number of events created */
+  created: number;
+  /** Number of events updated */
+  updated: number;
+  /** Number of events deleted */
+  deleted: number;
+  /** Number of conflicts detected */
+  conflicts: number;
+  /** Number of errors */
+  errors: number;
+  /** Success flag */
+  success: boolean;
+  /** Error messages */
+  errorMessages?: string[];
+}
+
+/**
+ * Calendar conflict
+ */
+export interface CalendarConflict {
+  /** Conflict ID */
+  id: number;
+  /** Sync config ID */
+  syncConfigId: number;
+  /** Google event ID */
+  googleEventId?: string;
+  /** Outlook event ID */
+  outlookEventId?: string;
+  /** Conflict type */
+  conflictType: 'time_overlap' | 'data_mismatch' | 'deletion_conflict' | 'update_conflict';
+  /** Google event data */
+  googleEventData?: Partial<CalendarEvent>;
+  /** Outlook event data */
+  outlookEventData?: Partial<CalendarEvent>;
+  /** Conflict description */
+  description: string;
+  /** Is resolved */
+  isResolved: boolean;
+  /** Resolution strategy */
+  resolution?: 'use_google' | 'use_outlook' | 'merge' | 'skip';
+  /** Resolved timestamp */
+  resolvedAt?: Date;
+  /** Resolved by user ID */
+  resolvedBy?: number;
+  /** Created timestamp */
+  createdAt: Date;
+}
+
+/**
+ * Sync event mapping
+ */
+export interface SyncEventMapping {
+  /** Mapping ID */
+  id: number;
+  /** Sync config ID */
+  syncConfigId: number;
+  /** Google event ID */
+  googleEventId: string;
+  /** Outlook event ID */
+  outlookEventId: string;
+  /** Last synced timestamp */
+  lastSynced: Date;
+  /** Google last modified */
+  googleLastModified: Date;
+  /** Outlook last modified */
+  outlookLastModified: Date;
+  /** Created timestamp */
+  createdAt: Date;
+  /** Updated timestamp */
+  updatedAt: Date;
+}
+
+/**
+ * Sync options
+ */
+export interface SyncOptions {
+  /** User ID */
+  userId: number;
+  /** Google calendar ID */
+  googleCalendarId: string;
+  /** Outlook calendar ID */
+  outlookCalendarId: string;
+  /** Sync direction */
+  direction?: SyncDirection;
+  /** Force full sync (not incremental) */
+  forceFull?: boolean;
+  /** Conflict strategy override */
+  conflictStrategy?: ConflictStrategy;
+}
+
+/**
+ * Conflict resolution options
+ */
+export interface ConflictResolutionOptions {
+  /** Conflict ID */
+  conflictId: number;
+  /** Resolution strategy */
+  resolution: 'use_google' | 'use_outlook' | 'merge' | 'skip';
+  /** Custom merge data (if resolution = 'merge') */
+  mergedData?: Partial<CalendarEvent>;
+}
+
+// ============================================================================
+// Service Interfaces
+// ============================================================================
+
+/**
+ * Calendar service interface
+ */
+export interface ICalendarService {
+  /** Set credentials */
+  setCredentials(credentials: GoogleCredentials | OutlookCredentials): Promise<void>;
+
+  /** Create event */
+  createEvent(event: GoogleEventCreateOptions | OutlookEventCreateOptions): Promise<CalendarEvent>;
+
+  /** Update event */
+  updateEvent(eventId: string, updates: Partial<GoogleEventCreateOptions | OutlookEventCreateOptions>): Promise<CalendarEvent>;
+
+  /** Delete event */
+  deleteEvent(eventId: string, calendarId?: string): Promise<void>;
+
+  /** Get event */
+  getEvent(eventId: string, calendarId?: string): Promise<CalendarEvent>;
+
+  /** List events */
+  listEvents(options?: GoogleEventListOptions | OutlookEventListOptions): Promise<CalendarEvent[]>;
+}
+
+/**
+ * Sync service interface
+ */
+export interface ISyncService {
+  /** Start automatic sync */
+  startSync(options: SyncOptions): Promise<void>;
+
+  /** Stop automatic sync */
+  stopSync(userId: number): Promise<void>;
+
+  /** Sync now (manual trigger) */
+  syncNow(options: SyncOptions): Promise<SyncResult>;
+
+  /** Get sync status */
+  getSyncStatus(userId: number): Promise<CalendarSyncConfig | null>;
+
+  /** Get conflicts */
+  getConflicts(userId: number): Promise<CalendarConflict[]>;
+
+  /** Resolve conflict */
+  resolveConflict(options: ConflictResolutionOptions): Promise<void>;
+}
+
+// ============================================================================
+// Utility Types
+// ============================================================================
+
+/**
+ * Free time slot
+ */
+export interface FreeSlot {
+  /** Start time */
+  start: string;
+  /** End time */
+  end: string;
+  /** Available attendees */
+  availableAttendees?: string[];
+}
+
+/**
+ * Time slot conflict
+ */
+export interface TimeSlotConflict {
+  /** Conflicting event IDs */
+  eventIds: string[];
+  /** Start time */
+  start: string;
+  /** End time */
+  end: string;
+  /** Conflict type */
+  type: 'overlap' | 'double_booking';
+}
+
+/**
+ * Calendar statistics
+ */
+export interface CalendarStats {
+  /** Total events */
+  totalEvents: number;
+  /** Events this week */
+  eventsThisWeek: number;
+  /** Events this month */
+  eventsThisMonth: number;
+  /** Upcoming events */
+  upcomingEvents: number;
+  /** Past events */
+  pastEvents: number;
+  /** Recurring events */
+  recurringEvents: number;
+  /** Average events per week */
+  avgEventsPerWeek: number;
+}
+
+/**
+ * Batch operation result
+ */
+export interface BatchOperationResult<T> {
+  /** Successful results */
+  successful: T[];
+  /** Failed operations */
+  failed: Array<{
+    index: number;
+    error: string;
+    data: any;
+  }>;
+  /** Total count */
+  total: number;
+  /** Success count */
+  successCount: number;
+  /** Failure count */
+  failureCount: number;
+}
+
+// ============================================================================
+// Export all types
+// ============================================================================
+
+export type {
+  // Re-export for convenience
+  GoogleEventCreateOptions as CreateEventOptions,
+  GoogleEventListOptions as ListEventOptions,
+  CalendarEvent as Event,
+};

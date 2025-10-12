@@ -26,6 +26,9 @@ const CONFIG = {
     guide: 'TEMPLATE-DEVELOPMENT-GUIDE.md',
   },
 
+  // 機器可讀索引文件（優先使用）
+  machineIndexFile: '.template-files.json',
+
   // 需要掃描的目錄
   scanDirs: [
     '01-base',
@@ -105,6 +108,30 @@ function scanDirectory(dir, baseDir = dir) {
 }
 
 /**
+ * 從機器可讀索引文件載入
+ */
+function loadMachineIndex(indexPath) {
+  try {
+    const content = fs.readFileSync(indexPath, 'utf-8');
+    const index = JSON.parse(content);
+
+    const indexed = new Set();
+    if (index.files && Array.isArray(index.files)) {
+      for (const file of index.files) {
+        if (file.path) {
+          indexed.add(file.path);
+        }
+      }
+    }
+
+    return indexed;
+  } catch (error) {
+    console.error(`❌ 讀取機器索引失敗: ${indexPath}`, error.message);
+    return new Set();
+  }
+}
+
+/**
  * 從索引文件中提取文件路徑
  */
 function extractIndexedFiles(indexPath) {
@@ -117,10 +144,12 @@ function extractIndexedFiles(indexPath) {
     const patterns = [
       // Markdown 鏈接: [text](path)
       /\[.*?\]\((.*?\.(?:md|js|ts|tsx|prisma|template))\)/g,
-      // 表格中的路徑: | path/to/file |
-      /\|\s*([a-zA-Z0-9_\-\/\.]+\.(?:md|js|ts|tsx|prisma|template))\s*\|/g,
+      // 表格中的路徑: | path/to/file | 或 | **path/to/file** |
+      /\|\s*\*{0,2}([a-zA-Z0-9_\-\/\.]+\.(?:md|js|ts|tsx|prisma|template))\*{0,2}\s*\|/g,
       // 代碼塊中的路徑: `path/to/file`
       /`([a-zA-Z0-9_\-\/\.]+\.(?:md|js|ts|tsx|prisma|template))`/g,
+      // 文件樹格式: ├── path/to/file 或 │   ├── path/to/file
+      /[├└│]\s*([a-zA-Z0-9_\-\/\.]+\.(?:md|js|ts|tsx|prisma|template))/g,
     ];
 
     for (const pattern of patterns) {
@@ -131,6 +160,7 @@ function extractIndexedFiles(indexPath) {
         // 清理路徑
         filePath = filePath.replace(/^\.\//, ''); // 移除 ./
         filePath = filePath.replace(/\\/g, '/'); // 統一斜線
+        filePath = filePath.trim(); // 移除前後空格
 
         // 跳過 URL 和絕對路徑
         if (filePath.startsWith('http') || filePath.startsWith('/')) {
@@ -323,16 +353,27 @@ async function main() {
   // 2. 提取索引文件中的記錄
   console.log('📋 讀取索引文件...');
   let allIndexedFiles = new Set();
+  let useMachineIndex = false;
 
-  for (const [name, file] of Object.entries(CONFIG.indexFiles)) {
-    if (fs.existsSync(file)) {
-      const indexed = extractIndexedFiles(file);
-      console.log(`   ${file}: ${indexed.size} 個條目`);
-      indexed.forEach(f => allIndexedFiles.add(f));
+  // 優先使用機器可讀索引
+  if (fs.existsSync(CONFIG.machineIndexFile)) {
+    console.log(`   使用機器可讀索引: ${CONFIG.machineIndexFile}`);
+    allIndexedFiles = loadMachineIndex(CONFIG.machineIndexFile);
+    console.log(`   載入 ${allIndexedFiles.size} 個條目`);
+    useMachineIndex = true;
+  } else {
+    console.log('   機器可讀索引不存在，使用 Markdown 索引');
+    for (const [name, file] of Object.entries(CONFIG.indexFiles)) {
+      if (fs.existsSync(file)) {
+        const indexed = extractIndexedFiles(file);
+        console.log(`   ${file}: ${indexed.size} 個條目`);
+        indexed.forEach(f => allIndexedFiles.add(f));
+      }
     }
+    console.log(`   合併後: ${allIndexedFiles.size} 個唯一條目`);
   }
 
-  console.log(`   合併後: ${allIndexedFiles.size} 個唯一條目\n`);
+  console.log('');
 
   // 3. 檢查核心文件
   console.log('🔍 檢查核心文件...');

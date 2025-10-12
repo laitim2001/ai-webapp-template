@@ -1,0 +1,268 @@
+'use client';
+
+import { useState } from 'react';
+import Link from 'next/link';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { DemoBanner } from '@/components/demo-banner';
+import { ArrowLeft, Code, Copy, CheckCircle } from 'lucide-react';
+import { demoApiEndpoints } from '@/lib/demo-data';
+
+export default function ApiDocsPage() {
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  // 按分類分組API端點
+  const groupedEndpoints = demoApiEndpoints.reduce((acc: any, endpoint) => {
+    if (!acc[endpoint.category]) {
+      acc[endpoint.category] = [];
+    }
+    acc[endpoint.category].push(endpoint);
+    return acc;
+  }, {});
+
+  const categories = Object.keys(groupedEndpoints);
+
+  const getMethodBadge = (method: string) => {
+    const variants: any = {
+      'GET': 'default',
+      'POST': 'secondary',
+      'PUT': 'outline',
+      'DELETE': 'destructive'
+    };
+    return (
+      <Badge variant={variants[method]} className="font-mono">
+        {method}
+      </Badge>
+    );
+  };
+
+  const copyToClipboard = (text: string, id: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      <header className="sticky top-0 z-10 border-b bg-white dark:bg-gray-800">
+        <div className="flex h-16 items-center justify-between px-6">
+          <div className="flex items-center gap-4">
+            <Button variant="ghost" size="icon" asChild>
+              <Link href="/(demo)/dashboard"><ArrowLeft className="h-5 w-5" /></Link>
+            </Button>
+            <h1 className="text-xl font-bold">API 文檔</h1>
+          </div>
+        </div>
+      </header>
+
+      <main className="p-6 max-w-6xl mx-auto">
+        <DemoBanner />
+
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle>API 概述</CardTitle>
+            <CardDescription>
+              這是演示模式的API文檔。在實際使用中,選擇相應模組後將獲得完整的API實現。
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2 text-sm">
+              <p><strong>基礎URL:</strong> <code className="bg-muted px-2 py-1 rounded">https://api.example.com</code></p>
+              <p><strong>認證方式:</strong> Bearer Token (JWT)</p>
+              <p><strong>請求格式:</strong> JSON</p>
+              <p><strong>響應格式:</strong> JSON</p>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Tabs defaultValue={categories[0]} className="space-y-4">
+          <TabsList className="grid w-full grid-cols-3 lg:grid-cols-5">
+            {categories.map((category) => (
+              <TabsTrigger key={category} value={category}>
+                {category}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+
+          {categories.map((category) => (
+            <TabsContent key={category} value={category} className="space-y-4">
+              {groupedEndpoints[category].map((endpoint: any) => (
+                <Card key={endpoint.id}>
+                  <CardHeader>
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-2">
+                          {getMethodBadge(endpoint.method)}
+                          <code className="text-sm bg-muted px-3 py-1 rounded font-mono">
+                            {endpoint.path}
+                          </code>
+                        </div>
+                        <CardTitle className="text-lg">{endpoint.description}</CardTitle>
+                      </div>
+                    </div>
+                  </CardHeader>
+
+                  <CardContent className="space-y-4">
+                    {/* 請求參數 */}
+                    <div>
+                      <h4 className="font-semibold mb-2">請求參數</h4>
+                      <div className="border rounded-lg overflow-hidden">
+                        <table className="w-full text-sm">
+                          <thead className="bg-muted">
+                            <tr>
+                              <th className="text-left p-2">參數名</th>
+                              <th className="text-left p-2">類型</th>
+                              <th className="text-left p-2">必填</th>
+                              <th className="text-left p-2">說明</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {endpoint.params.map((param: any, index: number) => (
+                              <tr key={index} className="border-t">
+                                <td className="p-2 font-mono">{param.name}</td>
+                                <td className="p-2">
+                                  <Badge variant="outline">{param.type}</Badge>
+                                </td>
+                                <td className="p-2">
+                                  {param.required ? (
+                                    <Badge variant="destructive">必填</Badge>
+                                  ) : (
+                                    <Badge variant="outline">可選</Badge>
+                                  )}
+                                </td>
+                                <td className="p-2 text-muted-foreground">{param.description}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+
+                    {/* 響應示例 */}
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="font-semibold">響應示例</h4>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => copyToClipboard(JSON.stringify(endpoint.response, null, 2), endpoint.id)}
+                        >
+                          {copiedId === endpoint.id ? (
+                            <>
+                              <CheckCircle className="mr-2 h-4 w-4" />
+                              已複製
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="mr-2 h-4 w-4" />
+                              複製
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                      <pre className="bg-muted p-4 rounded-lg overflow-x-auto">
+                        <code className="text-sm">
+                          {JSON.stringify(endpoint.response, null, 2)}
+                        </code>
+                      </pre>
+                    </div>
+
+                    {/* cURL 示例 */}
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="font-semibold">cURL 示例</h4>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            const curlCommand = `curl -X ${endpoint.method} \\
+  https://api.example.com${endpoint.path} \\
+  -H "Authorization: Bearer YOUR_TOKEN" \\
+  -H "Content-Type: application/json"${
+    endpoint.method === 'POST' ? ' \\\n  -d \'{"key": "value"}\'' : ''
+  }`;
+                            copyToClipboard(curlCommand, `${endpoint.id}-curl`);
+                          }}
+                        >
+                          {copiedId === `${endpoint.id}-curl` ? (
+                            <>
+                              <CheckCircle className="mr-2 h-4 w-4" />
+                              已複製
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="mr-2 h-4 w-4" />
+                              複製
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                      <pre className="bg-muted p-4 rounded-lg overflow-x-auto">
+                        <code className="text-sm">
+{`curl -X ${endpoint.method} \\
+  https://api.example.com${endpoint.path} \\
+  -H "Authorization: Bearer YOUR_TOKEN" \\
+  -H "Content-Type: application/json"${
+  endpoint.method === 'POST' ? ' \\\n  -d \'{"key": "value"}\'' : ''
+}`}
+                        </code>
+                      </pre>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </TabsContent>
+          ))}
+        </Tabs>
+
+        {/* 錯誤代碼說明 */}
+        <Card className="mt-6">
+          <CardHeader>
+            <CardTitle>錯誤代碼</CardTitle>
+            <CardDescription>API可能返回的錯誤代碼說明</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="border rounded-lg overflow-hidden">
+              <table className="w-full text-sm">
+                <thead className="bg-muted">
+                  <tr>
+                    <th className="text-left p-2">狀態碼</th>
+                    <th className="text-left p-2">說明</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr className="border-t">
+                    <td className="p-2 font-mono">200</td>
+                    <td className="p-2">請求成功</td>
+                  </tr>
+                  <tr className="border-t">
+                    <td className="p-2 font-mono">400</td>
+                    <td className="p-2">請求參數錯誤</td>
+                  </tr>
+                  <tr className="border-t">
+                    <td className="p-2 font-mono">401</td>
+                    <td className="p-2">未授權,需要登錄</td>
+                  </tr>
+                  <tr className="border-t">
+                    <td className="p-2 font-mono">403</td>
+                    <td className="p-2">無權訪問該資源</td>
+                  </tr>
+                  <tr className="border-t">
+                    <td className="p-2 font-mono">404</td>
+                    <td className="p-2">資源不存在</td>
+                  </tr>
+                  <tr className="border-t">
+                    <td className="p-2 font-mono">500</td>
+                    <td className="p-2">服務器內部錯誤</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      </main>
+    </div>
+  );
+}

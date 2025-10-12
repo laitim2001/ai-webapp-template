@@ -1,0 +1,662 @@
+/**
+ * 演示API層
+ *
+ * 提供模擬API調用,返回演示數據
+ * 用於零模組配置下的UI展示
+ */
+
+import {
+  demoUser,
+  demoDashboardStats,
+  demoRecentActivities,
+  demoKnowledgeBase,
+  demoSearchResults,
+  demoNotifications,
+  demoSettings,
+  demoCustomers,
+  demoTasks,
+  demoProposals,
+  demoTemplates,
+  demoAdminStats,
+  demoSystemUsers,
+  demoSystemLogs,
+  demoChartData,
+  simulateDelay,
+} from './demo-data';
+
+// ============================================
+// 類型定義
+// ============================================
+
+export type DemoApiResponse<T> = {
+  success: boolean;
+  data?: T;
+  error?: string;
+  message?: string;
+};
+
+// ============================================
+// 通用Mock API調用函數
+// ============================================
+
+/**
+ * 模擬API調用的通用函數
+ * 自動添加延遲以模擬真實網絡請求
+ */
+async function mockApiCall<T>(
+  data: T,
+  delay: number = 500
+): Promise<DemoApiResponse<T>> {
+  await simulateDelay(delay);
+  return {
+    success: true,
+    data,
+  };
+}
+
+/**
+ * 模擬API錯誤
+ */
+async function mockApiError(
+  error: string,
+  delay: number = 500
+): Promise<DemoApiResponse<never>> {
+  await simulateDelay(delay);
+  return {
+    success: false,
+    error,
+  };
+}
+
+// ============================================
+// 認證API
+// ============================================
+
+/**
+ * 模擬登錄
+ */
+export async function demoLogin(email: string, password: string) {
+  await simulateDelay(800);
+
+  // 演示模式下接受任何憑證
+  return mockApiCall({
+    user: demoUser,
+    token: 'demo-token-' + Date.now(),
+    message: '登錄成功 (演示模式)',
+  });
+}
+
+/**
+ * 模擬註冊
+ */
+export async function demoRegister(userData: {
+  name: string;
+  email: string;
+  password: string;
+}) {
+  await simulateDelay(800);
+
+  return mockApiCall({
+    user: { ...demoUser, ...userData },
+    message: '註冊成功 (演示模式)',
+  });
+}
+
+/**
+ * 模擬登出
+ */
+export async function demoLogout() {
+  await simulateDelay(300);
+  return mockApiCall({ message: '登出成功' });
+}
+
+/**
+ * 獲取當前用戶信息
+ */
+export async function demoGetCurrentUser() {
+  return mockApiCall(demoUser);
+}
+
+// ============================================
+// 儀表板API
+// ============================================
+
+/**
+ * 獲取儀表板統計數據
+ */
+export async function demoGetDashboardStats() {
+  return mockApiCall(demoDashboardStats);
+}
+
+/**
+ * 獲取最近活動
+ */
+export async function demoGetRecentActivities() {
+  return mockApiCall(demoRecentActivities);
+}
+
+/**
+ * 獲取圖表數據
+ */
+export async function demoGetChartData() {
+  return mockApiCall(demoChartData);
+}
+
+// ============================================
+// 知識庫API
+// ============================================
+
+/**
+ * 獲取知識庫列表
+ */
+export async function demoGetKnowledgeBase(filters?: {
+  category?: string;
+  status?: string;
+  limit?: number;
+}) {
+  let results = [...demoKnowledgeBase];
+
+  if (filters?.category) {
+    results = results.filter(kb => kb.category === filters.category);
+  }
+
+  if (filters?.status) {
+    results = results.filter(kb => kb.status === filters.status);
+  }
+
+  if (filters?.limit) {
+    results = results.slice(0, filters.limit);
+  }
+
+  return mockApiCall({
+    items: results,
+    total: results.length,
+    page: 1,
+    pageSize: filters?.limit || results.length,
+  });
+}
+
+/**
+ * 獲取單個知識庫文檔
+ */
+export async function demoGetKnowledgeDocument(id: string) {
+  const doc = demoKnowledgeBase.find(kb => kb.id === id);
+
+  if (!doc) {
+    return mockApiError('文檔不存在');
+  }
+
+  return mockApiCall({
+    ...doc,
+    content: `# ${doc.title}\n\n${doc.description}\n\n這是演示內容。在實際使用中,這裡會顯示完整的文檔內容。`,
+  });
+}
+
+/**
+ * 創建知識庫文檔 (演示)
+ */
+export async function demoCreateKnowledgeDocument(data: any) {
+  await simulateDelay(1000);
+  return mockApiCall({
+    id: 'kb-new-' + Date.now(),
+    ...data,
+    author: demoUser.name,
+    createdAt: new Date().toISOString(),
+    message: '文檔創建成功 (演示模式)',
+  });
+}
+
+// ============================================
+// 搜索API
+// ============================================
+
+/**
+ * 執行搜索
+ */
+export async function demoSearch(query: string, filters?: {
+  type?: string;
+  source?: string;
+}) {
+  await simulateDelay(600);
+
+  let results = [...demoSearchResults];
+
+  if (filters?.type) {
+    results = results.filter(r => r.type === filters.type);
+  }
+
+  if (filters?.source) {
+    results = results.filter(r => r.source === filters.source);
+  }
+
+  return mockApiCall({
+    query,
+    results,
+    total: results.length,
+    took: '0.15s',
+  });
+}
+
+/**
+ * 獲取搜索建議
+ */
+export async function demoGetSearchSuggestions(query: string) {
+  await simulateDelay(200);
+
+  const suggestions = [
+    'Next.js App Router',
+    'Next.js Server Components',
+    'Next.js API Routes',
+    'TypeScript 泛型',
+    'TypeScript 類型系統',
+  ].filter(s => s.toLowerCase().includes(query.toLowerCase()));
+
+  return mockApiCall(suggestions);
+}
+
+// ============================================
+// 通知API
+// ============================================
+
+/**
+ * 獲取通知列表
+ */
+export async function demoGetNotifications(filters?: {
+  read?: boolean;
+  limit?: number;
+}) {
+  let results = [...demoNotifications];
+
+  if (typeof filters?.read === 'boolean') {
+    results = results.filter(n => n.read === filters.read);
+  }
+
+  if (filters?.limit) {
+    results = results.slice(0, filters.limit);
+  }
+
+  return mockApiCall({
+    notifications: results,
+    unreadCount: results.filter(n => !n.read).length,
+  });
+}
+
+/**
+ * 標記通知為已讀
+ */
+export async function demoMarkNotificationRead(id: string) {
+  await simulateDelay(300);
+  return mockApiCall({ message: '通知已標記為已讀' });
+}
+
+/**
+ * 標記所有通知為已讀
+ */
+export async function demoMarkAllNotificationsRead() {
+  await simulateDelay(500);
+  return mockApiCall({ message: '所有通知已標記為已讀' });
+}
+
+// ============================================
+// 設置API
+// ============================================
+
+/**
+ * 獲取用戶設置
+ */
+export async function demoGetSettings() {
+  return mockApiCall(demoSettings);
+}
+
+/**
+ * 更新用戶設置
+ */
+export async function demoUpdateSettings(updates: Partial<typeof demoSettings>) {
+  await simulateDelay(800);
+  return mockApiCall({
+    ...demoSettings,
+    ...updates,
+    message: '設置更新成功 (演示模式)',
+  });
+}
+
+// ============================================
+// 客戶API
+// ============================================
+
+/**
+ * 獲取客戶列表
+ */
+export async function demoGetCustomers(filters?: {
+  status?: string;
+  industry?: string;
+}) {
+  let results = [...demoCustomers];
+
+  if (filters?.status) {
+    results = results.filter(c => c.status === filters.status);
+  }
+
+  if (filters?.industry) {
+    results = results.filter(c => c.industry === filters.industry);
+  }
+
+  return mockApiCall({
+    customers: results,
+    total: results.length,
+  });
+}
+
+/**
+ * 獲取單個客戶詳情
+ */
+export async function demoGetCustomer(id: string) {
+  const customer = demoCustomers.find(c => c.id === id);
+
+  if (!customer) {
+    return mockApiError('客戶不存在');
+  }
+
+  return mockApiCall(customer);
+}
+
+// ============================================
+// 任務API
+// ============================================
+
+/**
+ * 獲取任務列表
+ */
+export async function demoGetTasks(filters?: {
+  status?: string;
+  priority?: string;
+}) {
+  let results = [...demoTasks];
+
+  if (filters?.status) {
+    results = results.filter(t => t.status === filters.status);
+  }
+
+  if (filters?.priority) {
+    results = results.filter(t => t.priority === filters.priority);
+  }
+
+  return mockApiCall({
+    tasks: results,
+    total: results.length,
+  });
+}
+
+/**
+ * 創建任務 (演示)
+ */
+export async function demoCreateTask(data: any) {
+  await simulateDelay(800);
+  return mockApiCall({
+    id: 'task-new-' + Date.now(),
+    ...data,
+    status: 'pending',
+    progress: 0,
+    message: '任務創建成功 (演示模式)',
+  });
+}
+
+/**
+ * 更新任務 (演示)
+ */
+export async function demoUpdateTask(id: string, updates: any) {
+  await simulateDelay(600);
+  return mockApiCall({
+    id,
+    ...updates,
+    message: '任務更新成功 (演示模式)',
+  });
+}
+
+// ============================================
+// 提案API
+// ============================================
+
+/**
+ * 獲取提案列表
+ */
+export async function demoGetProposals(filters?: {
+  status?: string;
+  customer?: string;
+}) {
+  let results = [...demoProposals];
+
+  if (filters?.status) {
+    results = results.filter(p => p.status === filters.status);
+  }
+
+  if (filters?.customer) {
+    results = results.filter(p => p.customer === filters.customer);
+  }
+
+  return mockApiCall({
+    proposals: results,
+    total: results.length,
+  });
+}
+
+/**
+ * 獲取單個提案詳情
+ */
+export async function demoGetProposal(id: string) {
+  const proposal = demoProposals.find(p => p.id === id);
+
+  if (!proposal) {
+    return mockApiError('提案不存在');
+  }
+
+  return mockApiCall(proposal);
+}
+
+/**
+ * 創建提案 (演示)
+ */
+export async function demoCreateProposal(data: any) {
+  await simulateDelay(1000);
+  return mockApiCall({
+    id: 'prop-new-' + Date.now(),
+    ...data,
+    status: 'draft',
+    progress: 0,
+    createdBy: demoUser.name,
+    createdAt: new Date().toISOString().split('T')[0],
+    message: '提案創建成功 (演示模式)',
+  });
+}
+
+/**
+ * 更新提案 (演示)
+ */
+export async function demoUpdateProposal(id: string, updates: any) {
+  await simulateDelay(800);
+  return mockApiCall({
+    id,
+    ...updates,
+    message: '提案更新成功 (演示模式)',
+  });
+}
+
+/**
+ * 生成提案 (演示)
+ */
+export async function demoGenerateProposal(id: string) {
+  await simulateDelay(2000);
+  return mockApiCall({
+    id,
+    pdfUrl: '/demo/proposal-' + id + '.pdf',
+    message: '提案生成成功 (演示模式)',
+  });
+}
+
+// ============================================
+// 模板API
+// ============================================
+
+/**
+ * 獲取模板列表
+ */
+export async function demoGetTemplates(filters?: {
+  category?: string;
+  isPublic?: boolean;
+}) {
+  let results = [...demoTemplates];
+
+  if (filters?.category) {
+    results = results.filter(t => t.category === filters.category);
+  }
+
+  if (typeof filters?.isPublic === 'boolean') {
+    results = results.filter(t => t.isPublic === filters.isPublic);
+  }
+
+  return mockApiCall({
+    templates: results,
+    total: results.length,
+  });
+}
+
+/**
+ * 獲取單個模板詳情
+ */
+export async function demoGetTemplate(id: string) {
+  const template = demoTemplates.find(t => t.id === id);
+
+  if (!template) {
+    return mockApiError('模板不存在');
+  }
+
+  return mockApiCall({
+    ...template,
+    content: `這是${template.name}的內容。在實際使用中,這裡會顯示完整的模板內容。`,
+  });
+}
+
+/**
+ * 創建模板 (演示)
+ */
+export async function demoCreateTemplate(data: any) {
+  await simulateDelay(1000);
+  return mockApiCall({
+    id: 'tmpl-new-' + Date.now(),
+    ...data,
+    usageCount: 0,
+    createdBy: demoUser.name,
+    lastUsed: new Date().toISOString().split('T')[0],
+    message: '模板創建成功 (演示模式)',
+  });
+}
+
+/**
+ * 使用模板 (演示)
+ */
+export async function demoUseTemplate(id: string, data: any) {
+  await simulateDelay(1500);
+  return mockApiCall({
+    documentId: 'doc-' + Date.now(),
+    message: '已從模板創建文檔 (演示模式)',
+  });
+}
+
+// ============================================
+// 系統管理API
+// ============================================
+
+/**
+ * 獲取系統統計數據
+ */
+export async function demoGetAdminStats() {
+  return mockApiCall(demoAdminStats);
+}
+
+/**
+ * 獲取系統用戶列表
+ */
+export async function demoGetSystemUsers(filters?: {
+  role?: string;
+  status?: string;
+}) {
+  let results = [...demoSystemUsers];
+
+  if (filters?.role) {
+    results = results.filter(u => u.role === filters.role);
+  }
+
+  if (filters?.status) {
+    results = results.filter(u => u.status === filters.status);
+  }
+
+  return mockApiCall({
+    users: results,
+    total: results.length,
+  });
+}
+
+/**
+ * 獲取系統日誌
+ */
+export async function demoGetSystemLogs(filters?: {
+  level?: string;
+  limit?: number;
+}) {
+  let results = [...demoSystemLogs];
+
+  if (filters?.level) {
+    results = results.filter(l => l.level === filters.level);
+  }
+
+  if (filters?.limit) {
+    results = results.slice(0, filters.limit);
+  }
+
+  return mockApiCall({
+    logs: results,
+    total: results.length,
+  });
+}
+
+/**
+ * 更新用戶角色 (演示)
+ */
+export async function demoUpdateUserRole(userId: string, role: string) {
+  await simulateDelay(800);
+  return mockApiCall({
+    userId,
+    role,
+    message: '用戶角色更新成功 (演示模式)',
+  });
+}
+
+/**
+ * 執行系統操作 (演示)
+ */
+export async function demoSystemAction(action: string) {
+  await simulateDelay(1500);
+  return mockApiCall({
+    action,
+    status: 'completed',
+    message: `系統操作 "${action}" 執行成功 (演示模式)`,
+  });
+}
+
+// ============================================
+// 通用工具函數
+// ============================================
+
+/**
+ * 檢查是否為演示模式
+ */
+export function isDemoMode(): boolean {
+  return process.env.NEXT_PUBLIC_DEMO_MODE === 'true' || true;
+}
+
+/**
+ * 演示模式提示
+ */
+export function getDemoModeMessage(): string {
+  return '當前為演示模式 - 所有數據僅用於展示,不會保存';
+}

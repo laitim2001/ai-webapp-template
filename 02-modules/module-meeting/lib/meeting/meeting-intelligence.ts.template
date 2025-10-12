@@ -1,0 +1,470 @@
+/**
+ * Meeting Intelligence
+ *
+ * AI-powered meeting intelligence for transcription, summarization,
+ * action item extraction, and meeting analytics using Azure OpenAI.
+ *
+ * @module lib/meeting/meeting-intelligence
+ * @requires Azure OpenAI
+ */
+
+import { OpenAIClient, AzureKeyCredential } from '@azure/openai';
+
+/**
+ * Meeting transcription segment
+ */
+export interface TranscriptionSegment {
+  speaker: string;
+  timestamp: number; // seconds from meeting start
+  text: string;
+  confidence?: number;
+}
+
+/**
+ * Meeting transcript
+ */
+export interface MeetingTranscript {
+  meetingId: string;
+  segments: TranscriptionSegment[];
+  duration: number; // total duration in seconds
+  participants: string[];
+  language?: string;
+}
+
+/**
+ * Meeting summary
+ */
+export interface MeetingSummary {
+  meetingId: string;
+  title: string;
+  date: Date;
+  duration: number;
+  participants: string[];
+  keyPoints: string[];
+  decisions: string[];
+  actionItems: ActionItem[];
+  topics: string[];
+  sentiment?: 'positive' | 'neutral' | 'negative';
+  fullSummary: string;
+}
+
+/**
+ * Action item extracted from meeting
+ */
+export interface ActionItem {
+  id: string;
+  description: string;
+  assignee?: string;
+  dueDate?: Date;
+  priority?: 'high' | 'medium' | 'low';
+  status: 'pending' | 'in_progress' | 'completed';
+  context?: string; // surrounding discussion
+}
+
+/**
+ * Meeting analytics
+ */
+export interface MeetingAnalytics {
+  meetingId: string;
+  speakingTime: Record<string, number>; // participant -> seconds
+  participationRate: Record<string, number>; // participant -> percentage
+  engagementScore: number; // 0-100
+  topics: Array<{
+    name: string;
+    duration: number;
+    relevance: number;
+  }>;
+  sentimentOverTime: Array<{
+    timestamp: number;
+    sentiment: number; // -1 to 1
+  }>;
+}
+
+/**
+ * Meeting Intelligence Configuration
+ */
+export interface IntelligenceConfig {
+  azureOpenAIEndpoint: string;
+  azureOpenAIKey: string;
+  deploymentName?: string;
+  apiVersion?: string;
+}
+
+/**
+ * Meeting Intelligence Service
+ *
+ * Provides AI-powered features:
+ * - Automatic meeting summarization
+ * - Action item extraction
+ * - Key points identification
+ * - Meeting analytics
+ * - Sentiment analysis
+ */
+export class MeetingIntelligence {
+  private client: OpenAIClient;
+  private deploymentName: string;
+
+  constructor(config: IntelligenceConfig) {
+    this.client = new OpenAIClient(
+      config.azureOpenAIEndpoint,
+      new AzureKeyCredential(config.azureOpenAIKey)
+    );
+    this.deploymentName = config.deploymentName || 'gpt-4';
+  }
+
+  /**
+   * Generate comprehensive meeting summary from transcript
+   *
+   * @param transcript Meeting transcript
+   * @param meetingInfo Additional meeting information
+   * @returns Meeting summary with key points and action items
+   *
+   * @example
+   * const summary = await intelligence.generateSummary(transcript, {
+   *   title: 'Product Planning Meeting',
+   *   date: new Date(),
+   *   participants: ['Alice', 'Bob', 'Charlie']
+   * });
+   */
+  async generateSummary(
+    transcript: MeetingTranscript,
+    meetingInfo: {
+      title: string;
+      date: Date;
+      participants: string[];
+    }
+  ): Promise<MeetingSummary> {
+    const transcriptText = this.formatTranscript(transcript);
+
+    const prompt = `
+You are an AI meeting assistant. Analyze the following meeting transcript and provide a comprehensive summary.
+
+Meeting Title: ${meetingInfo.title}
+Date: ${meetingInfo.date.toISOString()}
+Duration: ${Math.floor(transcript.duration / 60)} minutes
+Participants: ${meetingInfo.participants.join(', ')}
+
+Transcript:
+${transcriptText}
+
+Please provide:
+1. Key Points (3-5 main discussion points)
+2. Decisions Made (specific decisions or agreements)
+3. Action Items (tasks assigned with assignee if mentioned)
+4. Topics Discussed
+5. Overall Sentiment (positive/neutral/negative)
+6. Full Summary (2-3 paragraphs)
+
+Format your response as JSON with this structure:
+{
+  "keyPoints": ["point1", "point2", ...],
+  "decisions": ["decision1", "decision2", ...],
+  "actionItems": [{"description": "task", "assignee": "person", "priority": "high/medium/low"}, ...],
+  "topics": ["topic1", "topic2", ...],
+  "sentiment": "positive/neutral/negative",
+  "fullSummary": "summary text"
+}
+    `;
+
+    try {
+      const response = await this.client.getChatCompletions(
+        this.deploymentName,
+        [
+          { role: 'system', content: 'You are a helpful meeting assistant that analyzes meeting transcripts.' },
+          { role: 'user', content: prompt }
+        ],
+        {
+          temperature: 0.3,
+          maxTokens: 2000,
+        }
+      );
+
+      const content = response.choices[0]?.message?.content || '{}';
+      const parsed = JSON.parse(content);
+
+      // Convert action items to proper format
+      const actionItems: ActionItem[] = (parsed.actionItems || []).map((item: any, index: number) => ({
+        id: `${transcript.meetingId}-action-${index}`,
+        description: item.description,
+        assignee: item.assignee,
+        priority: item.priority || 'medium',
+        status: 'pending' as const,
+      }));
+
+      return {
+        meetingId: transcript.meetingId,
+        title: meetingInfo.title,
+        date: meetingInfo.date,
+        duration: transcript.duration,
+        participants: meetingInfo.participants,
+        keyPoints: parsed.keyPoints || [],
+        decisions: parsed.decisions || [],
+        actionItems,
+        topics: parsed.topics || [],
+        sentiment: parsed.sentiment || 'neutral',
+        fullSummary: parsed.fullSummary || '',
+      };
+    } catch (error) {
+      throw new Error(`Failed to generate meeting summary: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Extract action items from meeting transcript
+   *
+   * @param transcript Meeting transcript
+   * @returns List of action items
+   */
+  async extractActionItems(transcript: MeetingTranscript): Promise<ActionItem[]> {
+    const transcriptText = this.formatTranscript(transcript);
+
+    const prompt = `
+Analyze this meeting transcript and extract all action items, tasks, or follow-ups mentioned.
+
+Transcript:
+${transcriptText}
+
+For each action item, identify:
+- Description of the task
+- Assignee (if mentioned)
+- Due date (if mentioned)
+- Priority (high/medium/low based on context)
+
+Return a JSON array of action items with this format:
+[
+  {
+    "description": "task description",
+    "assignee": "person name or null",
+    "dueDate": "ISO date string or null",
+    "priority": "high/medium/low",
+    "context": "relevant surrounding discussion"
+  }
+]
+    `;
+
+    try {
+      const response = await this.client.getChatCompletions(
+        this.deploymentName,
+        [
+          { role: 'system', content: 'You are an AI assistant that extracts action items from meeting transcripts.' },
+          { role: 'user', content: prompt }
+        ],
+        {
+          temperature: 0.2,
+          maxTokens: 1500,
+        }
+      );
+
+      const content = response.choices[0]?.message?.content || '[]';
+      const items = JSON.parse(content);
+
+      return items.map((item: any, index: number) => ({
+        id: `${transcript.meetingId}-action-${index}`,
+        description: item.description,
+        assignee: item.assignee || undefined,
+        dueDate: item.dueDate ? new Date(item.dueDate) : undefined,
+        priority: item.priority || 'medium',
+        status: 'pending' as const,
+        context: item.context,
+      }));
+    } catch (error) {
+      throw new Error(`Failed to extract action items: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Generate meeting analytics from transcript
+   *
+   * @param transcript Meeting transcript
+   * @returns Meeting analytics including speaking time and engagement
+   */
+  async generateAnalytics(transcript: MeetingTranscript): Promise<MeetingAnalytics> {
+    // Calculate speaking time per participant
+    const speakingTime: Record<string, number> = {};
+    const totalDuration = transcript.duration;
+
+    for (const segment of transcript.segments) {
+      if (!speakingTime[segment.speaker]) {
+        speakingTime[segment.speaker] = 0;
+      }
+      // Estimate segment duration (time until next segment)
+      const nextSegment = transcript.segments[transcript.segments.indexOf(segment) + 1];
+      const segmentDuration = nextSegment
+        ? nextSegment.timestamp - segment.timestamp
+        : 10; // Default 10 seconds for last segment
+
+      speakingTime[segment.speaker] += segmentDuration;
+    }
+
+    // Calculate participation rate
+    const participationRate: Record<string, number> = {};
+    for (const speaker in speakingTime) {
+      participationRate[speaker] = (speakingTime[speaker] / totalDuration) * 100;
+    }
+
+    // Calculate engagement score
+    const participantCount = Object.keys(speakingTime).length;
+    const averageParticipation = 100 / participantCount;
+    const variance = Object.values(participationRate).reduce(
+      (sum, rate) => sum + Math.pow(rate - averageParticipation, 2),
+      0
+    ) / participantCount;
+    const engagementScore = Math.max(0, 100 - variance);
+
+    // Extract topics using AI
+    const topics = await this.extractTopics(transcript);
+
+    return {
+      meetingId: transcript.meetingId,
+      speakingTime,
+      participationRate,
+      engagementScore,
+      topics,
+      sentimentOverTime: [], // Would require more sophisticated analysis
+    };
+  }
+
+  /**
+   * Extract discussion topics from transcript
+   */
+  private async extractTopics(
+    transcript: MeetingTranscript
+  ): Promise<Array<{ name: string; duration: number; relevance: number }>> {
+    const transcriptText = this.formatTranscript(transcript);
+
+    const prompt = `
+Analyze this meeting transcript and identify the main topics discussed.
+
+Transcript:
+${transcriptText}
+
+Return a JSON array of topics with estimated duration and relevance:
+[
+  {
+    "name": "topic name",
+    "duration": estimated_duration_in_seconds,
+    "relevance": relevance_score_0_to_1
+  }
+]
+    `;
+
+    try {
+      const response = await this.client.getChatCompletions(
+        this.deploymentName,
+        [
+          { role: 'system', content: 'You are an AI assistant that analyzes meeting topics.' },
+          { role: 'user', content: prompt }
+        ],
+        {
+          temperature: 0.3,
+          maxTokens: 1000,
+        }
+      );
+
+      const content = response.choices[0]?.message?.content || '[]';
+      return JSON.parse(content);
+    } catch (error) {
+      console.error('Failed to extract topics:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Format transcript for AI processing
+   */
+  private formatTranscript(transcript: MeetingTranscript): string {
+    return transcript.segments
+      .map((segment) => {
+        const minutes = Math.floor(segment.timestamp / 60);
+        const seconds = segment.timestamp % 60;
+        return `[${minutes}:${seconds.toString().padStart(2, '0')}] ${segment.speaker}: ${segment.text}`;
+      })
+      .join('\n');
+  }
+
+  /**
+   * Generate meeting notes in markdown format
+   *
+   * @param summary Meeting summary
+   * @returns Formatted meeting notes in markdown
+   */
+  generateMeetingNotes(summary: MeetingSummary): string {
+    const notes = `# ${summary.title}
+
+**Date:** ${summary.date.toLocaleDateString()}
+**Duration:** ${Math.floor(summary.duration / 60)} minutes
+**Participants:** ${summary.participants.join(', ')}
+
+## Summary
+
+${summary.fullSummary}
+
+## Key Points
+
+${summary.keyPoints.map((point, i) => `${i + 1}. ${point}`).join('\n')}
+
+## Decisions Made
+
+${summary.decisions.length > 0
+  ? summary.decisions.map((decision, i) => `${i + 1}. ${decision}`).join('\n')
+  : 'No specific decisions recorded.'}
+
+## Action Items
+
+${summary.actionItems.length > 0
+  ? summary.actionItems.map((item, i) =>
+      `${i + 1}. ${item.description}${item.assignee ? ` (Assigned to: ${item.assignee})` : ''} - **${item.priority}** priority`
+    ).join('\n')
+  : 'No action items identified.'}
+
+## Topics Discussed
+
+${summary.topics.map((topic) => `- ${topic}`).join('\n')}
+
+---
+
+*Generated on ${new Date().toLocaleString()}*
+`;
+
+    return notes;
+  }
+
+  /**
+   * Update action item status
+   *
+   * @param actionItemId Action item ID
+   * @param status New status
+   * @param actionItems List of action items to update
+   */
+  updateActionItemStatus(
+    actionItemId: string,
+    status: ActionItem['status'],
+    actionItems: ActionItem[]
+  ): ActionItem[] {
+    return actionItems.map((item) =>
+      item.id === actionItemId ? { ...item, status } : item
+    );
+  }
+}
+
+/**
+ * Create MeetingIntelligence instance from environment variables
+ *
+ * @returns Configured MeetingIntelligence instance
+ *
+ * @example
+ * const intelligence = createMeetingIntelligence();
+ * const summary = await intelligence.generateSummary(transcript, meetingInfo);
+ */
+export function createMeetingIntelligence(): MeetingIntelligence {
+  const config: IntelligenceConfig = {
+    azureOpenAIEndpoint: process.env.AZURE_OPENAI_ENDPOINT || '{{AZURE_OPENAI_ENDPOINT}}',
+    azureOpenAIKey: process.env.AZURE_OPENAI_KEY || '{{AZURE_OPENAI_KEY}}',
+    deploymentName: process.env.AZURE_OPENAI_DEPLOYMENT || 'gpt-4',
+    apiVersion: process.env.AZURE_OPENAI_API_VERSION || '2024-02-15-preview',
+  };
+
+  return new MeetingIntelligence(config);
+}
+
+export default MeetingIntelligence;

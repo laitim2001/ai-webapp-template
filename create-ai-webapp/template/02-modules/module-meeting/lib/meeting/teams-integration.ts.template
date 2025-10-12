@@ -1,0 +1,558 @@
+/**
+ * Microsoft Teams Integration
+ *
+ * Provides comprehensive Microsoft Teams meeting management through Microsoft Graph API.
+ * Features include meeting creation, updates, participant management, and calendar integration.
+ *
+ * @module lib/meeting/teams-integration
+ * @requires @microsoft/microsoft-graph-client
+ * @requires isomorphic-fetch
+ */
+
+import { Client } from '@microsoft/microsoft-graph-client';
+import 'isomorphic-fetch';
+
+/**
+ * Teams meeting configuration
+ */
+export interface TeamsConfig {
+  tenantId: string;
+  clientId: string;
+  clientSecret: string;
+  redirectUri?: string;
+}
+
+/**
+ * Meeting participant information
+ */
+export interface MeetingParticipant {
+  email: string;
+  name?: string;
+  role?: 'presenter' | 'attendee' | 'organizer';
+  required?: boolean;
+}
+
+/**
+ * Teams online meeting details
+ */
+export interface TeamsOnlineMeeting {
+  id: string;
+  subject: string;
+  startDateTime: string;
+  endDateTime: string;
+  joinUrl: string;
+  joinWebUrl?: string;
+  audioConferencing?: {
+    conferenceId?: string;
+    tollNumber?: string;
+    tollFreeNumber?: string;
+  };
+  participants?: {
+    organizer?: { identity: { user: { id: string; displayName: string } } };
+    attendees?: Array<{ identity: { user: { id: string; displayName: string } } }>;
+  };
+  lobbyBypassSettings?: {
+    scope: 'everyone' | 'organization' | 'organizer';
+    isDialInBypassEnabled?: boolean;
+  };
+  allowedPresenters?: 'everyone' | 'organization' | 'roleIsPresenter' | 'organizer';
+  isEntryExitAnnounced?: boolean;
+  recordAutomatically?: boolean;
+}
+
+/**
+ * Calendar event for Teams meetings
+ */
+export interface CalendarEvent {
+  subject: string;
+  body?: {
+    contentType: 'HTML' | 'text';
+    content: string;
+  };
+  start: {
+    dateTime: string;
+    timeZone: string;
+  };
+  end: {
+    dateTime: string;
+    timeZone: string;
+  };
+  location?: {
+    displayName: string;
+  };
+  attendees?: Array<{
+    emailAddress: {
+      address: string;
+      name?: string;
+    };
+    type: 'required' | 'optional' | 'resource';
+  }>;
+  isOnlineMeeting?: boolean;
+  onlineMeetingProvider?: 'teamsForBusiness';
+  isReminderOn?: boolean;
+  reminderMinutesBeforeStart?: number;
+}
+
+/**
+ * Microsoft Teams Integration Service
+ *
+ * Handles all Teams-related operations including:
+ * - OAuth authentication
+ * - Online meeting creation and management
+ * - Calendar integration
+ * - Participant management
+ * - Meeting settings configuration
+ */
+export class TeamsIntegration {
+  private config: TeamsConfig;
+  private client: Client | null = null;
+  private accessToken: string | null = null;
+  private tokenExpiry: number = 0;
+
+  constructor(config: TeamsConfig) {
+    this.config = config;
+  }
+
+  /**
+   * Initialize Graph API client with authentication
+   * @param accessToken Optional pre-existing access token
+   */
+  async initialize(accessToken?: string): Promise<void> {
+    if (accessToken) {
+      this.accessToken = accessToken;
+      this.tokenExpiry = Date.now() + 3600 * 1000; // Assume 1 hour validity
+    } else {
+      await this.authenticate();
+    }
+
+    this.client = Client.init({
+      authProvider: (done) => {
+        done(null, this.accessToken!);
+      },
+    });
+  }
+
+  /**
+   * Authenticate with Microsoft Graph API using client credentials flow
+   * @throws Error if authentication fails
+   */
+  private async authenticate(): Promise<void> {
+    const tokenEndpoint = `https://login.microsoftonline.com/${this.config.tenantId}/oauth2/v2.0/token`;
+
+    const params = new URLSearchParams({
+      client_id: this.config.clientId,
+      client_secret: this.config.clientSecret,
+      scope: 'https://graph.microsoft.com/.default',
+      grant_type: 'client_credentials',
+    });
+
+    try {
+      const response = await fetch(tokenEndpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: params.toString(),
+      });
+
+      if (!response.ok) {
+        const error = await response.text();
+        throw new Error(`Authentication failed: ${error}`);
+      }
+
+      const data = await response.json();
+      this.accessToken = data.access_token;
+      this.tokenExpiry = Date.now() + data.expires_in * 1000;
+    } catch (error) {
+      throw new Error(`Failed to authenticate with Microsoft Graph: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Ensure client is initialized and token is valid
+   * @throws Error if client is not initialized
+   */
+  private async ensureClient(): Promise<Client> {
+    if (!this.client || !this.accessToken || Date.now() >= this.tokenExpiry) {
+      await this.initialize();
+    }
+    return this.client!;
+  }
+
+  /**
+   * Create a new Teams online meeting
+   *
+   * @param subject Meeting subject/title
+   * @param startDateTime Meeting start time (ISO 8601 format)
+   * @param endDateTime Meeting end time (ISO 8601 format)
+   * @param participants List of meeting participants
+   * @param options Additional meeting options
+   * @returns Created online meeting details
+   *
+   * @example
+   * const meeting = await teamsIntegration.createOnlineMeeting(
+   *   'Project Kickoff',
+   *   '2025-10-15T10:00:00Z',
+   *   '2025-10-15T11:00:00Z',
+   *   [
+   *     { email: 'user@example.com', name: 'John Doe', role: 'presenter' }
+   *   ],
+   *   { recordAutomatically: true }
+   * );
+   */
+  async createOnlineMeeting(
+    subject: string,
+    startDateTime: string,
+    endDateTime: string,
+    participants: MeetingParticipant[] = [],
+    options: {
+      allowedPresenters?: 'everyone' | 'organization' | 'roleIsPresenter' | 'organizer';
+      lobbyBypassScope?: 'everyone' | 'organization' | 'organizer';
+      recordAutomatically?: boolean;
+      isEntryExitAnnounced?: boolean;
+    } = {}
+  ): Promise<TeamsOnlineMeeting> {
+    const client = await this.ensureClient();
+
+    const meetingRequest = {
+      subject,
+      startDateTime,
+      endDateTime,
+      participants: {
+        attendees: participants.map((p) => ({
+          identity: {
+            user: {
+              id: p.email,
+              displayName: p.name || p.email,
+            },
+          },
+          role: p.role || 'attendee',
+        })),
+      },
+      lobbyBypassSettings: {
+        scope: options.lobbyBypassScope || 'organization',
+        isDialInBypassEnabled: false,
+      },
+      allowedPresenters: options.allowedPresenters || 'organization',
+      isEntryExitAnnounced: options.isEntryExitAnnounced ?? false,
+      recordAutomatically: options.recordAutomatically ?? false,
+    };
+
+    try {
+      const meeting = await client
+        .api('/me/onlineMeetings')
+        .post(meetingRequest);
+
+      return meeting as TeamsOnlineMeeting;
+    } catch (error) {
+      throw new Error(`Failed to create online meeting: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Create a calendar event with Teams meeting
+   *
+   * @param userId User ID or 'me' for current user
+   * @param event Calendar event details
+   * @returns Created calendar event with Teams meeting link
+   *
+   * @example
+   * const event = await teamsIntegration.createCalendarEvent('me', {
+   *   subject: 'Team Sync',
+   *   start: { dateTime: '2025-10-15T14:00:00', timeZone: 'UTC' },
+   *   end: { dateTime: '2025-10-15T15:00:00', timeZone: 'UTC' },
+   *   attendees: [
+   *     { emailAddress: { address: 'colleague@example.com' }, type: 'required' }
+   *   ],
+   *   isOnlineMeeting: true,
+   *   onlineMeetingProvider: 'teamsForBusiness'
+   * });
+   */
+  async createCalendarEvent(
+    userId: string,
+    event: CalendarEvent
+  ): Promise<any> {
+    const client = await this.ensureClient();
+
+    try {
+      const calendarEvent = await client
+        .api(`/users/${userId}/calendar/events`)
+        .post(event);
+
+      return calendarEvent;
+    } catch (error) {
+      throw new Error(`Failed to create calendar event: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Get online meeting details by ID
+   *
+   * @param meetingId Teams meeting ID
+   * @returns Meeting details
+   */
+  async getMeeting(meetingId: string): Promise<TeamsOnlineMeeting> {
+    const client = await this.ensureClient();
+
+    try {
+      const meeting = await client
+        .api(`/me/onlineMeetings/${meetingId}`)
+        .get();
+
+      return meeting as TeamsOnlineMeeting;
+    } catch (error) {
+      throw new Error(`Failed to get meeting: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Update an existing online meeting
+   *
+   * @param meetingId Meeting ID to update
+   * @param updates Fields to update
+   * @returns Updated meeting details
+   *
+   * @example
+   * const updated = await teamsIntegration.updateMeeting(meetingId, {
+   *   subject: 'Updated Meeting Title',
+   *   recordAutomatically: true
+   * });
+   */
+  async updateMeeting(
+    meetingId: string,
+    updates: Partial<{
+      subject: string;
+      startDateTime: string;
+      endDateTime: string;
+      allowedPresenters: string;
+      recordAutomatically: boolean;
+    }>
+  ): Promise<TeamsOnlineMeeting> {
+    const client = await this.ensureClient();
+
+    try {
+      const meeting = await client
+        .api(`/me/onlineMeetings/${meetingId}`)
+        .patch(updates);
+
+      return meeting as TeamsOnlineMeeting;
+    } catch (error) {
+      throw new Error(`Failed to update meeting: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Delete an online meeting
+   *
+   * @param meetingId Meeting ID to delete
+   */
+  async deleteMeeting(meetingId: string): Promise<void> {
+    const client = await this.ensureClient();
+
+    try {
+      await client
+        .api(`/me/onlineMeetings/${meetingId}`)
+        .delete();
+    } catch (error) {
+      throw new Error(`Failed to delete meeting: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Get calendar events for a user
+   *
+   * @param userId User ID or 'me'
+   * @param startDate Start date filter (ISO 8601)
+   * @param endDate End date filter (ISO 8601)
+   * @param top Maximum number of events to return
+   * @returns List of calendar events
+   */
+  async getCalendarEvents(
+    userId: string,
+    startDate?: string,
+    endDate?: string,
+    top: number = 50
+  ): Promise<any[]> {
+    const client = await this.ensureClient();
+
+    try {
+      let query = client
+        .api(`/users/${userId}/calendar/events`)
+        .top(top)
+        .orderby('start/dateTime');
+
+      if (startDate && endDate) {
+        query = query.filter(
+          `start/dateTime ge '${startDate}' and end/dateTime le '${endDate}'`
+        );
+      }
+
+      const response = await query.get();
+      return response.value || [];
+    } catch (error) {
+      throw new Error(`Failed to get calendar events: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Add participants to an existing meeting
+   *
+   * @param meetingId Meeting ID
+   * @param participants Participants to add
+   * @returns Updated meeting details
+   */
+  async addParticipants(
+    meetingId: string,
+    participants: MeetingParticipant[]
+  ): Promise<TeamsOnlineMeeting> {
+    const meeting = await this.getMeeting(meetingId);
+
+    const existingAttendees = meeting.participants?.attendees || [];
+    const newAttendees = participants.map((p) => ({
+      identity: {
+        user: {
+          id: p.email,
+          displayName: p.name || p.email,
+        },
+      },
+    }));
+
+    return this.updateMeeting(meetingId, {
+      // Note: Graph API may not support direct participant updates
+      // This is a placeholder implementation
+    });
+  }
+
+  /**
+   * Get meeting attendance report (requires appropriate permissions)
+   *
+   * @param userId User ID
+   * @param meetingId Meeting ID
+   * @returns Attendance report
+   */
+  async getAttendanceReport(
+    userId: string,
+    meetingId: string
+  ): Promise<any> {
+    const client = await this.ensureClient();
+
+    try {
+      const report = await client
+        .api(`/users/${userId}/onlineMeetings/${meetingId}/attendanceReports`)
+        .get();
+
+      return report.value || [];
+    } catch (error) {
+      throw new Error(`Failed to get attendance report: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Search for available meeting rooms
+   *
+   * @param startTime Meeting start time
+   * @param endTime Meeting end time
+   * @param location Optional location filter
+   * @returns Available meeting rooms
+   */
+  async findMeetingRooms(
+    startTime: string,
+    endTime: string,
+    location?: string
+  ): Promise<any[]> {
+    const client = await this.ensureClient();
+
+    try {
+      const rooms = await client
+        .api('/places/microsoft.graph.room')
+        .filter(`capacity ge 1`)
+        .get();
+
+      // Filter by availability (this would require additional calendar queries)
+      return rooms.value || [];
+    } catch (error) {
+      throw new Error(`Failed to find meeting rooms: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Get user's presence status
+   *
+   * @param userId User ID
+   * @returns Presence information
+   */
+  async getUserPresence(userId: string): Promise<any> {
+    const client = await this.ensureClient();
+
+    try {
+      const presence = await client
+        .api(`/users/${userId}/presence`)
+        .get();
+
+      return presence;
+    } catch (error) {
+      throw new Error(`Failed to get user presence: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Send meeting invitation email
+   *
+   * @param userId User ID
+   * @param recipients Email recipients
+   * @param meeting Meeting details
+   */
+  async sendMeetingInvitation(
+    userId: string,
+    recipients: string[],
+    meeting: TeamsOnlineMeeting
+  ): Promise<void> {
+    const client = await this.ensureClient();
+
+    const message = {
+      subject: `Meeting Invitation: ${meeting.subject}`,
+      body: {
+        contentType: 'HTML',
+        content: `
+          <h2>${meeting.subject}</h2>
+          <p><strong>When:</strong> ${new Date(meeting.startDateTime).toLocaleString()} - ${new Date(meeting.endDateTime).toLocaleString()}</p>
+          <p><strong>Join URL:</strong> <a href="${meeting.joinUrl}">${meeting.joinUrl}</a></p>
+          ${meeting.audioConferencing ? `<p><strong>Conference ID:</strong> ${meeting.audioConferencing.conferenceId}</p>` : ''}
+        `,
+      },
+      toRecipients: recipients.map((email) => ({
+        emailAddress: { address: email },
+      })),
+    };
+
+    try {
+      await client
+        .api(`/users/${userId}/sendMail`)
+        .post({ message, saveToSentItems: true });
+    } catch (error) {
+      throw new Error(`Failed to send meeting invitation: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+}
+
+/**
+ * Helper function to create TeamsIntegration instance from environment variables
+ *
+ * @returns Configured TeamsIntegration instance
+ *
+ * @example
+ * const teamsIntegration = createTeamsIntegration();
+ * await teamsIntegration.initialize();
+ */
+export function createTeamsIntegration(): TeamsIntegration {
+  const config: TeamsConfig = {
+    tenantId: process.env.AZURE_TENANT_ID || '{{AZURE_TENANT_ID}}',
+    clientId: process.env.TEAMS_CLIENT_ID || '{{TEAMS_CLIENT_ID}}',
+    clientSecret: process.env.TEAMS_CLIENT_SECRET || '{{TEAMS_CLIENT_SECRET}}',
+    redirectUri: process.env.TEAMS_REDIRECT_URI,
+  };
+
+  return new TeamsIntegration(config);
+}
+
+export default TeamsIntegration;

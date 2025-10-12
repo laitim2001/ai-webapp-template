@@ -1,0 +1,393 @@
+/**
+ * Tests for Teams Integration
+ *
+ * @module lib/meeting/__tests__/teams-integration.test
+ */
+
+import { TeamsIntegration, createTeamsIntegration } from '../teams-integration';
+
+// Mock Microsoft Graph Client
+jest.mock('@microsoft/microsoft-graph-client', () => ({
+  Client: {
+    init: jest.fn(() => ({
+      api: jest.fn(() => ({
+        post: jest.fn(),
+        get: jest.fn(),
+        patch: jest.fn(),
+        delete: jest.fn(),
+        top: jest.fn(() => ({ orderby: jest.fn(() => ({ filter: jest.fn(() => ({ get: jest.fn() })), get: jest.fn() })) })),
+        filter: jest.fn(() => ({ get: jest.fn() })),
+        orderby: jest.fn(() => ({ get: jest.fn() })),
+      })),
+    })),
+  },
+}));
+
+// Mock fetch
+global.fetch = jest.fn();
+
+describe('TeamsIntegration', () => {
+  let teamsIntegration: TeamsIntegration;
+  const mockConfig = {
+    tenantId: 'test-tenant-id',
+    clientId: 'test-client-id',
+    clientSecret: 'test-client-secret',
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    teamsIntegration = new TeamsIntegration(mockConfig);
+
+    // Mock successful authentication
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        access_token: 'mock-access-token',
+        expires_in: 3600,
+      }),
+    });
+  });
+
+  describe('initialize', () => {
+    it('should initialize with provided access token', async () => {
+      await teamsIntegration.initialize('custom-token');
+      expect(global.fetch).not.toHaveBeenCalled();
+    });
+
+    it('should authenticate when no token provided', async () => {
+      await teamsIntegration.initialize();
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining('oauth2/v2.0/token'),
+        expect.objectContaining({
+          method: 'POST',
+        })
+      );
+    });
+
+    it('should handle authentication failure', async () => {
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: false,
+        text: async () => 'Authentication failed',
+      });
+
+      await expect(teamsIntegration.initialize()).rejects.toThrow(
+        'Failed to authenticate with Microsoft Graph'
+      );
+    });
+  });
+
+  describe('createOnlineMeeting', () => {
+    beforeEach(async () => {
+      await teamsIntegration.initialize('test-token');
+    });
+
+    it('should create a Teams meeting successfully', async () => {
+      const mockMeeting = {
+        id: 'meeting-123',
+        subject: 'Test Meeting',
+        startDateTime: '2025-10-15T10:00:00Z',
+        endDateTime: '2025-10-15T11:00:00Z',
+        joinUrl: 'https://teams.microsoft.com/join/123',
+      };
+
+      const Client = require('@microsoft/microsoft-graph-client').Client;
+      const mockApi = Client.init().api();
+      mockApi.post.mockResolvedValueOnce(mockMeeting);
+
+      const result = await teamsIntegration.createOnlineMeeting(
+        'Test Meeting',
+        '2025-10-15T10:00:00Z',
+        '2025-10-15T11:00:00Z',
+        [{ email: 'user@example.com', name: 'Test User', role: 'attendee' }]
+      );
+
+      expect(result).toEqual(mockMeeting);
+      expect(mockApi.post).toHaveBeenCalledWith(
+        expect.objectContaining({
+          subject: 'Test Meeting',
+          startDateTime: '2025-10-15T10:00:00Z',
+          endDateTime: '2025-10-15T11:00:00Z',
+        })
+      );
+    });
+
+    it('should include optional meeting settings', async () => {
+      const Client = require('@microsoft/microsoft-graph-client').Client;
+      const mockApi = Client.init().api();
+      mockApi.post.mockResolvedValueOnce({});
+
+      await teamsIntegration.createOnlineMeeting(
+        'Test Meeting',
+        '2025-10-15T10:00:00Z',
+        '2025-10-15T11:00:00Z',
+        [],
+        {
+          allowedPresenters: 'organizer',
+          recordAutomatically: true,
+          lobbyBypassScope: 'organization',
+        }
+      );
+
+      expect(mockApi.post).toHaveBeenCalledWith(
+        expect.objectContaining({
+          allowedPresenters: 'organizer',
+          recordAutomatically: true,
+          lobbyBypassSettings: {
+            scope: 'organization',
+            isDialInBypassEnabled: false,
+          },
+        })
+      );
+    });
+
+    it('should handle meeting creation errors', async () => {
+      const Client = require('@microsoft/microsoft-graph-client').Client;
+      const mockApi = Client.init().api();
+      mockApi.post.mockRejectedValueOnce(new Error('API Error'));
+
+      await expect(
+        teamsIntegration.createOnlineMeeting(
+          'Test Meeting',
+          '2025-10-15T10:00:00Z',
+          '2025-10-15T11:00:00Z'
+        )
+      ).rejects.toThrow('Failed to create online meeting');
+    });
+  });
+
+  describe('createCalendarEvent', () => {
+    beforeEach(async () => {
+      await teamsIntegration.initialize('test-token');
+    });
+
+    it('should create calendar event with Teams meeting', async () => {
+      const mockEvent = {
+        id: 'event-123',
+        subject: 'Team Sync',
+        onlineMeeting: {
+          joinUrl: 'https://teams.microsoft.com/join/456',
+        },
+      };
+
+      const Client = require('@microsoft/microsoft-graph-client').Client;
+      const mockApi = Client.init().api();
+      mockApi.post.mockResolvedValueOnce(mockEvent);
+
+      const event = {
+        subject: 'Team Sync',
+        start: { dateTime: '2025-10-15T14:00:00', timeZone: 'UTC' },
+        end: { dateTime: '2025-10-15T15:00:00', timeZone: 'UTC' },
+        isOnlineMeeting: true,
+        onlineMeetingProvider: 'teamsForBusiness' as const,
+      };
+
+      const result = await teamsIntegration.createCalendarEvent('me', event);
+
+      expect(result).toEqual(mockEvent);
+      expect(mockApi.post).toHaveBeenCalled();
+    });
+  });
+
+  describe('getMeeting', () => {
+    beforeEach(async () => {
+      await teamsIntegration.initialize('test-token');
+    });
+
+    it('should retrieve meeting details', async () => {
+      const mockMeeting = {
+        id: 'meeting-123',
+        subject: 'Test Meeting',
+        joinUrl: 'https://teams.microsoft.com/join/123',
+      };
+
+      const Client = require('@microsoft/microsoft-graph-client').Client;
+      const mockApi = Client.init().api();
+      mockApi.get.mockResolvedValueOnce(mockMeeting);
+
+      const result = await teamsIntegration.getMeeting('meeting-123');
+
+      expect(result).toEqual(mockMeeting);
+      expect(mockApi.get).toHaveBeenCalled();
+    });
+
+    it('should handle meeting not found', async () => {
+      const Client = require('@microsoft/microsoft-graph-client').Client;
+      const mockApi = Client.init().api();
+      mockApi.get.mockRejectedValueOnce(new Error('Not found'));
+
+      await expect(teamsIntegration.getMeeting('invalid-id')).rejects.toThrow(
+        'Failed to get meeting'
+      );
+    });
+  });
+
+  describe('updateMeeting', () => {
+    beforeEach(async () => {
+      await teamsIntegration.initialize('test-token');
+    });
+
+    it('should update meeting successfully', async () => {
+      const mockUpdated = {
+        id: 'meeting-123',
+        subject: 'Updated Meeting',
+        recordAutomatically: true,
+      };
+
+      const Client = require('@microsoft/microsoft-graph-client').Client;
+      const mockApi = Client.init().api();
+      mockApi.patch.mockResolvedValueOnce(mockUpdated);
+
+      const result = await teamsIntegration.updateMeeting('meeting-123', {
+        subject: 'Updated Meeting',
+        recordAutomatically: true,
+      });
+
+      expect(result).toEqual(mockUpdated);
+      expect(mockApi.patch).toHaveBeenCalledWith({
+        subject: 'Updated Meeting',
+        recordAutomatically: true,
+      });
+    });
+  });
+
+  describe('deleteMeeting', () => {
+    beforeEach(async () => {
+      await teamsIntegration.initialize('test-token');
+    });
+
+    it('should delete meeting successfully', async () => {
+      const Client = require('@microsoft/microsoft-graph-client').Client;
+      const mockApi = Client.init().api();
+      mockApi.delete.mockResolvedValueOnce(undefined);
+
+      await teamsIntegration.deleteMeeting('meeting-123');
+
+      expect(mockApi.delete).toHaveBeenCalled();
+    });
+
+    it('should handle deletion errors', async () => {
+      const Client = require('@microsoft/microsoft-graph-client').Client;
+      const mockApi = Client.init().api();
+      mockApi.delete.mockRejectedValueOnce(new Error('Deletion failed'));
+
+      await expect(teamsIntegration.deleteMeeting('meeting-123')).rejects.toThrow(
+        'Failed to delete meeting'
+      );
+    });
+  });
+
+  describe('getCalendarEvents', () => {
+    beforeEach(async () => {
+      await teamsIntegration.initialize('test-token');
+    });
+
+    it('should retrieve calendar events', async () => {
+      const mockEvents = [
+        { id: 'event-1', subject: 'Meeting 1' },
+        { id: 'event-2', subject: 'Meeting 2' },
+      ];
+
+      const Client = require('@microsoft/microsoft-graph-client').Client;
+      const mockOrderby = jest.fn(() => ({ get: jest.fn().mockResolvedValue({ value: mockEvents }) }));
+      const mockTop = jest.fn(() => ({ orderby: mockOrderby }));
+      const mockApi = jest.fn(() => ({ top: mockTop }));
+
+      Client.init.mockReturnValueOnce({ api: mockApi });
+
+      const result = await teamsIntegration.getCalendarEvents('me');
+
+      expect(result).toEqual(mockEvents);
+    });
+
+    it('should apply date filters when provided', async () => {
+      const Client = require('@microsoft/microsoft-graph-client').Client;
+      const mockGet = jest.fn().mockResolvedValue({ value: [] });
+      const mockFilter = jest.fn(() => ({ get: mockGet }));
+      const mockOrderby = jest.fn(() => ({ filter: mockFilter }));
+      const mockTop = jest.fn(() => ({ orderby: mockOrderby }));
+      const mockApi = jest.fn(() => ({ top: mockTop }));
+
+      Client.init.mockReturnValueOnce({ api: mockApi });
+
+      await teamsIntegration.getCalendarEvents(
+        'me',
+        '2025-10-01T00:00:00Z',
+        '2025-10-31T23:59:59Z'
+      );
+
+      expect(mockFilter).toHaveBeenCalledWith(
+        expect.stringContaining("start/dateTime ge '2025-10-01T00:00:00Z'")
+      );
+    });
+  });
+
+  describe('sendMeetingInvitation', () => {
+    beforeEach(async () => {
+      await teamsIntegration.initialize('test-token');
+    });
+
+    it('should send meeting invitation email', async () => {
+      const Client = require('@microsoft/microsoft-graph-client').Client;
+      const mockApi = Client.init().api();
+      mockApi.post.mockResolvedValueOnce(undefined);
+
+      const meeting = {
+        id: 'meeting-123',
+        subject: 'Test Meeting',
+        startDateTime: '2025-10-15T10:00:00Z',
+        endDateTime: '2025-10-15T11:00:00Z',
+        joinUrl: 'https://teams.microsoft.com/join/123',
+      };
+
+      await teamsIntegration.sendMeetingInvitation(
+        'me',
+        ['user1@example.com', 'user2@example.com'],
+        meeting
+      );
+
+      expect(mockApi.post).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: expect.objectContaining({
+            subject: expect.stringContaining('Test Meeting'),
+            toRecipients: expect.arrayContaining([
+              { emailAddress: { address: 'user1@example.com' } },
+            ]),
+          }),
+        })
+      );
+    });
+  });
+
+  describe('getUserPresence', () => {
+    beforeEach(async () => {
+      await teamsIntegration.initialize('test-token');
+    });
+
+    it('should get user presence status', async () => {
+      const mockPresence = {
+        availability: 'Available',
+        activity: 'Available',
+      };
+
+      const Client = require('@microsoft/microsoft-graph-client').Client;
+      const mockApi = Client.init().api();
+      mockApi.get.mockResolvedValueOnce(mockPresence);
+
+      const result = await teamsIntegration.getUserPresence('user@example.com');
+
+      expect(result).toEqual(mockPresence);
+    });
+  });
+
+  describe('createTeamsIntegration', () => {
+    it('should create instance from environment variables', () => {
+      process.env.AZURE_TENANT_ID = 'env-tenant-id';
+      process.env.TEAMS_CLIENT_ID = 'env-client-id';
+      process.env.TEAMS_CLIENT_SECRET = 'env-client-secret';
+
+      const instance = createTeamsIntegration();
+
+      expect(instance).toBeInstanceOf(TeamsIntegration);
+    });
+  });
+});

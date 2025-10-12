@@ -1,0 +1,112 @@
+# 📋 索引維護指南
+
+> **目的**: 確保項目索引文件在開發過程中保持同步更新
+> **重要性**: 防止 AI 助手因過期索引而找不到正確文件
+
+---
+
+## 🎯 索引維護策略
+
+### 📅 維護時機
+
+#### 🔴 必須更新 (立即執行)
+- 新增重要項目文檔 (*.md)
+- 新增主要代碼模組 (lib/, components/, app/)
+- 新增 Next.js 頁面文件 (app/**/page.tsx, layout.tsx, route.ts)
+- 重構項目結構
+- 新增 API 端點或資料庫表
+
+#### 🟡 建議更新 (Sprint 結束時)
+- 新增配置文件
+- 新增測試文件
+- 新增工具腳本
+- 更新依賴或環境配置
+
+#### 🟢 定期檢查 (每月一次)
+- 清理過期引用
+- 優化索引結構
+- 更新文件重要性評級
+
+---
+
+## 🔄 維護工作流程
+
+### 標準開發任務 TODO 模板
+
+```markdown
+## 任務 TODO 清單
+
+### 實現階段
+- [ ] 實現功能代碼
+- [ ] 編寫單元測試
+- [ ] 本地測試通過
+
+### 📋 索引維護 (⚠️ 強制必做)
+- [ ] 檢查是否創建了新的重要文件
+- [ ] 更新 PROJECT-INDEX.md - 添加新文件索引
+- [ ] 更新 AI-ASSISTANT-GUIDE.md (如果是極高重要性文件)
+- [ ] 執行索引檢查腳本
+
+### 提交階段
+- [ ] git add 所有文件包括索引文件
+- [ ] 提交信息包含 "並更新索引"
+- [ ] 推送到 GitHub
+```
+
+### 自動化檢查
+
+```bash
+# 運行索引同步檢查
+npm run check:index
+
+# 或手動運行
+node scripts/check-index-sync.js
+```
+
+---
+
+## 📝 需要索引的文件類型
+
+### 🔴 極高優先級
+- **核心文檔**: README.md, AI-ASSISTANT-GUIDE.md, PROJECT-INDEX.md
+- **配置文件**: package.json, tsconfig.json, next.config.js
+- **數據庫**: prisma/schema.prisma
+
+### 🟡 高優先級
+- **API 路由**: app/api/**/route.ts
+- **頁面組件**: app/**/page.tsx
+- **核心庫**: lib/**/核心文件
+- **主要組件**: components/重要組件
+
+### 🟢 中優先級
+- **工具函數**: lib/utils/*
+- **類型定義**: types/*
+- **測試文件**: __tests__/*, tests/*
+
+---
+
+## 🛠️ 索引更新示例
+
+### 添加新頁面
+
+```markdown
+### app/(pages)/ - 頁面路由
+
+| 路徑 | 功能 | 重要程度 |
+| --- | --- | --- |
+| `app/dashboard/new-feature/page.tsx` | 新功能頁面 | 🟡 高 |
+```
+
+### 添加新 API 端點
+
+```markdown
+### app/api/ - API 路由
+
+| 路徑 | 功能 | 重要程度 |
+| --- | --- | --- |
+| `app/api/new-endpoint/route.ts` | 新端點 | 🟡 高 |
+```
+
+---
+
+**📝 提示**: 保持索引更新是團隊協作和 AI 助手效率的關鍵！

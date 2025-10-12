@@ -1,0 +1,49 @@
+{
+  "name": "create-ai-webapp",
+  "version": "5.0.13",
+  "description": "Create AI-powered web applications with Next.js 14, TypeScript, and enterprise-grade architecture",
+  "keywords": [
+    "nextjs",
+    "typescript",
+    "ai",
+    "template",
+    "scaffold",
+    "cli",
+    "webapp",
+    "openai",
+    "azure",
+    "enterprise"
+  ],
+  "bin": {
+    "create-ai-webapp": "./bin/create-ai-webapp.js"
+  },
+  "files": [
+    "bin/",
+    "lib/",
+    "template/",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/laitim2001/ai-webapp-template.git"
+  },
+  "bugs": {
+    "url": "https://github.com/laitim2001/ai-webapp-template/issues"
+  },
+  "homepage": "https://github.com/laitim2001/ai-webapp-template#readme",
+  "author": "AI Sales Enablement Team",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "chalk": "^4.1.2",
+    "fs-extra": "^11.2.0",
+    "inquirer": "^8.2.6",
+    "ora": "^5.4.1"
+  }
+}

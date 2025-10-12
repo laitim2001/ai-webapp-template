@@ -1,0 +1,331 @@
+'use client';
+
+/**
+ * 演示儀表板頁面
+ *
+ * 展示完整的儀表板UI,包括統計卡片、圖表和活動列表
+ * 使用演示數據
+ */
+
+import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
+import { DemoBanner } from '@/components/demo-banner';
+import {
+  TrendingUp,
+  Users,
+  FileText,
+  DollarSign,
+  Activity,
+  Search,
+  Bell,
+  Settings,
+  ArrowUpRight,
+  ArrowRight,
+} from 'lucide-react';
+import { demoGetDashboardStats, demoGetRecentActivities, demoGetChartData } from '@/lib/demo-api';
+
+export default function DashboardPage() {
+  const [stats, setStats] = useState<any>(null);
+  const [activities, setActivities] = useState<any[]>([]);
+  const [chartData, setChartData] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [statsRes, activitiesRes, chartRes] = await Promise.all([
+          demoGetDashboardStats(),
+          demoGetRecentActivities(),
+          demoGetChartData(),
+        ]);
+
+        if (statsRes.success) setStats(statsRes.data);
+        if (activitiesRes.success) setActivities(activitiesRes.data || []);
+        if (chartRes.success) setChartData(chartRes.data);
+      } catch (error) {
+        console.error('Failed to fetch dashboard data:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  const statCards = stats
+    ? [
+        {
+          title: '總項目數',
+          value: stats.totalProjects,
+          change: `+${stats.projectsGrowth}%`,
+          icon: FileText,
+          color: 'text-blue-600',
+          bgColor: 'bg-blue-100',
+        },
+        {
+          title: '活躍用戶',
+          value: stats.activeUsers,
+          change: `+${stats.usersGrowth}%`,
+          icon: Users,
+          color: 'text-green-600',
+          bgColor: 'bg-green-100',
+        },
+        {
+          title: '總文檔數',
+          value: stats.totalDocuments,
+          change: `+${stats.documentsGrowth}%`,
+          icon: Activity,
+          color: 'text-purple-600',
+          bgColor: 'bg-purple-100',
+        },
+        {
+          title: '總收入',
+          value: `NT$ ${stats.totalRevenue.toLocaleString()}`,
+          change: `+${stats.revenueGrowth}%`,
+          icon: DollarSign,
+          color: 'text-orange-600',
+          bgColor: 'bg-orange-100',
+        },
+      ]
+    : [];
+
+  const getActivityIcon = (type: string) => {
+    switch (type) {
+      case 'document_created':
+        return <FileText className="h-4 w-4" />;
+      case 'user_joined':
+        return <Users className="h-4 w-4" />;
+      case 'project_updated':
+        return <Activity className="h-4 w-4" />;
+      case 'search_performed':
+        return <Search className="h-4 w-4" />;
+      case 'notification_sent':
+        return <Bell className="h-4 w-4" />;
+      default:
+        return <Activity className="h-4 w-4" />;
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      {/* 頂部導航欄 */}
+      <header className="sticky top-0 z-10 border-b bg-white dark:bg-gray-800">
+        <div className="flex h-16 items-center justify-between px-6">
+          <div className="flex items-center gap-4">
+            <h1 className="text-xl font-bold">儀表板</h1>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="icon">
+              <Search className="h-5 w-5" />
+            </Button>
+            <Button variant="ghost" size="icon">
+              <Bell className="h-5 w-5" />
+            </Button>
+            <Button variant="ghost" size="icon">
+              <Settings className="h-5 w-5" />
+            </Button>
+          </div>
+        </div>
+      </header>
+
+      <main className="p-6">
+        {/* 演示模式橫幅 */}
+        <DemoBanner />
+
+        {/* 快捷操作 */}
+        <div className="mb-6 flex flex-wrap gap-3">
+          <Button asChild>
+            <Link href="/(demo)/dashboard/knowledge">
+              <FileText className="mr-2 h-4 w-4" />
+              知識庫
+            </Link>
+          </Button>
+          <Button variant="outline" asChild>
+            <Link href="/(demo)/dashboard/search">
+              <Search className="mr-2 h-4 w-4" />
+              搜索
+            </Link>
+          </Button>
+          <Button variant="outline" asChild>
+            <Link href="/(demo)/dashboard/notifications">
+              <Bell className="mr-2 h-4 w-4" />
+              通知
+            </Link>
+          </Button>
+          <Button variant="outline" asChild>
+            <Link href="/(demo)/dashboard/settings">
+              <Settings className="mr-2 h-4 w-4" />
+              設置
+            </Link>
+          </Button>
+        </div>
+
+        {/* 統計卡片 */}
+        <div className="mb-6 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {isLoading
+            ? Array.from({ length: 4 }).map((_, i) => (
+                <Card key={i}>
+                  <CardHeader className="pb-2">
+                    <Skeleton className="h-4 w-24" />
+                  </CardHeader>
+                  <CardContent>
+                    <Skeleton className="h-8 w-32" />
+                  </CardContent>
+                </Card>
+              ))
+            : statCards.map((stat, index) => (
+                <Card key={index}>
+                  <CardHeader className="flex flex-row items-center justify-between pb-2">
+                    <CardDescription className="text-sm font-medium">
+                      {stat.title}
+                    </CardDescription>
+                    <div className={`rounded-full ${stat.bgColor} p-2`}>
+                      <stat.icon className={`h-4 w-4 ${stat.color}`} />
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{stat.value}</div>
+                    <div className="flex items-center text-sm text-muted-foreground">
+                      <ArrowUpRight className="mr-1 h-3 w-3 text-green-600" />
+                      <span className="text-green-600">{stat.change}</span>
+                      <span className="ml-1">較上月</span>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+        </div>
+
+        <div className="grid gap-6 lg:grid-cols-3">
+          {/* 圖表區域 */}
+          <Card className="lg:col-span-2">
+            <CardHeader>
+              <CardTitle>收入趨勢</CardTitle>
+              <CardDescription>過去10個月的收入數據</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {isLoading ? (
+                <Skeleton className="h-64 w-full" />
+              ) : (
+                <div className="h-64 w-full">
+                  {/* 簡單的條形圖展示 */}
+                  <div className="flex h-full items-end justify-between gap-2">
+                    {chartData?.monthlyRevenue?.slice(-10).map((item: any, index: number) => (
+                      <div key={index} className="flex flex-1 flex-col items-center gap-2">
+                        <div
+                          className="w-full rounded-t bg-primary transition-all hover:opacity-80"
+                          style={{
+                            height: `${(item.revenue / 250000) * 100}%`,
+                          }}
+                        />
+                        <span className="text-xs text-muted-foreground">{item.month}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* 最近活動 */}
+          <Card>
+            <CardHeader>
+              <CardTitle>最近活動</CardTitle>
+              <CardDescription>系統活動記錄</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {isLoading ? (
+                <div className="space-y-4">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <Skeleton key={i} className="h-16 w-full" />
+                  ))}
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {activities.slice(0, 5).map((activity) => (
+                    <div key={activity.id} className="flex items-start gap-3">
+                      <div className="rounded-full bg-muted p-2">
+                        {getActivityIcon(activity.type)}
+                      </div>
+                      <div className="flex-1 space-y-1">
+                        <p className="text-sm font-medium">{activity.title}</p>
+                        <p className="text-xs text-muted-foreground">{activity.description}</p>
+                        <p className="text-xs text-muted-foreground">{activity.timestamp}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <Button variant="ghost" className="mt-4 w-full" asChild>
+                <Link href="#">
+                  查看全部活動
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Link>
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* 快捷鏈接 */}
+        <div className="mt-6 grid gap-4 md:grid-cols-3">
+          <Card className="transition-shadow hover:shadow-md">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <FileText className="h-5 w-5" />
+                知識庫
+              </CardTitle>
+              <CardDescription>瀏覽和管理文檔</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button variant="outline" className="w-full" asChild>
+                <Link href="/(demo)/dashboard/knowledge">
+                  前往知識庫
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Link>
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card className="transition-shadow hover:shadow-md">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Users className="h-5 w-5" />
+                客戶管理
+              </CardTitle>
+              <CardDescription>管理客戶信息</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button variant="outline" className="w-full" asChild>
+                <Link href="/(demo)/dashboard/customers">
+                  前往客戶管理
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Link>
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card className="transition-shadow hover:shadow-md">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Activity className="h-5 w-5" />
+                任務管理
+              </CardTitle>
+              <CardDescription>跟蹤項目任務</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button variant="outline" className="w-full" asChild>
+                <Link href="/(demo)/dashboard/tasks">
+                  前往任務管理
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Link>
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      </main>
+    </div>
+  );
+}

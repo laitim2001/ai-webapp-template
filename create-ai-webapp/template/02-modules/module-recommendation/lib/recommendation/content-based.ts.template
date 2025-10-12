@@ -1,0 +1,392 @@
+/**
+ * Content-Based Filtering Recommender
+ *
+ * Recommends items based on content similarity using TF-IDF vectorization
+ * and cosine similarity calculation.
+ */
+
+import { Matrix } from 'ml-matrix';
+import natural from 'natural';
+
+const TfIdf = natural.TfIdf;
+const tokenizer = new natural.WordTokenizer();
+
+export interface RecommendationItem {
+  id: string;
+  features: Record<string, any>;
+  metadata?: Record<string, any>;
+}
+
+export interface UserProfile {
+  userId: string;
+  preferences: Record<string, number>;
+  history: string[];
+  metadata?: Record<string, any>;
+}
+
+export interface RecommendationResult {
+  itemId: string;
+  score: number;
+  reason?: string;
+  metadata?: Record<string, any>;
+}
+
+export interface ContentBasedOptions {
+  tfidfOptions?: {
+    stopwords?: string[];
+    stemmer?: any;
+  };
+  similarityThreshold?: number;
+  maxFeatures?: number;
+}
+
+export interface SimilarItemsOptions {
+  limit?: number;
+  threshold?: number;
+  includeScores?: boolean;
+}
+
+export interface RecommendOptions {
+  limit?: number;
+  excludeIds?: string[];
+  minScore?: number;
+}
+
+/**
+ * Content-Based Recommender using TF-IDF and cosine similarity
+ */
+export class ContentBasedRecommender {
+  private items: Map<string, RecommendationItem> = new Map();
+  private tfidf: any;
+  private vectors: Map<string, number[]> = new Map();
+  private options: Required<ContentBasedOptions>;
+
+  constructor(options: ContentBasedOptions = {}) {
+    this.options = {
+      tfidfOptions: options.tfidfOptions || {},
+      similarityThreshold: options.similarityThreshold ?? 0.0,
+      maxFeatures: options.maxFeatures ?? 1000,
+    };
+
+    this.tfidf = new TfIdf();
+  }
+
+  /**
+   * Build index from items
+   */
+  async buildIndex(items: RecommendationItem[]): Promise<void> {
+    this.items.clear();
+    this.vectors.clear();
+    this.tfidf = new TfIdf();
+
+    // Store items and extract features
+    for (const item of items) {
+      this.items.set(item.id, item);
+      const text = this.extractFeatureText(item);
+      this.tfidf.addDocument(text);
+    }
+
+    // Build feature vectors
+    let index = 0;
+    for (const item of items) {
+      const vector = this.buildVector(index);
+      this.vectors.set(item.id, vector);
+      index++;
+    }
+  }
+
+  /**
+   * Get similar items to a given item
+   */
+  async getSimilarItems(
+    itemId: string,
+    options: SimilarItemsOptions = {}
+  ): Promise<RecommendationResult[]> {
+    const {
+      limit = 10,
+      threshold = this.options.similarityThreshold,
+      includeScores = true,
+    } = options;
+
+    const targetVector = this.vectors.get(itemId);
+    if (!targetVector) {
+      throw new Error(`Item ${itemId} not found in index`);
+    }
+
+    const similarities: Array<{ itemId: string; score: number }> = [];
+
+    for (const [candidateId, candidateVector] of this.vectors.entries()) {
+      if (candidateId === itemId) continue;
+
+      const similarity = this.cosineSimilarity(targetVector, candidateVector);
+
+      if (similarity >= threshold) {
+        similarities.push({ itemId: candidateId, score: similarity });
+      }
+    }
+
+    // Sort by similarity descending
+    similarities.sort((a, b) => b.score - a.score);
+
+    // Take top N
+    const topSimilar = similarities.slice(0, limit);
+
+    return topSimilar.map(({ itemId, score }) => ({
+      itemId,
+      score: includeScores ? score : 1.0,
+      reason: 'Similar content features',
+      metadata: this.items.get(itemId)?.metadata,
+    }));
+  }
+
+  /**
+   * Recommend items for a user profile
+   */
+  async recommendForUserProfile(
+    profile: UserProfile,
+    options: RecommendOptions = {}
+  ): Promise<RecommendationResult[]> {
+    const {
+      limit = 10,
+      excludeIds = profile.history || [],
+      minScore = this.options.similarityThreshold,
+    } = options;
+
+    // Build user profile vector from history
+    const userVector = await this.buildUserVector(profile);
+
+    const scores: Array<{ itemId: string; score: number }> = [];
+
+    for (const [itemId, itemVector] of this.vectors.entries()) {
+      if (excludeIds.includes(itemId)) continue;
+
+      const similarity = this.cosineSimilarity(userVector, itemVector);
+
+      if (similarity >= minScore) {
+        scores.push({ itemId, score: similarity });
+      }
+    }
+
+    // Sort by score descending
+    scores.sort((a, b) => b.score - a.score);
+
+    // Take top N
+    const topRecommendations = scores.slice(0, limit);
+
+    return topRecommendations.map(({ itemId, score }) => ({
+      itemId,
+      score,
+      reason: 'Matches your profile preferences',
+      metadata: this.items.get(itemId)?.metadata,
+    }));
+  }
+
+  /**
+   * Update a single item in the index
+   */
+  async updateItem(item: RecommendationItem): Promise<void> {
+    // Remove old version if exists
+    if (this.items.has(item.id)) {
+      await this.removeItem(item.id);
+    }
+
+    // Add new item
+    this.items.set(item.id, item);
+    const text = this.extractFeatureText(item);
+
+    // Add to TF-IDF
+    this.tfidf.addDocument(text);
+
+    // Build vector for new item
+    const index = this.tfidf.documents.length - 1;
+    const vector = this.buildVector(index);
+    this.vectors.set(item.id, vector);
+  }
+
+  /**
+   * Remove an item from the index
+   */
+  async removeItem(itemId: string): Promise<void> {
+    this.items.delete(itemId);
+    this.vectors.delete(itemId);
+    // Note: TF-IDF doesn't support document removal, so we'd need to rebuild
+    // For now, we just mark as deleted and rebuild on next buildIndex call
+  }
+
+  /**
+   * Extract feature text from item
+   */
+  private extractFeatureText(item: RecommendationItem): string {
+    const parts: string[] = [];
+
+    // Extract all feature values
+    const extractValues = (obj: any, depth: number = 0): void => {
+      if (depth > 3) return; // Prevent deep nesting
+
+      if (Array.isArray(obj)) {
+        obj.forEach(val => extractValues(val, depth + 1));
+      } else if (typeof obj === 'object' && obj !== null) {
+        Object.values(obj).forEach(val => extractValues(val, depth + 1));
+      } else if (typeof obj === 'string' || typeof obj === 'number') {
+        parts.push(String(obj));
+      }
+    };
+
+    extractValues(item.features);
+
+    if (item.metadata) {
+      extractValues(item.metadata);
+    }
+
+    return parts.join(' ');
+  }
+
+  /**
+   * Build feature vector from TF-IDF document
+   */
+  private buildVector(docIndex: number): number[] {
+    const vector: number[] = [];
+    const terms = this.tfidf.listTerms(docIndex);
+
+    // Get top features
+    const topTerms = terms
+      .sort((a: any, b: any) => b.tfidf - a.tfidf)
+      .slice(0, this.options.maxFeatures);
+
+    // Create sparse vector
+    const termMap = new Map<string, number>();
+    topTerms.forEach((term: any) => {
+      termMap.set(term.term, term.tfidf);
+    });
+
+    // Get all unique terms across all documents
+    const allTerms = this.getAllTerms();
+
+    // Build dense vector
+    for (const term of allTerms) {
+      vector.push(termMap.get(term) || 0);
+    }
+
+    return vector;
+  }
+
+  /**
+   * Get all unique terms across all documents
+   */
+  private getAllTerms(): Set<string> {
+    const allTerms = new Set<string>();
+
+    for (let i = 0; i < this.tfidf.documents.length; i++) {
+      const terms = this.tfidf.listTerms(i);
+      terms.forEach((term: any) => {
+        allTerms.add(term.term);
+      });
+    }
+
+    return allTerms;
+  }
+
+  /**
+   * Build user profile vector from history
+   */
+  private async buildUserVector(profile: UserProfile): Promise<number[]> {
+    const vectors: number[][] = [];
+
+    // Get vectors for user's history
+    for (const itemId of profile.history) {
+      const vector = this.vectors.get(itemId);
+      if (vector) {
+        vectors.push(vector);
+      }
+    }
+
+    if (vectors.length === 0) {
+      // No history, create zero vector
+      const allTerms = this.getAllTerms();
+      return new Array(allTerms.size).fill(0);
+    }
+
+    // Average the vectors
+    const vectorLength = vectors[0].length;
+    const avgVector = new Array(vectorLength).fill(0);
+
+    for (const vector of vectors) {
+      for (let i = 0; i < vectorLength; i++) {
+        avgVector[i] += vector[i];
+      }
+    }
+
+    for (let i = 0; i < vectorLength; i++) {
+      avgVector[i] /= vectors.length;
+    }
+
+    // Apply preference weights if available
+    if (Object.keys(profile.preferences).length > 0) {
+      // Weight the vector based on preferences
+      // This is a simple implementation - can be more sophisticated
+      const preferenceBoost = Object.values(profile.preferences).reduce((a, b) => a + b, 0) /
+                             Object.keys(profile.preferences).length;
+      return avgVector.map(v => v * (1 + preferenceBoost));
+    }
+
+    return avgVector;
+  }
+
+  /**
+   * Calculate cosine similarity between two vectors
+   */
+  private cosineSimilarity(vecA: number[], vecB: number[]): number {
+    if (vecA.length !== vecB.length) {
+      throw new Error('Vectors must have the same length');
+    }
+
+    let dotProduct = 0;
+    let normA = 0;
+    let normB = 0;
+
+    for (let i = 0; i < vecA.length; i++) {
+      dotProduct += vecA[i] * vecB[i];
+      normA += vecA[i] * vecA[i];
+      normB += vecB[i] * vecB[i];
+    }
+
+    normA = Math.sqrt(normA);
+    normB = Math.sqrt(normB);
+
+    if (normA === 0 || normB === 0) {
+      return 0;
+    }
+
+    return dotProduct / (normA * normB);
+  }
+
+  /**
+   * Get item by ID
+   */
+  getItem(itemId: string): RecommendationItem | undefined {
+    return this.items.get(itemId);
+  }
+
+  /**
+   * Get all items
+   */
+  getAllItems(): RecommendationItem[] {
+    return Array.from(this.items.values());
+  }
+
+  /**
+   * Get index statistics
+   */
+  getStats(): {
+    totalItems: number;
+    totalFeatures: number;
+    avgFeaturesPerItem: number;
+  } {
+    const allTerms = this.getAllTerms();
+    return {
+      totalItems: this.items.size,
+      totalFeatures: allTerms.size,
+      avgFeaturesPerItem: allTerms.size / Math.max(1, this.items.size),
+    };
+  }
+}

@@ -1,0 +1,381 @@
+/**
+ * Reminder Scheduler
+ * 提醒調度器 - 負責創建、更新、取消提醒
+ */
+
+import { RRule } from 'rrule';
+import { addMinutes, isAfter, isBefore } from 'date-fns';
+import { databaseAdapter } from '@/lib/db/database-adapter';
+import type {
+  Reminder,
+  ReminderInput,
+  ReminderStatus,
+  ReminderType,
+  ConflictCheckOptions,
+  BatchScheduleResult,
+  ErrorCode,
+  ReminderError
+} from '@/types/reminder';
+
+/**
+ * 提醒調度器類
+ */
+export class ReminderScheduler {
+  private readonly defaultTimezone = 'UTC';
+  private readonly defaultMaxRetries = 3;
+
+  /**
+   * 調度單個提醒
+   */
+  async scheduleReminder(input: ReminderInput): Promise<Reminder> {
+    // 驗證輸入
+    this.validateInput(input);
+
+    // 檢查時間衝突（如果是高優先級）
+    if (input.priority && input.priority <= 2) {
+      const conflicts = await this.checkConflicts(input.userId, {
+        startTime: input.scheduledAt,
+        endTime: addMinutes(input.scheduledAt, 30),
+        priorityThreshold: input.priority
+      });
+
+      if (conflicts.length > 0) {
+        throw new ReminderError(
+          'CONFLICT' as ErrorCode,
+          `Found ${conflicts.length} conflicting reminders`,
+          { conflicts }
+        );
+      }
+    }
+
+    // 處理智能時機
+    let finalScheduledAt = input.scheduledAt;
+    if (input.smartTiming && input.optimalTime) {
+      finalScheduledAt = input.optimalTime;
+    }
+
+    // 創建提醒
+    const reminder = await databaseAdapter.create('reminder', {
+      userId: input.userId,
+      title: input.title,
+      description: input.description,
+      type: input.type,
+      status: 'SCHEDULED' as ReminderStatus,
+      priority: input.priority || 3,
+      scheduledAt: finalScheduledAt,
+      timezone: input.timezone || this.defaultTimezone,
+      recurrenceRule: input.recurrenceRule,
+      locationLat: input.locationLat,
+      locationLng: input.locationLng,
+      locationRadius: input.locationRadius,
+      channels: input.channels,
+      smartTiming: input.smartTiming || false,
+      optimalTime: input.optimalTime,
+      retryCount: 0,
+      maxRetries: input.maxRetries || this.defaultMaxRetries,
+      metadata: input.metadata
+    }) as Reminder;
+
+    return reminder;
+  }
+
+  /**
+   * 批量調度提醒
+   */
+  async scheduleBatch(inputs: ReminderInput[]): Promise<BatchScheduleResult> {
+    const result: BatchScheduleResult = {
+      success: [],
+      failed: [],
+      total: inputs.length,
+      successCount: 0,
+      failedCount: 0
+    };
+
+    for (const input of inputs) {
+      try {
+        const reminder = await this.scheduleReminder(input);
+        result.success.push(reminder);
+        result.successCount++;
+      } catch (error) {
+        result.failed.push({
+          input,
+          error: error as Error
+        });
+        result.failedCount++;
+      }
+    }
+
+    return result;
+  }
+
+  /**
+   * 更新提醒
+   */
+  async updateReminder(
+    id: string,
+    data: Partial<ReminderInput>
+  ): Promise<Reminder> {
+    // 獲取現有提醒
+    const existing = await databaseAdapter.findUnique('reminder', {
+      where: { id }
+    }) as Reminder;
+
+    if (!existing) {
+      throw new ReminderError(
+        'NOT_FOUND' as ErrorCode,
+        `Reminder ${id} not found`
+      );
+    }
+
+    // 不允許更新已送達的提醒
+    if (existing.status === 'DELIVERED') {
+      throw new ReminderError(
+        'ALREADY_DELIVERED' as ErrorCode,
+        'Cannot update delivered reminder'
+      );
+    }
+
+    // 更新數據
+    const updated = await databaseAdapter.update('reminder', {
+      where: { id },
+      data: {
+        ...data,
+        updatedAt: new Date()
+      }
+    }) as Reminder;
+
+    return updated;
+  }
+
+  /**
+   * 取消提醒
+   */
+  async cancelReminder(id: string): Promise<void> {
+    await databaseAdapter.update('reminder', {
+      where: { id },
+      data: {
+        status: 'DISMISSED' as ReminderStatus,
+        dismissedAt: new Date()
+      }
+    });
+  }
+
+  /**
+   * 稍後提醒（Snooze）
+   */
+  async snoozeReminder(id: string, minutes: number): Promise<Reminder> {
+    const reminder = await databaseAdapter.findUnique('reminder', {
+      where: { id }
+    }) as Reminder;
+
+    if (!reminder) {
+      throw new ReminderError(
+        'NOT_FOUND' as ErrorCode,
+        `Reminder ${id} not found`
+      );
+    }
+
+    const snoozedUntil = addMinutes(new Date(), minutes);
+
+    const updated = await databaseAdapter.update('reminder', {
+      where: { id },
+      data: {
+        status: 'SNOOZED' as ReminderStatus,
+        snoozedUntil,
+        scheduledAt: snoozedUntil
+      }
+    }) as Reminder;
+
+    return updated;
+  }
+
+  /**
+   * 檢查時間衝突
+   */
+  async checkConflicts(
+    userId: string,
+    options: ConflictCheckOptions
+  ): Promise<Reminder[]> {
+    const { startTime, endTime, priorityThreshold, excludeIds } = options;
+
+    const reminders = await databaseAdapter.findMany('reminder', {
+      where: {
+        userId,
+        status: 'SCHEDULED' as ReminderStatus,
+        scheduledAt: {
+          gte: startTime,
+          lte: endTime
+        },
+        ...(priorityThreshold && {
+          priority: {
+            lte: priorityThreshold
+          }
+        }),
+        ...(excludeIds && {
+          id: {
+            notIn: excludeIds
+          }
+        })
+      }
+    }) as Reminder[];
+
+    return reminders;
+  }
+
+  /**
+   * 獲取即將到來的提醒
+   */
+  async getUpcoming(userId: string, limit: number = 20): Promise<Reminder[]> {
+    const reminders = await databaseAdapter.findMany('reminder', {
+      where: {
+        userId,
+        status: 'SCHEDULED' as ReminderStatus,
+        scheduledAt: {
+          gte: new Date()
+        }
+      },
+      orderBy: {
+        scheduledAt: 'asc'
+      },
+      take: limit
+    }) as Reminder[];
+
+    return reminders;
+  }
+
+  /**
+   * 獲取循環提醒
+   */
+  async getRecurring(userId: string): Promise<Reminder[]> {
+    const reminders = await databaseAdapter.findMany('reminder', {
+      where: {
+        userId,
+        type: 'RECURRING' as ReminderType,
+        status: {
+          notIn: ['DISMISSED', 'EXPIRED'] as ReminderStatus[]
+        }
+      }
+    }) as Reminder[];
+
+    return reminders;
+  }
+
+  /**
+   * 獲取位置提醒
+   */
+  async getLocationBased(userId: string): Promise<Reminder[]> {
+    const reminders = await databaseAdapter.findMany('reminder', {
+      where: {
+        userId,
+        type: 'LOCATION_BASED' as ReminderType,
+        status: {
+          notIn: ['DISMISSED', 'EXPIRED'] as ReminderStatus[]
+        }
+      }
+    }) as Reminder[];
+
+    return reminders;
+  }
+
+  /**
+   * 計算下次執行時間（循環提醒）
+   */
+  async calculateNextOccurrence(reminder: Reminder): Promise<Date | null> {
+    if (!reminder.recurrenceRule) {
+      return null;
+    }
+
+    try {
+      const rule = RRule.fromString(reminder.recurrenceRule);
+      const nextOccurrence = rule.after(new Date());
+
+      return nextOccurrence;
+    } catch (error) {
+      throw new ReminderError(
+        'INVALID_RRULE' as ErrorCode,
+        'Invalid recurrence rule',
+        { rule: reminder.recurrenceRule, error }
+      );
+    }
+  }
+
+  /**
+   * 驗證輸入數據
+   */
+  private validateInput(input: ReminderInput): void {
+    // 驗證時間
+    if (!input.scheduledAt || !(input.scheduledAt instanceof Date)) {
+      throw new ReminderError(
+        'INVALID_TIME' as ErrorCode,
+        'Invalid scheduled time'
+      );
+    }
+
+    // 不能調度過去的時間（除非是位置提醒）
+    if (
+      input.type !== 'LOCATION_BASED' &&
+      isBefore(input.scheduledAt, new Date())
+    ) {
+      throw new ReminderError(
+        'INVALID_TIME' as ErrorCode,
+        'Cannot schedule reminder in the past'
+      );
+    }
+
+    // 驗證循環規則
+    if (input.recurrenceRule) {
+      try {
+        RRule.fromString(input.recurrenceRule);
+      } catch (error) {
+        throw new ReminderError(
+          'INVALID_RRULE' as ErrorCode,
+          'Invalid recurrence rule',
+          { rule: input.recurrenceRule, error }
+        );
+      }
+    }
+
+    // 驗證位置信息
+    if (input.type === 'LOCATION_BASED') {
+      if (
+        input.locationLat === undefined ||
+        input.locationLng === undefined ||
+        input.locationRadius === undefined
+      ) {
+        throw new ReminderError(
+          'INVALID_LOCATION' as ErrorCode,
+          'Location-based reminder requires location data'
+        );
+      }
+
+      // 驗證經緯度範圍
+      if (
+        input.locationLat < -90 ||
+        input.locationLat > 90 ||
+        input.locationLng < -180 ||
+        input.locationLng > 180
+      ) {
+        throw new ReminderError(
+          'INVALID_LOCATION' as ErrorCode,
+          'Invalid latitude or longitude'
+        );
+      }
+
+      // 驗證半徑
+      if (input.locationRadius <= 0 || input.locationRadius > 10000) {
+        throw new ReminderError(
+          'INVALID_LOCATION' as ErrorCode,
+          'Location radius must be between 0 and 10000 meters'
+        );
+      }
+    }
+
+    // 驗證推送通道
+    if (!input.channels || input.channels.length === 0) {
+      throw new ReminderError(
+        'INVALID_TIME' as ErrorCode,
+        'At least one delivery channel is required'
+      );
+    }
+  }
+}

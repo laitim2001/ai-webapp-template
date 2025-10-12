@@ -67,16 +67,39 @@ const DATABASE_OPTIONS = [
 ];
 
 const MODULE_OPTIONS = [
-  { name: '認證系統 (JWT + Azure AD SSO)', value: 'auth', checked: true },
-  { name: 'API Gateway (10個企業級中間件)', value: 'api-gateway', checked: true },
-  { name: '知識庫系統 (向量搜索 + 版本控制)', value: 'knowledge', checked: false },
-  { name: 'AI 整合 (Azure OpenAI 封裝)', value: 'ai', checked: false },
-  { name: '工作流程引擎 (12狀態 + 6種設計模式)', value: 'workflow', checked: false },
-  { name: '通知系統 (多渠道通知)', value: 'notifications', checked: false },
-  { name: '模板管理 (CRUD + PDF導出)', value: 'templates', checked: false },
-  { name: 'Dynamics 365 整合', value: 'dynamics365', checked: false },
+  // === P0 核心模組（預設選中）===
+  { name: '認證系統 (JWT + Azure AD SSO)', value: 'module-auth', checked: true },
+  { name: 'API Gateway (12個企業級中間件)', value: 'module-api-gateway', checked: true },
+  { name: '安全模組 (數據保護 + 審計)', value: 'module-security', checked: true },
   { name: '監控系統 (OpenTelemetry + Prometheus)', value: 'monitoring', checked: true },
-  { name: '測試框架 (Jest + Playwright)', value: 'testing', checked: true },
+
+  // === P1 高優先級模組 ===
+  { name: '知識庫系統 (向量搜索 + 版本控制)', value: 'module-knowledge-base', checked: false },
+  { name: 'AI 整合 (Azure OpenAI 封裝)', value: 'module-ai-integration', checked: false },
+  { name: '搜索模組 (多算法向量搜索)', value: 'module-search', checked: false },
+  { name: '工作流程引擎 (12狀態 + 6種設計模式)', value: 'module-workflow', checked: false },
+  { name: '通知系統 (多渠道通知)', value: 'module-notification', checked: false },
+  { name: '性能監控 (應用級性能追蹤)', value: 'module-performance', checked: false },
+  { name: '韌性模組 (容錯 + 重試 + 熔斷)', value: 'module-resilience', checked: false },
+
+  // === P2 輔助工具模組 ===
+  { name: '緩存系統 (Redis 雙層緩存)', value: 'module-cache', checked: false },
+  { name: '模板管理 (Handlebars + PDF)', value: 'module-template', checked: false },
+  { name: 'PDF 生成 (Puppeteer)', value: 'module-pdf', checked: false },
+  { name: '文件解析器 (PDF/Word/Excel/OCR)', value: 'module-parsers', checked: false },
+  { name: 'Dynamics 365 整合', value: 'module-dynamics365', checked: false },
+  { name: 'Customer 360 (客戶全景視圖)', value: 'module-customer360', checked: false },
+
+  // === Phase 3 業務模組 ===
+  { name: '會議管理 (排程 + Teams 整合)', value: 'module-meeting', checked: false },
+  { name: '日曆系統 (事件管理 + 同步)', value: 'module-calendar', checked: false },
+  { name: '分析模組 (數據分析 + 報表)', value: 'module-analytics', checked: false },
+  { name: '提醒系統 (智能提醒引擎)', value: 'module-reminder', checked: false },
+  { name: '推薦引擎 (內容推薦)', value: 'module-recommendation', checked: false },
+  { name: '協作模組 (團隊協作)', value: 'module-collaboration', checked: false },
+
+  // === 開發工具鏈（預設選中）===
+  { name: '測試框架 (Jest + Playwright, 564+ 測試)', value: 'testing', checked: true },
   { name: 'AI 助手指南', value: 'ai-guide', checked: true },
 ];
 
@@ -603,7 +626,7 @@ async function getEnvironmentConfig(databaseConfig, selectedModules) {
 
   const questions = [];
 
-  if (selectedModules.includes('auth')) {
+  if (selectedModules.includes('module-auth')) {
     questions.push(
       {
         type: 'input',
@@ -644,7 +667,7 @@ async function getEnvironmentConfig(databaseConfig, selectedModules) {
     Object.assign(envVars, azureQuestions);
   }
 
-  if (selectedModules.includes('ai')) {
+  if (selectedModules.includes('module-ai-integration')) {
     const aiQuestions = await inquirer.prompt([
       {
         type: 'input',

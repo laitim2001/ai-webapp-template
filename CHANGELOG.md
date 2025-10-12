@@ -10,7 +10,426 @@
 
 ## [Unreleased]
 
-### 🎉 最新進展 (2025-10-09)
+### 🎉 計劃中的更新
+
+- [ ] 補充進階UI組件
+- [ ] 擴展業務數據模型
+- [ ] 優化CLI工具體驗
+- [ ] 添加更多範例項目
+
+---
+
+## [5.0.13] - 2025-10-12
+
+### 新增 (Added)
+- ✅ **Toast UI 組件系統**
+  - `components/ui/toast.tsx.template` - Toast 核心組件 (143行)
+  - `components/ui/toaster.tsx.template` - Toast 容器組件 (35行)
+  - 完整的通知提示功能支援
+  - 基於 @radix-ui/react-toast 實現
+
+### 依賴 (Dependencies)
+- 使用 `@radix-ui/react-toast` 作為底層實現
+- 與現有 Radix UI 組件完美整合
+
+---
+
+## [5.0.12] - 2025-10-12
+
+### 修復 (Fixed)
+- 🔴 **Critical Fix**: 添加缺失的 `tailwindcss-animate` 依賴
+  - 修復 "Cannot find module 'tailwindcss-animate'" 錯誤
+  - 確保 Tailwind CSS 動畫插件正常工作
+  - 影響所有使用 Radix UI 組件動畫的功能
+  - 阻止應用啟動的致命問題
+
+### 修改的文件 (Changed)
+- `create-ai-webapp/template/01-base/package.json.template` - 添加 tailwindcss-animate@^1.0.7
+
+---
+
+## [5.0.11] - 2025-10-12
+
+### 修復 (Fixed)
+- 🔴 **Critical Fix**: 移除 Prisma Schema 中錯誤的 pgvector 索引定義
+  - 移除 `@@index([embedding(ops: raw("vector_cosine_ops"))], type: Gin)` 錯誤語法
+  - 修復 "operator class vector_cosine_ops does not exist for access method gin" 錯誤
+  - 阻止 PostgreSQL 數據庫遷移的致命問題
+
+### 新增 (Added)
+- ✅ **詳細的 pgvector 索引創建指南**
+  - ivfflat 索引使用說明和參數調優
+  - hnsw 索引使用說明和性能對比
+  - 索引性能調優建議
+  - 手動創建向量索引的完整文檔
+
+### 修改的文件 (Changed)
+- `create-ai-webapp/template/01-base/prisma/schema.postgresql.prisma` - 移除錯誤索引定義,添加詳細註釋
+
+---
+
+## [5.0.10] - 2025-10-12
+
+### 修復 (Fixed)
+- 🔴 **Critical Fix**: 使用 `ankane/pgvector:latest` Docker 鏡像
+  - 替代標準 `postgres:14` 鏡像
+  - 修復 "could not open extension control file vector.control" 錯誤
+  - 確保 pgvector 擴展開箱即用
+  - 阻止向量搜索功能使用的致命問題
+
+### 新增 (Added)
+- ✅ **完整的 Docker 容器管理命令**
+  - 添加 `--name ai-webapp-postgres` 容器命名
+  - 統一所有數據庫 Docker 命令格式 (PostgreSQL/MySQL/MongoDB)
+  - 容器停止、啟動、刪除、日誌查看完整說明
+  - Docker 容器管理最佳實踐指南
+
+### 修改的文件 (Changed)
+- `create-ai-webapp/lib/cli.js` - 更新 Docker 命令和添加容器管理說明
+
+---
+
+## [5.0.0] - 2025-10-10
+
+### 🎉 正式版發布 - Phase 0-3 完成
+
+**版本類型**: Stable Release
+**開發狀態**: ~75%完成（核心功能100%）
+**重大里程碑**: 所有規劃模組已實現
+
+### 📊 版本統計
+
+#### 整體規模
+- **總文件數**: 350+ 個
+- **總代碼行數**: ~82,336 行
+- **功能模組**: 22 個（100%完成）
+- **測試案例**: 564+ 個
+- **文檔行數**: ~19,250 行
+
+#### Phase 3 新增內容 (2025-10-10)
+- ✅ **6個P2業務模組** (~23,336行代碼)
+  - module-meeting (9文件，4,916行，55測試)
+  - module-calendar (9文件，5,294行，50+測試)
+  - module-analytics (10文件，3,133行，30+測試)
+  - module-reminder (9文件，4,023行，51測試)
+  - module-recommendation (6文件，3,883行，72測試)
+  - module-collaboration (11文件，2,087行，56測試)
+
+### ✨ Phase 3 功能特性
+
+#### module-meeting - 會議管理系統
+- ✅ **Microsoft Teams整合** (558行)
+  - 會議創建、參與者管理、錄製控制
+  - 會議室預訂系統
+  - 即時通訊整合
+- ✅ **智能排程系統** (554行)
+  - 多時區轉換和處理
+  - 空閒/忙碌檢測
+  - 衝突自動處理
+  - 最佳時間建議
+- ✅ **AI會議智能** (470行)
+  - Azure OpenAI會議摘要
+  - 行動項自動提取
+  - 情緒分析和參與度追蹤
+  - 會議記錄智能處理
+- ✅ **完整測試覆蓋** (55測試，1,313行)
+- ✅ **中文文檔** (1,035行README)
+
+#### module-calendar - 日曆管理系統
+- ✅ **Google Calendar整合** (615行)
+  - OAuth2認證流程
+  - 事件完整CRUD操作
+  - 日曆共享和權限管理
+  - 通知和提醒設置
+- ✅ **Outlook Calendar整合** (724行)
+  - Microsoft Graph API整合
+  - 會議室預訂和管理
+  - 組織資源訪問
+  - Exchange服務器支持
+- ✅ **雙向同步引擎** (654行)
+  - 增量同步優化
+  - 衝突自動解決
+  - 離線緩存支持
+  - 同步狀態追蹤
+- ✅ **循環事件支持** (RRule標準)
+- ✅ **時區處理** (多時區展示，夏令時自動調整)
+- ✅ **完整測試覆蓋** (50+測試，1,638行)
+- ✅ **中文文檔** (650行README)
+
+#### module-analytics - 分析系統
+- ✅ **事件追蹤系統** (429行)
+  - 用戶行為追蹤
+  - 頁面瀏覽統計
+  - 自定義事件支持
+  - 會話管理
+- ✅ **漏斗分析** (520行)
+  - 多步驟轉化分析
+  - 流失點識別
+  - 轉化率計算
+  - 時間序列分析
+- ✅ **隊列分析** (用戶留存，生命週期價值)
+- ✅ **實時儀表板** (380行Recharts組件)
+  - 自動刷新數據
+  - 互動式圖表
+  - 可視化報表
+- ✅ **報表導出** (CSV/JSON格式)
+- ✅ **完整測試覆蓋** (30+測試，934行)
+- ✅ **中文文檔** (521行README)
+
+#### module-reminder - 提醒系統
+- ✅ **Cron排程系統** (381行)
+  - node-cron定時任務
+  - 分佈式鎖支持
+  - 任務隊列管理
+  - 錯誤重試機制
+- ✅ **循環提醒支持** (417行)
+  - RRule標準支持
+  - 複雜重複規則
+  - 例外日期處理
+  - 時區感知
+- ✅ **位置提醒** (地理圍欄，進入/離開觸發)
+- ✅ **智能時機預測** (437行)
+  - AI預測最佳提醒時間
+  - 用戶習慣學習
+  - 上下文感知
+  - 優先級調整
+- ✅ **多渠道推送** (Email, In-App, Push, SMS)
+- ✅ **完整測試覆蓋** (51測試，1,397行)
+- ✅ **中文文檔** (777行README)
+
+#### module-recommendation - 推薦引擎
+- ✅ **內容推薦系統** (392行)
+  - TF-IDF相似度計算
+  - 內容特徵提取
+  - 相似項目推薦
+  - 標籤匹配
+- ✅ **協同過濾** (735行)
+  - User-based推薦
+  - Item-based推薦
+  - 矩陣分解（SVD）
+  - 評分預測
+- ✅ **混合推薦** (加權組合，上下文感知)
+- ✅ **冷啟動處理** (新用戶/新內容策略)
+- ✅ **A/B測試支持** (多策略對比，效果追蹤)
+- ✅ **完整測試覆蓋** (72測試，1,206行)
+- ✅ **中文文檔** (902行README)
+
+#### module-collaboration - 協作工具
+- ✅ **即時協作編輯** (501行)
+  - Yjs CRDT實現
+  - 衝突自動解決
+  - 操作轉換
+  - 版本歷史
+- ✅ **WebSocket通訊** (417行)
+  - 實時數據同步
+  - 斷線自動重連
+  - 心跳檢測
+  - 消息隊列
+- ✅ **在線狀態追蹤** (Presence系統)
+  - 游標位置同步
+  - 選擇區域顯示
+  - 用戶狀態廣播
+- ✅ **版本控制** (操作記錄，回滾支持)
+- ✅ **權限控制** (角色權限，細粒度訪問控制)
+- ✅ **React組件** (CollaborationProvider, PresenceIndicator)
+- ✅ **完整測試覆蓋** (56測試，781行)
+- ✅ **中文文檔** (784行README)
+
+### 🎯 Phase 0-2 已實現內容
+
+#### Phase 0 (Day 38-40) - 核心lib文件
+- ✅ lib/errors.ts (~300行) - 統一錯誤處理
+- ✅ lib/utils.ts (~250行) - 通用工具函數
+- ✅ lib/prisma.ts (~150行) - Prisma客戶端單例
+
+#### Phase 1 (Day 38-42) - 基礎設施
+- ✅ 8個項目文檔模板 (~2,550行)
+- ✅ 9個部署配置 (~1,701行)
+- ✅ 3個UI組件 (form, table, pagination) (~500行)
+- ✅ 4個測試文件 (~720行)
+- ✅ 完整TypeScript類型系統 (~180行)
+
+#### Phase 2 (Day 43-45) - 性能與韌性
+- ✅ module-performance (7文件，~4,044行，120+測試)
+  - API性能追蹤（批次寫入PostgreSQL）
+  - DataLoader防N+1查詢
+  - HTTP響應緩存（ETag支持）
+  - Core Web Vitals追蹤
+  - 實時性能警報
+- ✅ module-resilience (7文件，~3,370行，100+測試)
+  - 熔斷器模式（三狀態機）
+  - 智能重試策略（固定/線性/指數退避）
+  - 系統健康監控
+  - 自動故障恢復
+  - 詳細統計追蹤
+
+### 📦 完整模組清單（22個）
+
+#### P0 核心模組 (4個)
+- ✅ 00-monitoring - 監控系統
+- ✅ module-auth - 認證授權
+- ✅ module-api-gateway - API Gateway
+- ✅ module-security - Security & RBAC
+
+#### P1 高優先級模組 (7個)
+- ✅ module-knowledge-base - 知識庫系統
+- ✅ module-ai-integration - AI整合
+- ✅ module-search - 搜索引擎
+- ✅ module-workflow - 工作流引擎
+- ✅ module-notification - 通知系統
+- ✅ module-performance - 性能監控
+- ✅ module-resilience - 韌性保護
+
+#### P2 輔助功能模組 (5個)
+- ✅ module-cache - 緩存系統
+- ✅ module-template - 範本管理
+- ✅ module-pdf - PDF生成
+- ✅ module-parsers - 文件解析
+- ✅ module-dynamics365 - Dynamics 365整合
+- ✅ module-customer360 - Customer 360
+
+#### Phase 3 P2業務模組 (6個)
+- ✅ module-meeting - 會議管理
+- ✅ module-calendar - 日曆管理
+- ✅ module-analytics - 分析系統
+- ✅ module-reminder - 提醒系統
+- ✅ module-recommendation - 推薦引擎
+- ✅ module-collaboration - 協作工具
+
+### 🏗️ 技術規格
+
+#### 核心技術棧
+- Next.js 14 (App Router)
+- React 18
+- TypeScript 5 (strict mode)
+- Tailwind CSS 3
+- Prisma ORM
+
+#### 數據庫支持
+- PostgreSQL (推薦，完整功能)
+- MySQL (高性能)
+- MongoDB (NoSQL選項)
+- SQLite (開發/測試)
+
+#### 測試框架
+- Jest (單元測試)
+- Playwright (E2E測試)
+- 總測試數: 564+
+- 測試覆蓋率: 85%+
+
+#### 監控系統
+- OpenTelemetry 完整集成
+- Prometheus + Grafana 支持
+- Azure Monitor 支持
+- 46條告警規則（P1-P4）
+- 4個預建Grafana儀表板
+
+### 📈 完成度里程碑
+
+#### 源項目對比
+- **源項目規模**: 159,215行代碼，476個文件
+- **模板實現**: 82,336行代碼，350+個文件
+- **完成度**: ~75%（核心功能100%）
+
+#### 功能完整性
+- ✅ **核心基礎設施**: 100%
+- ✅ **功能模組**: 100%（22/22個）
+- ✅ **UI組件系統**: 24個基礎組件
+- ✅ **數據庫支持**: 4種數據庫
+- ✅ **監控系統**: 100%
+- ✅ **測試系統**: 564+測試
+- ✅ **部署配置**: Docker + nginx完整
+- ✅ **CLI工具**: 智能初始化完整
+
+### 🎉 項目里程碑
+
+#### 2025-10-10 (晚期) - Phase 3完成
+- ✅ 6個P2業務模組完整實現
+- ✅ 54個新文件，23,336行代碼
+- ✅ 314+新測試，5,550行文檔
+- ✅ 版本升級至v5.0 Stable
+
+#### 2025-10-10 (早期) - Phase 2完成
+- ✅ Performance模組完整實現
+- ✅ Resilience模組完整實現
+- ✅ 220+新測試，1,110行文檔
+
+#### 2025-10-09 - Phase 1完成
+- ✅ 8個文檔模板
+- ✅ 9個部署配置
+- ✅ 4個測試模板
+- ✅ TypeScript類型系統
+
+#### 2025-10-08 - Phase 0完成
+- ✅ 核心lib文件完整實現
+- ✅ errors.ts, utils.ts, prisma.ts
+
+### 📝 文檔更新
+
+#### 新增/更新的文檔
+- ✅ TEMPLATE-INDEX.md (v2.1 → v2.2)
+- ✅ PROJECT-INDEX.md (v5.0-rc → v5.0)
+- ✅ PHASE-3-COMPLETION-REPORT.md (新增)
+- ✅ PHASE-3-EXECUTION-TRACKER.md (新增)
+- ✅ PROJECT-STATUS.md (更新至v5.0)
+- ✅ CHANGELOG.md (新增v5.0條目)
+
+### 🚀 使用方式
+
+#### 快速開始
+```bash
+# 克隆模板
+git clone https://github.com/laitim2001/ai-webapp-template.git my-project
+cd my-project
+
+# 運行初始化CLI
+node init-project.js
+
+# 啟動開發服務器
+npm run dev
+```
+
+#### CLI初始化流程
+1. 項目信息配置
+2. 數據庫選擇（PostgreSQL/MySQL/MongoDB/SQLite）
+3. 模組選擇（從22個模組中選擇）
+4. 監控配置（Prometheus/Azure Monitor）
+5. 環境變數設置
+6. 示例數據選項
+7. 自動安裝依賴和初始化數據庫
+
+### 🎯 下一步計劃
+
+#### v5.1 (計劃中)
+- 補充進階UI組件
+- 擴展業務數據模型
+- 優化CLI工具體驗
+- 添加更多範例項目
+
+#### v6.0 (未來)
+- 微服務架構選項
+- GraphQL支持
+- 多雲部署支持
+- Kubernetes配置
+
+### 🙏 致謝
+
+本版本完成得益於：
+- Phase 0-3 系統化實施計劃
+- 完整的測試驗證流程
+- 詳細的文檔維護
+- AI Sales Enablement Platform（原始項目）
+
+### 🔗 相關資源
+
+- **GitHub**: https://github.com/laitim2001/ai-webapp-template
+- **文檔**: 完整文檔位於 Docs/ 目錄
+- **技術指南**: CLAUDE.md 提供完整開發指導
+- **快速參考**: TEMPLATE-DEVELOPMENT-GUIDE.md
+
+---
+
+### 🎉 歷史更新 (2025-10-09)
 
 #### 已完成 - Day 38-40: lib/ 根目錄核心文件
 - ✅ **核心工具庫完整實現** (3個文件, 1,113行代碼)

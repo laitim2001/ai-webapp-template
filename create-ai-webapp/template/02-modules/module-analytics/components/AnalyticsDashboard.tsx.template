@@ -1,0 +1,380 @@
+'use client';
+
+/**
+ * Analytics Dashboard Component
+ *
+ * Real-time analytics visualization with charts and metrics.
+ */
+
+import React, { useState, useEffect } from 'react';
+import {
+  LineChart,
+  Line,
+  BarChart,
+  Bar,
+  PieChart,
+  Pie,
+  Cell,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from 'recharts';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { ArrowUp, ArrowDown, Users, Activity, Eye, Clock, Download } from 'lucide-react';
+import type {
+  AnalyticsMetrics,
+  TimeSeriesData,
+  DateRangePreset,
+  MetricCard as MetricCardType,
+} from '@/types/analytics';
+
+interface AnalyticsDashboardProps {
+  projectId: string;
+  className?: string;
+}
+
+const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8'];
+
+const DATE_RANGE_OPTIONS: { value: DateRangePreset; label: string }[] = [
+  { value: 'today', label: 'Today' },
+  { value: 'yesterday', label: 'Yesterday' },
+  { value: 'last7days', label: 'Last 7 Days' },
+  { value: 'last30days', label: 'Last 30 Days' },
+  { value: 'last90days', label: 'Last 90 Days' },
+  { value: 'thisMonth', label: 'This Month' },
+  { value: 'lastMonth', label: 'Last Month' },
+];
+
+function getDateRange(preset: DateRangePreset): { startDate: Date; endDate: Date } {
+  const now = new Date();
+  const endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+  let startDate = new Date();
+
+  switch (preset) {
+    case 'today':
+      startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
+      break;
+    case 'yesterday':
+      startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 0, 0, 0);
+      endDate.setDate(endDate.getDate() - 1);
+      break;
+    case 'last7days':
+      startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6, 0, 0, 0);
+      break;
+    case 'last30days':
+      startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 29, 0, 0, 0);
+      break;
+    case 'last90days':
+      startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 89, 0, 0, 0);
+      break;
+    case 'thisMonth':
+      startDate = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0);
+      break;
+    case 'lastMonth':
+      startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1, 0, 0, 0);
+      endDate.setMonth(endDate.getMonth() - 1);
+      endDate.setDate(0);
+      break;
+    default:
+      startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6, 0, 0, 0);
+  }
+
+  return { startDate, endDate };
+}
+
+function formatDuration(seconds: number): string {
+  if (seconds < 60) return `${Math.round(seconds)}s`;
+  if (seconds < 3600) return `${Math.round(seconds / 60)}m`;
+  return `${Math.round(seconds / 3600)}h`;
+}
+
+function MetricCard({ metric }: { metric: MetricCardType }) {
+  const { title, value, change, changeType, format = 'number' } = metric;
+
+  let displayValue = value;
+  if (format === 'percentage') {
+    displayValue = `${typeof value === 'number' ? value.toFixed(1) : value}%`;
+  } else if (format === 'duration' && typeof value === 'number') {
+    displayValue = formatDuration(value);
+  } else if (format === 'number' && typeof value === 'number') {
+    displayValue = value.toLocaleString();
+  }
+
+  const changeColor =
+    changeType === 'increase' ? 'text-green-600' : changeType === 'decrease' ? 'text-red-600' : 'text-gray-600';
+
+  const ChangeIcon = changeType === 'increase' ? ArrowUp : changeType === 'decrease' ? ArrowDown : null;
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <CardTitle className="text-sm font-medium">{title}</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="text-2xl font-bold">{displayValue}</div>
+        {change !== undefined && (
+          <p className={`text-xs ${changeColor} flex items-center mt-1`}>
+            {ChangeIcon && <ChangeIcon className="w-3 h-3 mr-1" />}
+            {change > 0 ? '+' : ''}
+            {change.toFixed(1)}% from previous period
+          </p>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+export default function AnalyticsDashboard({ projectId, className = '' }: AnalyticsDashboardProps) {
+  const [dateRange, setDateRange] = useState<DateRangePreset>('last7days');
+  const [metrics, setMetrics] = useState<AnalyticsMetrics | null>(null);
+  const [timeSeries, setTimeSeries] = useState<TimeSeriesData[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadAnalytics();
+  }, [dateRange, projectId]);
+
+  async function loadAnalytics() {
+    setLoading(true);
+    try {
+      const { startDate, endDate } = getDateRange(dateRange);
+
+      // Fetch metrics
+      const metricsRes = await fetch('/api/analytics/metrics', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectId, startDate, endDate }),
+      });
+      const metricsData = await metricsRes.json();
+      setMetrics(metricsData);
+
+      // Fetch time series
+      const timeSeriesRes = await fetch('/api/analytics/time-series', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectId, startDate, endDate, groupBy: 'day' }),
+      });
+      const timeSeriesData = await timeSeriesRes.json();
+      setTimeSeries(timeSeriesData);
+    } catch (error) {
+      console.error('Failed to load analytics:', error);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleExport(format: 'csv' | 'json') {
+    try {
+      const { startDate, endDate } = getDateRange(dateRange);
+      const response = await fetch('/api/analytics/export', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectId, startDate, endDate, format }),
+      });
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `analytics-${dateRange}.${format}`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error('Failed to export:', error);
+    }
+  }
+
+  if (loading || !metrics) {
+    return (
+      <div className={`space-y-4 ${className}`}>
+        <div className="animate-pulse">
+          <div className="h-8 bg-gray-200 rounded w-1/4 mb-4"></div>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-4">
+            {[1, 2, 3, 4].map(i => (
+              <div key={i} className="h-32 bg-gray-200 rounded"></div>
+            ))}
+          </div>
+          <div className="h-96 bg-gray-200 rounded"></div>
+        </div>
+      </div>
+    );
+  }
+
+  const metricCards: MetricCardType[] = [
+    {
+      title: 'Total Users',
+      value: metrics.totalUsers,
+      format: 'number',
+    },
+    {
+      title: 'Total Sessions',
+      value: metrics.totalSessions,
+      format: 'number',
+    },
+    {
+      title: 'Avg. Session Duration',
+      value: metrics.avgSessionDuration,
+      format: 'duration',
+    },
+    {
+      title: 'Bounce Rate',
+      value: metrics.bounceRate,
+      format: 'percentage',
+    },
+  ];
+
+  return (
+    <div className={`space-y-6 ${className}`}>
+      {/* Header */}
+      <div className="flex justify-between items-center">
+        <div>
+          <h2 className="text-3xl font-bold tracking-tight">Analytics Dashboard</h2>
+          <p className="text-muted-foreground">Track user behavior and engagement metrics</p>
+        </div>
+        <div className="flex gap-2">
+          <Select value={dateRange} onValueChange={value => setDateRange(value as DateRangePreset)}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {DATE_RANGE_OPTIONS.map(option => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button variant="outline" onClick={() => handleExport('csv')}>
+            <Download className="w-4 h-4 mr-2" />
+            Export CSV
+          </Button>
+          <Button variant="outline" onClick={() => handleExport('json')}>
+            <Download className="w-4 h-4 mr-2" />
+            Export JSON
+          </Button>
+        </div>
+      </div>
+
+      {/* Metric Cards */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        {metricCards.map((metric, i) => (
+          <MetricCard key={i} metric={metric} />
+        ))}
+      </div>
+
+      {/* Time Series Chart */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Trends Over Time</CardTitle>
+          <CardDescription>User activity and engagement trends</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ResponsiveContainer width="100%" height={300}>
+            <LineChart data={timeSeries}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="date" />
+              <YAxis />
+              <Tooltip />
+              <Legend />
+              <Line type="monotone" dataKey="users" stroke="#8884d8" name="Users" />
+              <Line type="monotone" dataKey="sessions" stroke="#82ca9d" name="Sessions" />
+              <Line type="monotone" dataKey="events" stroke="#ffc658" name="Events" />
+            </LineChart>
+          </ResponsiveContainer>
+        </CardContent>
+      </Card>
+
+      {/* Charts Grid */}
+      <div className="grid gap-4 md:grid-cols-2">
+        {/* Top Events */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Top Events</CardTitle>
+            <CardDescription>Most frequent user actions</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={250}>
+              <BarChart data={metrics.topEvents.slice(0, 5)}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="eventName" />
+                <YAxis />
+                <Tooltip />
+                <Bar dataKey="count" fill="#8884d8" />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
+        {/* Device Breakdown */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Device Types</CardTitle>
+            <CardDescription>Traffic by device category</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={250}>
+              <PieChart>
+                <Pie data={metrics.deviceBreakdown} dataKey="count" nameKey="deviceType" cx="50%" cy="50%" outerRadius={80} label>
+                  {metrics.deviceBreakdown.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip />
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
+        {/* Top Pages */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Top Pages</CardTitle>
+            <CardDescription>Most visited pages</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {metrics.topPages.slice(0, 5).map((page, i) => (
+                <div key={i} className="flex items-center justify-between">
+                  <span className="text-sm truncate flex-1">{page.url}</span>
+                  <span className="text-sm font-medium ml-2">{page.count.toLocaleString()}</span>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Browser Breakdown */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Browsers</CardTitle>
+            <CardDescription>Traffic by browser</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {metrics.browserBreakdown.slice(0, 5).map((browser, i) => (
+                <div key={i} className="flex items-center justify-between">
+                  <span className="text-sm">{browser.browser}</span>
+                  <span className="text-sm font-medium">{browser.count.toLocaleString()}</span>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}

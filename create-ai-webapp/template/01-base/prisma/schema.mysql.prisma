@@ -1,0 +1,256 @@
+// ================================================================
+// Prisma Schema - MySQL
+// ================================================================
+// 
+// 這是 MySQL 專用的 Prisma Schema。
+// 支援全文搜索（FULLTEXT 索引），不支援向量搜索。
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// =====================================================
+// 核心模型
+// =====================================================
+
+model User {
+  id            String           @id @default(cuid())
+  email         String           @unique
+  name          String?
+  password      String?
+  role          UserRole         @default(USER)
+  
+  azureAdId     String?          @unique
+  azureAdTenant String?
+  
+  isActive      Boolean          @default(true)
+  emailVerified Boolean          @default(false)
+  lastLoginAt   DateTime?
+  
+  preferences   Json?
+  
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  
+  sessions      Session[]
+  notifications Notification[]
+  
+  @@map("users")
+}
+
+enum UserRole {
+  USER
+  ADMIN
+  SUPER_ADMIN
+}
+
+model Session {
+  id           String           @id @default(cuid())
+  userId       String
+  
+  refreshToken String           @unique @db.VarChar(500)
+  accessToken  String?          @db.VarChar(500)
+  
+  deviceInfo   String?          @db.VarChar(500)
+  ipAddress    String?          @db.VarChar(45)
+  
+  expiresAt    DateTime
+  lastUsedAt   DateTime         @default(now())
+  
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  
+  user         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([refreshToken])
+  @@index([expiresAt])
+  @@map("sessions")
+}
+
+model TokenBlacklist {
+  id        String           @id @default(cuid())
+  token     String           @unique @db.VarChar(500)
+  expiresAt DateTime
+  reason    String?          @db.VarChar(255)
+  createdAt DateTime         @default(now())
+  
+  @@index([token])
+  @@index([expiresAt])
+  @@map("token_blacklist")
+}
+
+model Notification {
+  id        String               @id @default(cuid())
+  userId    String
+  
+  type      NotificationType
+  title     String               @db.VarChar(255)
+  message   String               @db.Text
+  data      Json?
+  
+  isRead    Boolean              @default(false)
+  readAt    DateTime?
+  
+  createdAt DateTime             @default(now())
+  updatedAt DateTime             @updatedAt
+  
+  user      User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([createdAt])
+  @@map("notifications")
+}
+
+enum NotificationType {
+  SYSTEM
+  WORKFLOW
+  KNOWLEDGE
+  APPROVAL
+  COMMENT
+  MENTION
+}
+
+// =====================================================
+// 知識庫模型（MySQL FULLTEXT 搜索）
+// =====================================================
+
+model KnowledgeItem {
+  id          String           @id @default(cuid())
+  
+  title       String           @db.VarChar(500)
+  content     String           @db.Text
+  category    String?          @db.VarChar(100)
+  tags        String?          @db.Text  // MySQL 不直接支援數組，使用 JSON 或逗號分隔
+  
+  sourceFile  String?          @db.VarChar(500)
+  fileType    String?          @db.VarChar(50)
+  
+  // MySQL 不支援向量嵌入
+  
+  version     Int              @default(1)
+  status      KnowledgeStatus  @default(DRAFT)
+  
+  createdBy   String
+  updatedBy   String?
+  approvedBy  String?
+  approvedAt  DateTime?
+  
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  
+  @@index([title])
+  @@index([category])
+  @@index([status])
+  @@fulltext([title, content])  // MySQL FULLTEXT 索引
+  @@map("knowledge_items")
+}
+
+enum KnowledgeStatus {
+  DRAFT
+  PENDING
+  APPROVED
+  ARCHIVED
+}
+
+// =====================================================
+// 工作流程模型
+// =====================================================
+
+model WorkflowInstance {
+  id          String           @id @default(cuid())
+  
+  name        String           @db.VarChar(255)
+  description String?          @db.Text
+  templateId  String?          @db.VarChar(100)
+  
+  state       WorkflowState    @default(DRAFT)
+  previousState WorkflowState?
+  
+  data        Json
+  metadata    Json?
+  
+  version     Int              @default(1)
+  
+  submittedAt DateTime?
+  submittedBy String?
+  approvedBy  String?
+  approvedAt  DateTime?
+  rejectedBy  String?
+  rejectedAt  DateTime?
+  rejectionReason String?      @db.Text
+  
+  createdBy   String
+  updatedBy   String?
+  
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  completedAt DateTime?
+  
+  comments    WorkflowComment[]
+  history     WorkflowHistory[]
+  
+  @@index([state])
+  @@index([createdBy])
+  @@index([createdAt])
+  @@map("workflow_instances")
+}
+
+enum WorkflowState {
+  DRAFT
+  IN_PROGRESS
+  PENDING_REVIEW
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+  ON_HOLD
+  CANCELLED
+  COMPLETED
+  ARCHIVED
+  FAILED
+  EXPIRED
+}
+
+model WorkflowComment {
+  id         String           @id @default(cuid())
+  workflowId String
+  
+  content    String           @db.Text
+  
+  createdBy  String
+  
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+  
+  workflow   WorkflowInstance @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  
+  @@index([workflowId])
+  @@map("workflow_comments")
+}
+
+model WorkflowHistory {
+  id         String           @id @default(cuid())
+  workflowId String
+  
+  fromState  WorkflowState?
+  toState    WorkflowState
+  action     String           @db.VarChar(100)
+  
+  changedBy  String
+  
+  snapshot   Json
+  
+  createdAt  DateTime         @default(now())
+  
+  workflow   WorkflowInstance @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  
+  @@index([workflowId])
+  @@index([createdAt])
+  @@map("workflow_history")
+}
+

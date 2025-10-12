@@ -1,0 +1,119 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
+import { DemoBanner } from '@/components/demo-banner';
+import { ArrowLeft, Plus, Calendar, User } from 'lucide-react';
+import { demoGetTasks } from '@/lib/demo-api';
+
+export default function TasksPage() {
+  const [tasks, setTasks] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const response = await demoGetTasks();
+        if (response.success && response.data) {
+          setTasks(response.data.tasks || []);
+        }
+      } catch (error) {
+        console.error('Failed to fetch tasks:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  const getStatusBadge = (status: string) => {
+    const variants: any = {
+      'completed': 'default',
+      'in-progress': 'secondary',
+      'pending': 'outline'
+    };
+    const labels: any = {
+      'completed': '已完成',
+      'in-progress': '進行中',
+      'pending': '待處理'
+    };
+    return <Badge variant={variants[status]}>{labels[status]}</Badge>;
+  };
+
+  const getPriorityColor = (priority: string) => {
+    const colors: any = {
+      'high': 'text-red-600',
+      'medium': 'text-orange-600',
+      'low': 'text-green-600'
+    };
+    return colors[priority] || 'text-gray-600';
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      <header className="sticky top-0 z-10 border-b bg-white dark:bg-gray-800">
+        <div className="flex h-16 items-center justify-between px-6">
+          <div className="flex items-center gap-4">
+            <Button variant="ghost" size="icon" asChild>
+              <Link href="/(demo)/dashboard"><ArrowLeft className="h-5 w-5" /></Link>
+            </Button>
+            <h1 className="text-xl font-bold">任務管理</h1>
+          </div>
+          <Button><Plus className="mr-2 h-4 w-4" />新增任務</Button>
+        </div>
+      </header>
+
+      <main className="p-6">
+        <DemoBanner />
+        <div className="space-y-4">
+          {tasks.map((task) => (
+            <Card key={task.id} className="hover:shadow-md transition-shadow">
+              <CardContent className="pt-6">
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-2">
+                      <h3 className="font-semibold text-lg">{task.title}</h3>
+                      {getStatusBadge(task.status)}
+                      <Badge variant="outline" className={getPriorityColor(task.priority)}>
+                        {task.priority === 'high' ? '高' : task.priority === 'medium' ? '中' : '低'}優先級
+                      </Badge>
+                    </div>
+                    <p className="text-sm text-muted-foreground">{task.description}</p>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <div>
+                    <div className="flex justify-between text-sm mb-1">
+                      <span className="text-muted-foreground">進度</span>
+                      <span className="font-medium">{task.progress}%</span>
+                    </div>
+                    <Progress value={task.progress} />
+                  </div>
+
+                  <div className="flex items-center justify-between text-sm">
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <User className="h-4 w-4" />
+                      <span>{task.assignee}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <Calendar className="h-4 w-4" />
+                      <span>截止: {task.dueDate}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <Button variant="outline" className="w-full mt-4">查看詳情</Button>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </main>
+    </div>
+  );
+}

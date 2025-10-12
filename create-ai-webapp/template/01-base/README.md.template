@@ -1,0 +1,242 @@
+# {{PROJECT_NAME}}
+
+{{PROJECT_DESCRIPTION}}
+
+## ✨ 特點
+
+- 🚀 **Next.js 14 App Router** - 最新的 React 框架
+- 💪 **TypeScript** - 完整的類型安全
+- 🎨 **Tailwind CSS** - 現代化的 UI 設計系統
+- 🔐 **認證系統** - JWT + Azure AD SSO（可選）
+- 🗄️ **多數據庫支持** - PostgreSQL、MySQL、MongoDB、SQLite
+- 📊 **企業級監控** - OpenTelemetry + Prometheus/Azure Monitor
+- 🧪 **測試框架** - Jest + Playwright
+- 📦 **Docker 支持** - 容器化部署
+- 🔄 **CI/CD 就緒** - GitHub Actions 工作流
+
+## 📋 前置要求
+
+- Node.js 18.17+ 或 20.5+
+- npm 或 yarn 或 pnpm
+- {{DATABASE_TYPE}} 數據庫（如果選擇）
+- Docker（可選，用於容器化部署）
+
+## 🚀 快速開始
+
+### 1. 安裝依賴
+
+```bash
+npm install
+```
+
+### 2. 初始化項目
+
+運行交互式 CLI 工具來配置項目：
+
+```bash
+npm run init
+```
+
+這將引導你完成：
+- ✅ 項目基本信息配置
+- ✅ 數據庫類型選擇
+- ✅ 功能模塊選擇
+- ✅ 環境變數配置
+- ✅ 示例數據生成（可選）
+
+### 3. 設置數據庫
+
+```bash
+# 生成 Prisma Client
+npm run db:generate
+
+# 運行數據庫遷移
+npm run db:migrate
+
+# 填充種子數據（可選）
+npm run db:seed
+```
+
+### 4. 啟動開發服務器
+
+```bash
+npm run dev
+```
+
+應用程序將在 [http://localhost:3000](http://localhost:3000) 啟動。
+
+## 📦 項目結構
+
+```
+{{PROJECT_NAME}}/
+├── app/              # Next.js App Router 頁面
+├── components/       # React 組件
+├── lib/              # 工具函數和業務邏輯
+├── types/            # TypeScript 類型定義
+├── hooks/            # 自定義 React Hooks
+├── prisma/           # 數據庫架構和遷移
+├── public/           # 靜態資源
+└── docs/             # 項目文檔
+```
+
+詳細說明請參見 [PROJECT-STRUCTURE.md](./PROJECT-STRUCTURE.md)。
+
+## 🛠️ 開發命令
+
+```bash
+# 開發
+npm run dev              # 啟動開發服務器
+npm run build            # 構建生產版本
+npm start                # 啟動生產服務器
+
+# 代碼質量
+npm run lint             # ESLint 檢查
+npm run type-check       # TypeScript 類型檢查
+npm run format           # Prettier 格式化
+
+# 數據庫
+npm run db:generate      # 生成 Prisma Client
+npm run db:migrate       # 運行遷移
+npm run db:seed          # 填充種子數據
+npm run db:studio        # 打開 Prisma Studio
+
+# 測試
+npm test                 # 運行單元測試
+npm run test:e2e         # 運行 E2E 測試
+npm run test:coverage    # 生成測試覆蓋率報告
+```
+
+## 🔧 環境變數
+
+複製 `.env.example` 為 `.env` 並填寫必要的環境變數：
+
+```bash
+cp .env.example .env
+```
+
+關鍵環境變數：
+
+| 變數名 | 說明 | 必填 |
+|--------|------|------|
+| `DATABASE_URL` | 數據庫連接字符串 | ✅ |
+| `NEXTAUTH_SECRET` | 認證密鑰 | ✅ |
+| `NEXT_PUBLIC_APP_URL` | 應用程序 URL | ✅ |
+| `AZURE_AD_CLIENT_ID` | Azure AD 客戶端 ID | ⭕ |
+| `REDIS_URL` | Redis 連接字符串 | ⭕ |
+
+完整環境變數列表請參見 `.env.example`。
+
+## 🎨 UI 設計系統
+
+### 顏色
+- 9 種語義顏色（primary, secondary, destructive, muted, accent 等）
+- 支持深色模式
+
+### 動畫
+- 20+ 預設動畫
+- 淡入淡出、滑動、縮放、旋轉等
+
+### 響應式
+- 6 個斷點（xs, sm, md, lg, xl, 2xl）
+- 移動優先設計
+
+詳細設計系統請參見 [UI-DESIGN-SYSTEM.md](./docs/UI-DESIGN-SYSTEM.md)。
+
+## 🧩 功能模塊
+
+本項目包含多個可選功能模塊：
+
+### 核心模塊（必選）
+- ✅ 認證系統
+- ✅ API Gateway
+- ✅ 數據庫適配器
+
+### 可選模塊
+- ⭕ 知識庫管理
+- ⭕ AI 集成（Azure OpenAI）
+- ⭕ 工作流引擎
+- ⭕ 通知系統
+- ⭕ 模板管理
+- ⭕ PDF 生成
+- ⭕ Dynamics 365 集成
+- ⭕ 監控系統
+
+模塊可在初始化時選擇，或後續手動安裝。
+
+## 🐳 Docker 部署
+
+### 開發環境
+
+```bash
+docker-compose -f docker-compose.dev.yml up
+```
+
+### 生產環境
+
+```bash
+# 構建鏡像
+docker build -f Dockerfile.prod -t {{PROJECT_NAME}}:latest .
+
+# 運行容器
+docker-compose -f docker-compose.prod.yml up -d
+```
+
+## 📊 監控
+
+如果啟用了監控模塊，可以訪問：
+
+- **Prometheus**: http://localhost:9090
+- **Grafana**: http://localhost:3001
+- **Jaeger**: http://localhost:16686
+
+## 🧪 測試
+
+```bash
+# 單元測試
+npm test
+
+# E2E 測試
+npm run test:e2e
+
+# 測試覆蓋率
+npm run test:coverage
+
+# 監視模式
+npm run test:watch
+```
+
+## 📝 文檔
+
+- [API 規範](./docs/api-specification.md)
+- [架構文檔](./docs/architecture.md)
+- [部署指南](./docs/DEPLOYMENT-GUIDE.md)
+- [開發日誌](./docs/DEVELOPMENT-LOG.md)
+
+## 🤝 貢獻
+
+歡迎貢獻！請閱讀 [CONTRIBUTING.md](./CONTRIBUTING.md) 了解詳情。
+
+## 📄 許可證
+
+{{LICENSE}}
+
+## 🙏 致謝
+
+本項目基於以下優秀的開源項目：
+
+- [Next.js](https://nextjs.org/)
+- [Tailwind CSS](https://tailwindcss.com/)
+- [Prisma](https://www.prisma.io/)
+- [Radix UI](https://www.radix-ui.com/)
+- [OpenTelemetry](https://opentelemetry.io/)
+
+## 📞 聯繫方式
+
+- 作者：{{AUTHOR}}
+- Email：{{EMAIL}}
+- GitHub：{{GITHUB_URL}}
+
+---
+
+使用 [AI Web App Template](https://github.com/laitim2001/ai-webapp-template) 創建 ⚡️
+

@@ -1,0 +1,411 @@
+/**
+ * Reminder Module Type Definitions
+ * 提醒模組類型定義
+ */
+
+/**
+ * 提醒類型
+ */
+export enum ReminderType {
+  ONE_TIME = 'ONE_TIME',           // 單次提醒
+  RECURRING = 'RECURRING',         // 循環提醒
+  LOCATION_BASED = 'LOCATION_BASED', // 位置提醒
+  SMART = 'SMART'                  // 智能提醒
+}
+
+/**
+ * 提醒狀態
+ */
+export enum ReminderStatus {
+  PENDING = 'PENDING',       // 待調度
+  SCHEDULED = 'SCHEDULED',   // 已調度
+  DELIVERED = 'DELIVERED',   // 已送達
+  SNOOZED = 'SNOOZED',      // 稍後提醒
+  DISMISSED = 'DISMISSED',   // 已忽略
+  FAILED = 'FAILED',         // 失敗
+  EXPIRED = 'EXPIRED'        // 已過期
+}
+
+/**
+ * 推送通道類型
+ */
+export enum ChannelType {
+  EMAIL = 'EMAIL',
+  IN_APP = 'IN_APP',
+  PUSH = 'PUSH',
+  SMS = 'SMS',
+  WEBHOOK = 'WEBHOOK'
+}
+
+/**
+ * 優先級
+ */
+export enum Priority {
+  URGENT = 1,    // 緊急
+  HIGH = 2,      // 高
+  MEDIUM = 3,    // 中
+  LOW = 4,       // 低
+  OPTIONAL = 5   // 可選
+}
+
+/**
+ * 推送通道配置
+ */
+export interface DeliveryChannel {
+  type: ChannelType;
+  enabled: boolean;
+  config?: {
+    // Email 配置
+    to?: string;
+    cc?: string[];
+    subject?: string;
+    template?: string;
+
+    // Push 配置
+    title?: string;
+    body?: string;
+    icon?: string;
+    badge?: string;
+    sound?: string;
+    data?: Record<string, any>;
+
+    // SMS 配置
+    phoneNumber?: string;
+    message?: string;
+
+    // Webhook 配置
+    url?: string;
+    method?: 'GET' | 'POST' | 'PUT';
+    headers?: Record<string, string>;
+    payload?: Record<string, any>;
+  };
+}
+
+/**
+ * 位置信息
+ */
+export interface LocationInfo {
+  latitude: number;
+  longitude: number;
+  radius: number; // meters
+  address?: string;
+  name?: string;
+}
+
+/**
+ * 循環規則（RRule 格式）
+ */
+export interface RecurrenceRule {
+  freq: 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY';
+  interval?: number;
+  count?: number;
+  until?: Date;
+  byweekday?: number[];
+  bymonthday?: number[];
+  bymonth?: number[];
+  byhour?: number[];
+  byminute?: number[];
+}
+
+/**
+ * 提醒輸入數據
+ */
+export interface ReminderInput {
+  userId: string;
+  title: string;
+  description?: string;
+  type: ReminderType | keyof typeof ReminderType;
+  priority?: number | Priority;
+
+  // 時間調度
+  scheduledAt: Date;
+  timezone?: string;
+  recurrenceRule?: string; // RRule 字符串
+
+  // 位置信息
+  locationLat?: number;
+  locationLng?: number;
+  locationRadius?: number;
+
+  // 推送配置
+  channels: DeliveryChannel[];
+
+  // 智能時機
+  smartTiming?: boolean;
+  optimalTime?: Date;
+
+  // 重試配置
+  maxRetries?: number;
+
+  // 元數據
+  metadata?: Record<string, any>;
+}
+
+/**
+ * 提醒對象
+ */
+export interface Reminder {
+  id: string;
+  userId: string;
+  title: string;
+  description?: string;
+  type: ReminderType;
+  status: ReminderStatus;
+  priority: number;
+
+  scheduledAt: Date;
+  timezone: string;
+  recurrenceRule?: string;
+
+  locationLat?: number;
+  locationLng?: number;
+  locationRadius?: number;
+
+  channels: DeliveryChannel[];
+
+  smartTiming: boolean;
+  optimalTime?: Date;
+
+  deliveredAt?: Date;
+  snoozedUntil?: Date;
+  dismissedAt?: Date;
+
+  retryCount: number;
+  maxRetries: number;
+  lastRetryAt?: Date;
+
+  metadata?: Record<string, any>;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+/**
+ * 衝突檢測選項
+ */
+export interface ConflictCheckOptions {
+  startTime: Date;
+  endTime: Date;
+  priorityThreshold?: number;
+  excludeIds?: string[];
+}
+
+/**
+ * 批量調度結果
+ */
+export interface BatchScheduleResult {
+  success: Reminder[];
+  failed: Array<{
+    input: ReminderInput;
+    error: Error;
+  }>;
+  total: number;
+  successCount: number;
+  failedCount: number;
+}
+
+/**
+ * 處理結果
+ */
+export interface ProcessingResult {
+  reminderId: string;
+  success: boolean;
+  deliveredAt?: Date;
+  channels: Array<{
+    type: ChannelType;
+    success: boolean;
+    error?: string;
+  }>;
+  error?: Error;
+  retryScheduled?: boolean;
+}
+
+/**
+ * 智能時機上下文
+ */
+export interface TimingContext {
+  taskType: string;
+  urgency: 'low' | 'medium' | 'high' | 'urgent';
+  estimatedDuration?: number; // minutes
+  preferredTimeOfDay?: 'morning' | 'afternoon' | 'evening' | 'night';
+  daysOfWeek?: number[]; // 0-6 (Sunday-Saturday)
+}
+
+/**
+ * 用戶行為模式
+ */
+export interface UserPattern {
+  userId: string;
+  activeHours: number[]; // 0-23
+  activeDays: number[];  // 0-6
+  responseRate: number;  // 0-1
+  optimalWindows: TimeWindow[];
+  engagement: {
+    avgResponseTime: number; // minutes
+    dismissRate: number;
+    snoozeRate: number;
+  };
+  preferences: {
+    preferredChannels: ChannelType[];
+    quietHours?: {
+      start: number; // hour
+      end: number;   // hour
+    };
+  };
+  dataPoints: number;
+  lastAnalyzedAt: Date;
+}
+
+/**
+ * 時間窗口
+ */
+export interface TimeWindow {
+  dayOfWeek: number; // 0-6
+  startHour: number; // 0-23
+  endHour: number;   // 0-23
+  score: number;     // 0-1
+  responseRate: number;
+  sampleSize: number;
+}
+
+/**
+ * 分析選項
+ */
+export interface AnalysisOptions {
+  startDate: Date;
+  endDate: Date;
+  minDataPoints?: number;
+  includeWeekends?: boolean;
+}
+
+/**
+ * 評估選項
+ */
+export interface EvaluationOptions {
+  proposedTime: Date;
+  taskType?: string;
+  urgency?: 'low' | 'medium' | 'high' | 'urgent';
+  considerQuietHours?: boolean;
+  considerConflicts?: boolean;
+}
+
+/**
+ * 調度統計
+ */
+export interface SchedulingStats {
+  total: number;
+  byStatus: Record<ReminderStatus, number>;
+  byType: Record<ReminderType, number>;
+  byPriority: Record<number, number>;
+  avgDeliveryTime: number; // milliseconds
+  successRate: number;
+  retryRate: number;
+}
+
+/**
+ * 處理器配置
+ */
+export interface ProcessorConfig {
+  batchSize: number;
+  processingInterval: number; // milliseconds
+  maxRetries: number;
+  retryDelay: number; // milliseconds
+  enableSmartTiming: boolean;
+  enableLocationCheck: boolean;
+  geofenceCheckInterval: number; // milliseconds
+}
+
+/**
+ * 處理器事件
+ */
+export interface ProcessorEvents {
+  'reminder:delivered': (reminder: Reminder) => void;
+  'reminder:failed': (reminder: Reminder, error: Error) => void;
+  'reminder:retry': (reminder: Reminder, attempt: number) => void;
+  'reminder:expired': (reminder: Reminder) => void;
+  'batch:complete': (results: ProcessingResult[]) => void;
+  'processor:started': () => void;
+  'processor:stopped': () => void;
+  'processor:error': (error: Error) => void;
+}
+
+/**
+ * 位置檢測結果
+ */
+export interface LocationCheckResult {
+  reminderId: string;
+  withinGeofence: boolean;
+  distance: number; // meters
+  currentLocation: {
+    latitude: number;
+    longitude: number;
+  };
+  targetLocation: {
+    latitude: number;
+    longitude: number;
+    radius: number;
+  };
+}
+
+/**
+ * 智能時機預測結果
+ */
+export interface TimingPrediction {
+  optimalTime: Date;
+  confidence: number; // 0-1
+  alternatives: Array<{
+    time: Date;
+    score: number;
+    reason: string;
+  }>;
+  reasoning: {
+    userPattern: string;
+    contextFactors: string[];
+    conflictAvoidance: boolean;
+  };
+}
+
+/**
+ * 推送結果
+ */
+export interface DeliveryResult {
+  channel: ChannelType;
+  success: boolean;
+  deliveredAt?: Date;
+  messageId?: string;
+  error?: {
+    code: string;
+    message: string;
+  };
+  metadata?: Record<string, any>;
+}
+
+/**
+ * 錯誤代碼
+ */
+export enum ErrorCode {
+  INVALID_TIME = 'INVALID_TIME',
+  CONFLICT = 'CONFLICT',
+  INVALID_RRULE = 'INVALID_RRULE',
+  INVALID_LOCATION = 'INVALID_LOCATION',
+  DELIVERY_FAILED = 'DELIVERY_FAILED',
+  RETRY_EXHAUSTED = 'RETRY_EXHAUSTED',
+  NOT_FOUND = 'NOT_FOUND',
+  ALREADY_DELIVERED = 'ALREADY_DELIVERED',
+  PERMISSION_DENIED = 'PERMISSION_DENIED'
+}
+
+/**
+ * 提醒錯誤
+ */
+export class ReminderError extends Error {
+  code: ErrorCode;
+  reminderId?: string;
+  details?: Record<string, any>;
+
+  constructor(code: ErrorCode, message: string, details?: Record<string, any>) {
+    super(message);
+    this.name = 'ReminderError';
+    this.code = code;
+    this.details = details;
+  }
+}

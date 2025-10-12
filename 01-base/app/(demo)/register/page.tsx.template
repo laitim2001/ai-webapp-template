@@ -1,0 +1,235 @@
+'use client';
+
+/**
+ * 演示註冊頁面
+ *
+ * 展示註冊UI設計,使用演示模式
+ * 不需要真實的後端註冊邏輯
+ */
+
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Loader2, User, Mail, Lock, Sparkles } from 'lucide-react';
+import { demoRegister } from '@/lib/demo-api';
+
+export default function RegisterPage() {
+  const router = useRouter();
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    password: '',
+    confirmPassword: '',
+  });
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData(prev => ({
+      ...prev,
+      [e.target.name]: e.target.value,
+    }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+
+    // 基本驗證
+    if (formData.password !== formData.confirmPassword) {
+      setError('密碼不匹配');
+      return;
+    }
+
+    if (!agreedToTerms) {
+      setError('請同意服務條款和隱私政策');
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      // 使用演示API進行"註冊"
+      const response = await demoRegister({
+        name: formData.name,
+        email: formData.email,
+        password: formData.password,
+      });
+
+      if (response.success) {
+        // 演示模式:直接跳轉到儀表板
+        router.push('/(demo)/dashboard');
+      } else {
+        setError(response.error || '註冊失敗');
+      }
+    } catch (err) {
+      setError('發生錯誤,請稍後再試');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 p-4 dark:from-gray-900 dark:to-gray-800">
+      <Card className="w-full max-w-md">
+        <CardHeader className="space-y-1">
+          <div className="mb-4 flex justify-center">
+            <div className="rounded-full bg-primary p-3">
+              <Sparkles className="h-6 w-6 text-primary-foreground" />
+            </div>
+          </div>
+          <CardTitle className="text-center text-2xl font-bold">
+            創建賬戶
+          </CardTitle>
+          <CardDescription className="text-center">
+            註冊您的演示賬戶
+          </CardDescription>
+        </CardHeader>
+
+        <CardContent>
+          {/* 演示模式提示 */}
+          <Alert className="mb-4 border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950">
+            <Sparkles className="h-4 w-4 text-blue-600" />
+            <AlertDescription className="text-sm text-blue-700 dark:text-blue-300">
+              <strong>演示模式:</strong> 註冊信息不會被保存
+            </AlertDescription>
+          </Alert>
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="name">姓名</Label>
+              <div className="relative">
+                <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="name"
+                  name="name"
+                  type="text"
+                  placeholder="張三"
+                  value={formData.name}
+                  onChange={handleChange}
+                  className="pl-10"
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="email">電子郵件</Label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="email"
+                  name="email"
+                  type="email"
+                  placeholder="example@email.com"
+                  value={formData.email}
+                  onChange={handleChange}
+                  className="pl-10"
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="password">密碼</Label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="password"
+                  name="password"
+                  type="password"
+                  placeholder="至少8個字符"
+                  value={formData.password}
+                  onChange={handleChange}
+                  className="pl-10"
+                  required
+                  minLength={8}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="confirmPassword">確認密碼</Label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="confirmPassword"
+                  name="confirmPassword"
+                  type="password"
+                  placeholder="再次輸入密碼"
+                  value={formData.confirmPassword}
+                  onChange={handleChange}
+                  className="pl-10"
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="flex items-start space-x-2">
+              <Checkbox
+                id="terms"
+                checked={agreedToTerms}
+                onCheckedChange={(checked) => setAgreedToTerms(checked as boolean)}
+              />
+              <label
+                htmlFor="terms"
+                className="text-sm leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+              >
+                我同意{' '}
+                <Link href="#" className="text-primary hover:underline" onClick={(e) => e.preventDefault()}>
+                  服務條款
+                </Link>
+                {' '}和{' '}
+                <Link href="#" className="text-primary hover:underline" onClick={(e) => e.preventDefault()}>
+                  隱私政策
+                </Link>
+              </label>
+            </div>
+
+            {error && (
+              <Alert variant="destructive">
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+
+            <Button
+              type="submit"
+              className="w-full"
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  註冊中...
+                </>
+              ) : (
+                '註冊'
+              )}
+            </Button>
+          </form>
+
+          <div className="mt-4 text-center text-sm text-muted-foreground">
+            <span>已有賬戶? </span>
+            <Link
+              href="/(demo)/login"
+              className="font-medium text-primary hover:underline"
+            >
+              登錄
+            </Link>
+          </div>
+        </CardContent>
+
+        <CardFooter className="flex flex-col space-y-2 text-center text-xs text-muted-foreground">
+          <p>演示模式 - 註冊信息僅用於展示</p>
+        </CardFooter>
+      </Card>
+    </div>
+  );
+}

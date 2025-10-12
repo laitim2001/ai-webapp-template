@@ -1,0 +1,364 @@
+/**
+ * {{PROJECT_NAME}} - utils.ts 單元測試
+ * 測試通用工具函數
+ */
+
+import {
+  cn,
+  formatDate,
+  formatDateTime,
+  formatRelativeTime,
+  truncate,
+  capitalize,
+  slugify,
+  generateId,
+  sleep,
+  retry,
+  debounce,
+  throttle,
+  parseJSON,
+  isValidEmail,
+  isValidUrl,
+  sanitizeFilename,
+  getInitials,
+  formatBytes,
+  formatCurrency,
+  validateEnv,
+} from '@/lib/utils';
+
+describe('utils.ts', () => {
+  describe('cn() - 類名合併工具', () => {
+    it('應該合併多個類名', () => {
+      const result = cn('class1', 'class2', 'class3');
+      expect(result).toBe('class1 class2 class3');
+    });
+
+    it('應該處理條件類名', () => {
+      const result = cn('base', { 'active': true, 'disabled': false });
+      expect(result).toContain('base');
+      expect(result).toContain('active');
+      expect(result).not.toContain('disabled');
+    });
+
+    it('應該過濾 falsy 值', () => {
+      const result = cn('class1', null, undefined, false, '', 'class2');
+      expect(result).toBe('class1 class2');
+    });
+  });
+
+  describe('日期格式化函數', () => {
+    const testDate = new Date('2024-01-15T10:30:00Z');
+
+    describe('formatDate()', () => {
+      it('應該格式化日期為 YYYY-MM-DD', () => {
+        const result = formatDate(testDate);
+        expect(result).toBe('2024-01-15');
+      });
+
+      it('應該處理字符串日期', () => {
+        const result = formatDate('2024-01-15');
+        expect(result).toBe('2024-01-15');
+      });
+    });
+
+    describe('formatDateTime()', () => {
+      it('應該格式化日期時間', () => {
+        const result = formatDateTime(testDate);
+        expect(result).toMatch(/2024-01-15/);
+        expect(result).toContain(':');
+      });
+    });
+
+    describe('formatRelativeTime()', () => {
+      it('應該顯示 "剛剛" 對於最近的時間', () => {
+        const now = new Date();
+        const result = formatRelativeTime(now);
+        expect(result).toBe('剛剛');
+      });
+
+      it('應該顯示分鐘前', () => {
+        const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+        const result = formatRelativeTime(fiveMinutesAgo);
+        expect(result).toMatch(/分鐘前/);
+      });
+
+      it('應該顯示小時前', () => {
+        const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
+        const result = formatRelativeTime(twoHoursAgo);
+        expect(result).toMatch(/小時前/);
+      });
+
+      it('應該顯示天前', () => {
+        const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
+        const result = formatRelativeTime(threeDaysAgo);
+        expect(result).toMatch(/天前/);
+      });
+    });
+  });
+
+  describe('字符串處理函數', () => {
+    describe('truncate()', () => {
+      it('應該截斷長字符串', () => {
+        const text = 'This is a very long string';
+        const result = truncate(text, 10);
+        expect(result.length).toBeLessThanOrEqual(13); // 10 + '...'
+        expect(result).toContain('...');
+      });
+
+      it('應該保留短字符串', () => {
+        const text = 'Short';
+        const result = truncate(text, 10);
+        expect(result).toBe('Short');
+      });
+
+      it('應該使用自定義省略號', () => {
+        const text = 'This is a very long string';
+        const result = truncate(text, 10, ' →');
+        expect(result).toContain(' →');
+      });
+    });
+
+    describe('capitalize()', () => {
+      it('應該首字母大寫', () => {
+        expect(capitalize('hello')).toBe('Hello');
+        expect(capitalize('world')).toBe('World');
+      });
+
+      it('應該處理空字符串', () => {
+        expect(capitalize('')).toBe('');
+      });
+    });
+
+    describe('slugify()', () => {
+      it('應該轉換為 URL 友好的 slug', () => {
+        expect(slugify('Hello World')).toBe('hello-world');
+        expect(slugify('This is a Test')).toBe('this-is-a-test');
+      });
+
+      it('應該處理特殊字符', () => {
+        expect(slugify('Hello, World!')).toBe('hello-world');
+        expect(slugify('Test@123#456')).toBe('test-123-456');
+      });
+
+      it('應該移除連續的連字符', () => {
+        expect(slugify('Hello   World')).toBe('hello-world');
+      });
+    });
+
+    describe('getInitials()', () => {
+      it('應該獲取姓名首字母', () => {
+        expect(getInitials('John Doe')).toBe('JD');
+        expect(getInitials('Alice Bob Charlie')).toBe('ABC');
+      });
+
+      it('應該處理單個名字', () => {
+        expect(getInitials('John')).toBe('J');
+      });
+
+      it('應該限制首字母數量', () => {
+        expect(getInitials('A B C D E', 2)).toBe('AB');
+      });
+    });
+
+    describe('sanitizeFilename()', () => {
+      it('應該移除不安全的文件名字符', () => {
+        expect(sanitizeFilename('file/name.txt')).toBe('filename.txt');
+        expect(sanitizeFilename('my<file>.txt')).toBe('myfile.txt');
+      });
+
+      it('應該保留合法字符', () => {
+        expect(sanitizeFilename('my-file_123.txt')).toBe('my-file_123.txt');
+      });
+    });
+  });
+
+  describe('驗證函數', () => {
+    describe('isValidEmail()', () => {
+      it('應該驗證有效的 email', () => {
+        expect(isValidEmail('test@example.com')).toBe(true);
+        expect(isValidEmail('user.name@domain.co.uk')).toBe(true);
+      });
+
+      it('應該拒絕無效的 email', () => {
+        expect(isValidEmail('invalid')).toBe(false);
+        expect(isValidEmail('test@')).toBe(false);
+        expect(isValidEmail('@domain.com')).toBe(false);
+      });
+    });
+
+    describe('isValidUrl()', () => {
+      it('應該驗證有效的 URL', () => {
+        expect(isValidUrl('https://example.com')).toBe(true);
+        expect(isValidUrl('http://localhost:3000')).toBe(true);
+      });
+
+      it('應該拒絕無效的 URL', () => {
+        expect(isValidUrl('not-a-url')).toBe(false);
+        expect(isValidUrl('ftp://invalid')).toBe(false);
+      });
+    });
+  });
+
+  describe('格式化函數', () => {
+    describe('formatBytes()', () => {
+      it('應該格式化字節大小', () => {
+        expect(formatBytes(1024)).toBe('1 KB');
+        expect(formatBytes(1048576)).toBe('1 MB');
+        expect(formatBytes(1073741824)).toBe('1 GB');
+      });
+
+      it('應該處理小於 1KB 的大小', () => {
+        expect(formatBytes(500)).toBe('500 Bytes');
+      });
+
+      it('應該支持自定義小數位數', () => {
+        expect(formatBytes(1536, 2)).toBe('1.50 KB');
+      });
+    });
+
+    describe('formatCurrency()', () => {
+      it('應該格式化貨幣', () => {
+        const result = formatCurrency(1000);
+        expect(result).toContain('1,000');
+      });
+
+      it('應該支持不同貨幣', () => {
+        const usd = formatCurrency(100, 'USD');
+        const eur = formatCurrency(100, 'EUR');
+        expect(usd).toContain('100');
+        expect(eur).toContain('100');
+      });
+    });
+  });
+
+  describe('異步工具函數', () => {
+    describe('sleep()', () => {
+      it('應該延遲指定的時間', async () => {
+        const start = Date.now();
+        await sleep(100);
+        const elapsed = Date.now() - start;
+        expect(elapsed).toBeGreaterThanOrEqual(90); // 允許一些時間誤差
+      });
+    });
+
+    describe('retry()', () => {
+      it('應該重試失敗的操作', async () => {
+        let attempts = 0;
+        const fn = jest.fn(async () => {
+          attempts++;
+          if (attempts < 3) throw new Error('失敗');
+          return '成功';
+        });
+
+        const result = await retry(fn, 3, 10);
+        expect(result).toBe('成功');
+        expect(attempts).toBe(3);
+      });
+
+      it('應該在達到最大重試次數後拋出錯誤', async () => {
+        const fn = jest.fn(async () => {
+          throw new Error('持續失敗');
+        });
+
+        await expect(retry(fn, 3, 10)).rejects.toThrow('持續失敗');
+        expect(fn).toHaveBeenCalledTimes(3);
+      });
+    });
+
+    describe('debounce()', () => {
+      jest.useFakeTimers();
+
+      it('應該延遲執行函數', () => {
+        const fn = jest.fn();
+        const debounced = debounce(fn, 100);
+
+        debounced();
+        debounced();
+        debounced();
+
+        expect(fn).not.toHaveBeenCalled();
+
+        jest.advanceTimersByTime(100);
+        expect(fn).toHaveBeenCalledTimes(1);
+      });
+
+      jest.useRealTimers();
+    });
+
+    describe('throttle()', () => {
+      jest.useFakeTimers();
+
+      it('應該限制函數執行頻率', () => {
+        const fn = jest.fn();
+        const throttled = throttle(fn, 100);
+
+        throttled();
+        throttled();
+        throttled();
+
+        expect(fn).toHaveBeenCalledTimes(1);
+
+        jest.advanceTimersByTime(100);
+        throttled();
+        expect(fn).toHaveBeenCalledTimes(2);
+      });
+
+      jest.useRealTimers();
+    });
+  });
+
+  describe('其他工具函數', () => {
+    describe('generateId()', () => {
+      it('應該生成唯一 ID', () => {
+        const id1 = generateId();
+        const id2 = generateId();
+
+        expect(id1).toBeDefined();
+        expect(id2).toBeDefined();
+        expect(id1).not.toBe(id2);
+      });
+
+      it('應該生成指定長度的 ID', () => {
+        const id = generateId(16);
+        expect(id.length).toBe(16);
+      });
+    });
+
+    describe('parseJSON()', () => {
+      it('應該解析有效的 JSON', () => {
+        const result = parseJSON('{"name":"test"}');
+        expect(result).toEqual({ name: 'test' });
+      });
+
+      it('應該處理無效的 JSON', () => {
+        const result = parseJSON('invalid', { fallback: true });
+        expect(result).toEqual({ fallback: true });
+      });
+
+      it('應該返回 null 對於無效的 JSON（無默認值）', () => {
+        const result = parseJSON('invalid');
+        expect(result).toBeNull();
+      });
+    });
+
+    describe('validateEnv()', () => {
+      it('應該驗證必需的環境變數', () => {
+        const originalEnv = process.env.DATABASE_URL;
+        process.env.DATABASE_URL = 'postgresql://localhost:5432/test';
+
+        expect(() => validateEnv(['DATABASE_URL'])).not.toThrow();
+
+        process.env.DATABASE_URL = originalEnv;
+      });
+
+      it('應該在缺少環境變數時拋出錯誤', () => {
+        const originalEnv = process.env.MISSING_VAR;
+        delete process.env.MISSING_VAR;
+
+        expect(() => validateEnv(['MISSING_VAR'])).toThrow();
+
+        if (originalEnv) process.env.MISSING_VAR = originalEnv;
+      });
+    });
+  });
+});

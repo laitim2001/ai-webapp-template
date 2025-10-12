@@ -1,0 +1,724 @@
+/**
+ * Outlook Calendar Service
+ *
+ * Comprehensive Microsoft Outlook Calendar integration via Microsoft Graph API
+ * with OAuth 2.0, event management, Teams meetings, and free/busy queries.
+ *
+ * @module lib/calendar/outlook-calendar
+ * @version 5.0.0
+ */
+
+import { Client } from '@microsoft/microsoft-graph-client';
+import { ClientSecretCredential } from '@azure/identity';
+import { databaseAdapter } from '@/lib/db/database-adapter';
+import type {
+  OutlookCalendarConfig,
+  OutlookCredentials,
+  OutlookEventCreateOptions,
+  OutlookEventListOptions,
+  CalendarEvent,
+  OutlookScheduleInformation,
+  FreeSlot,
+  ICalendarService,
+  BatchOperationResult,
+} from '@/types/calendar';
+
+/**
+ * Outlook Calendar Service
+ *
+ * Handles all Microsoft Graph Calendar API operations including:
+ * - OAuth 2.0 authentication with Azure AD
+ * - Event CRUD operations
+ * - Teams meeting integration
+ * - Free/busy time queries
+ * - Meeting room booking
+ */
+export class OutlookCalendarService implements ICalendarService {
+  private client: Client | null = null;
+  private config: OutlookCalendarConfig;
+  private userId?: number;
+  private accessToken?: string;
+
+  /**
+   * Default OAuth scopes
+   */
+  private static readonly DEFAULT_SCOPES = [
+    'Calendars.ReadWrite',
+    'Calendars.ReadWrite.Shared',
+    'User.Read',
+    'OnlineMeetings.ReadWrite',
+  ];
+
+  constructor(config: OutlookCalendarConfig) {
+    this.config = {
+      ...config,
+      scopes: config.scopes || OutlookCalendarService.DEFAULT_SCOPES,
+    };
+  }
+
+  // ============================================================================
+  // Authentication Methods
+  // ============================================================================
+
+  /**
+   * Generate OAuth authorization URL
+   *
+   * @param state - Optional state parameter for CSRF protection
+   * @returns Authorization URL
+   */
+  getAuthUrl(state?: string): string {
+    const params = new URLSearchParams({
+      client_id: this.config.clientId,
+      response_type: 'code',
+      redirect_uri: this.config.redirectUri,
+      response_mode: 'query',
+      scope: this.config.scopes!.join(' '),
+      ...(state && { state }),
+    });
+
+    return `https://login.microsoftonline.com/${this.config.tenantId}/oauth2/v2.0/authorize?${params}`;
+  }
+
+  /**
+   * Exchange authorization code for tokens
+   *
+   * @param code - Authorization code from OAuth callback
+   * @returns OAuth credentials
+   */
+  async getTokensFromCode(code: string): Promise<OutlookCredentials> {
+    const params = new URLSearchParams({
+      client_id: this.config.clientId,
+      client_secret: this.config.clientSecret,
+      code: code,
+      redirect_uri: this.config.redirectUri,
+      grant_type: 'authorization_code',
+    });
+
+    const response = await fetch(
+      `https://login.microsoftonline.com/${this.config.tenantId}/oauth2/v2.0/token`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: params,
+      }
+    );
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(`Failed to get tokens: ${error.error_description || error.error}`);
+    }
+
+    return await response.json();
+  }
+
+  /**
+   * Set OAuth credentials
+   *
+   * @param credentials - OAuth credentials
+   * @param userId - Optional user ID for database storage
+   */
+  async setCredentials(credentials: OutlookCredentials, userId?: number): Promise<void> {
+    this.accessToken = credentials.access_token;
+    this.userId = userId;
+
+    // Initialize Graph client
+    this.client = Client.init({
+      authProvider: (done) => {
+        done(null, this.accessToken!);
+      },
+    });
+
+    // Save credentials to database if userId provided
+    if (userId) {
+      await this.saveCredentials(userId, credentials);
+    }
+  }
+
+  /**
+   * Refresh access token
+   *
+   * @param refreshToken - Refresh token
+   * @returns New credentials
+   */
+  async refreshAccessToken(refreshToken: string): Promise<OutlookCredentials> {
+    const params = new URLSearchParams({
+      client_id: this.config.clientId,
+      client_secret: this.config.clientSecret,
+      refresh_token: refreshToken,
+      grant_type: 'refresh_token',
+    });
+
+    const response = await fetch(
+      `https://login.microsoftonline.com/${this.config.tenantId}/oauth2/v2.0/token`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: params,
+      }
+    );
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(`Failed to refresh token: ${error.error_description || error.error}`);
+    }
+
+    const credentials = await response.json();
+    await this.setCredentials(credentials, this.userId);
+    return credentials;
+  }
+
+  /**
+   * Save credentials to database
+   *
+   * @param userId - User ID
+   * @param credentials - OAuth credentials
+   */
+  private async saveCredentials(userId: number, credentials: OutlookCredentials): Promise<void> {
+    const connection = await databaseAdapter.findFirst('calendarConnection', {
+      where: {
+        userId,
+        provider: 'outlook',
+      },
+    });
+
+    const expiryDate = credentials.expires_in
+      ? new Date(Date.now() + credentials.expires_in * 1000)
+      : undefined;
+
+    const data = {
+      userId,
+      provider: 'outlook',
+      calendarId: 'primary',
+      accessToken: credentials.access_token,
+      refreshToken: credentials.refresh_token,
+      tokenExpiry: expiryDate,
+      isActive: true,
+    };
+
+    if (connection) {
+      await databaseAdapter.update('calendarConnection', {
+        where: { id: connection.id },
+        data,
+      });
+    } else {
+      await databaseAdapter.create('calendarConnection', { data });
+    }
+  }
+
+  // ============================================================================
+  // Event CRUD Operations
+  // ============================================================================
+
+  /**
+   * Create calendar event
+   *
+   * @param options - Event creation options
+   * @returns Created event
+   */
+  async createEvent(options: OutlookEventCreateOptions): Promise<CalendarEvent> {
+    if (!this.client) throw new Error('Client not initialized. Call setCredentials first.');
+
+    const calendarId = options.calendarId || 'primary';
+    const endpoint = calendarId === 'primary' ? '/me/events' : `/me/calendars/${calendarId}/events`;
+
+    const event = {
+      subject: options.subject,
+      body: options.body,
+      start: {
+        dateTime: options.start.dateTime,
+        timeZone: options.start.timeZone || 'UTC',
+      },
+      end: {
+        dateTime: options.end.dateTime,
+        timeZone: options.end.timeZone || 'UTC',
+      },
+      location: options.location,
+      attendees: options.attendees,
+      isAllDay: options.isAllDay,
+      isOnlineMeeting: options.isOnlineMeeting,
+      onlineMeetingProvider: options.onlineMeetingProvider,
+      recurrence: options.recurrence,
+      reminderMinutesBeforeStart: options.reminderMinutesBeforeStart,
+      isReminderOn: options.isReminderOn,
+      showAs: options.showAs,
+      sensitivity: options.sensitivity,
+      categories: options.categories,
+    };
+
+    const response = await this.client.api(endpoint).post(event);
+
+    const createdEvent = this.mapOutlookEventToCalendarEvent(response, calendarId);
+
+    // Save to database
+    await this.saveEventToDatabase(createdEvent);
+
+    return createdEvent;
+  }
+
+  /**
+   * Get event by ID
+   *
+   * @param eventId - Event ID
+   * @param calendarId - Calendar ID (default: 'primary')
+   * @returns Event
+   */
+  async getEvent(eventId: string, calendarId: string = 'primary'): Promise<CalendarEvent> {
+    if (!this.client) throw new Error('Client not initialized. Call setCredentials first.');
+
+    const endpoint =
+      calendarId === 'primary'
+        ? `/me/events/${eventId}`
+        : `/me/calendars/${calendarId}/events/${eventId}`;
+
+    const response = await this.client.api(endpoint).get();
+
+    return this.mapOutlookEventToCalendarEvent(response, calendarId);
+  }
+
+  /**
+   * Update event
+   *
+   * @param eventId - Event ID
+   * @param updates - Update data
+   * @returns Updated event
+   */
+  async updateEvent(
+    eventId: string,
+    updates: Partial<OutlookEventCreateOptions>
+  ): Promise<CalendarEvent> {
+    if (!this.client) throw new Error('Client not initialized. Call setCredentials first.');
+
+    const calendarId = updates.calendarId || 'primary';
+    const endpoint =
+      calendarId === 'primary'
+        ? `/me/events/${eventId}`
+        : `/me/calendars/${calendarId}/events/${eventId}`;
+
+    const event: any = {};
+    if (updates.subject !== undefined) event.subject = updates.subject;
+    if (updates.body !== undefined) event.body = updates.body;
+    if (updates.start !== undefined)
+      event.start = {
+        dateTime: updates.start.dateTime,
+        timeZone: updates.start.timeZone || 'UTC',
+      };
+    if (updates.end !== undefined)
+      event.end = {
+        dateTime: updates.end.dateTime,
+        timeZone: updates.end.timeZone || 'UTC',
+      };
+    if (updates.location !== undefined) event.location = updates.location;
+    if (updates.attendees !== undefined) event.attendees = updates.attendees;
+    if (updates.isAllDay !== undefined) event.isAllDay = updates.isAllDay;
+
+    const response = await this.client.api(endpoint).patch(event);
+
+    const updatedEvent = this.mapOutlookEventToCalendarEvent(response, calendarId);
+
+    // Update database
+    await this.updateEventInDatabase(updatedEvent);
+
+    return updatedEvent;
+  }
+
+  /**
+   * Delete event
+   *
+   * @param eventId - Event ID
+   * @param calendarId - Calendar ID (default: 'primary')
+   */
+  async deleteEvent(eventId: string, calendarId: string = 'primary'): Promise<void> {
+    if (!this.client) throw new Error('Client not initialized. Call setCredentials first.');
+
+    const endpoint =
+      calendarId === 'primary'
+        ? `/me/events/${eventId}`
+        : `/me/calendars/${calendarId}/events/${eventId}`;
+
+    await this.client.api(endpoint).delete();
+
+    // Mark as deleted in database
+    await this.deleteEventFromDatabase(eventId, calendarId);
+  }
+
+  /**
+   * List events
+   *
+   * @param options - List options
+   * @returns Array of events
+   */
+  async listEvents(options: OutlookEventListOptions = {}): Promise<CalendarEvent[]> {
+    if (!this.client) throw new Error('Client not initialized. Call setCredentials first.');
+
+    const calendarId = options.calendarId || 'primary';
+    const endpoint =
+      calendarId === 'primary' ? '/me/events' : `/me/calendars/${calendarId}/events`;
+
+    let query = this.client.api(endpoint);
+
+    if (options.top) query = query.top(options.top);
+    if (options.skip) query = query.skip(options.skip);
+    if (options.filter) query = query.filter(options.filter);
+    if (options.orderBy) query = query.orderby(options.orderBy);
+    if (options.select) query = query.select(options.select);
+
+    const response = await query.get();
+
+    return (response.value || []).map((event: any) =>
+      this.mapOutlookEventToCalendarEvent(event, calendarId)
+    );
+  }
+
+  // ============================================================================
+  // Teams Meeting Integration
+  // ============================================================================
+
+  /**
+   * Create Teams meeting event
+   *
+   * @param options - Event creation options
+   * @returns Created event with Teams meeting link
+   */
+  async createTeamsMeeting(options: OutlookEventCreateOptions): Promise<CalendarEvent> {
+    return this.createEvent({
+      ...options,
+      isOnlineMeeting: true,
+      onlineMeetingProvider: 'teamsForBusiness',
+    });
+  }
+
+  // ============================================================================
+  // Free/Busy Queries
+  // ============================================================================
+
+  /**
+   * Find free/busy time for attendees
+   *
+   * @param options - Query options
+   * @returns Schedule information for each attendee
+   */
+  async findFreeBusyTime(options: {
+    attendees: string[];
+    startTime: string;
+    endTime: string;
+    timeZone?: string;
+    meetingDuration?: number;
+  }): Promise<OutlookScheduleInformation[]> {
+    if (!this.client) throw new Error('Client not initialized. Call setCredentials first.');
+
+    const requestBody = {
+      schedules: options.attendees,
+      startTime: {
+        dateTime: options.startTime,
+        timeZone: options.timeZone || 'UTC',
+      },
+      endTime: {
+        dateTime: options.endTime,
+        timeZone: options.timeZone || 'UTC',
+      },
+      availabilityViewInterval: options.meetingDuration || 30,
+    };
+
+    const response = await this.client.api('/me/calendar/getSchedule').post(requestBody);
+
+    return response.value || [];
+  }
+
+  /**
+   * Find common free time slots
+   *
+   * @param options - Query options
+   * @returns Array of free time slots
+   */
+  async findFreeSlots(options: {
+    attendees: string[];
+    startTime: string;
+    endTime: string;
+    timeZone?: string;
+    meetingDuration: number;
+  }): Promise<FreeSlot[]> {
+    const schedules = await this.findFreeBusyTime(options);
+
+    // Find time slots where all attendees are free
+    const freeSlots: FreeSlot[] = [];
+    const duration = options.meetingDuration * 60 * 1000; // Convert to milliseconds
+
+    const startMs = new Date(options.startTime).getTime();
+    const endMs = new Date(options.endTime).getTime();
+
+    for (let time = startMs; time < endMs; time += duration) {
+      const slotEnd = time + duration;
+      const slotStart = new Date(time).toISOString();
+      const slotEndStr = new Date(slotEnd).toISOString();
+
+      // Check if all attendees are free in this slot
+      const allFree = schedules.every((schedule) => {
+        return schedule.scheduleItems.every((item) => {
+          const itemStart = new Date(item.start).getTime();
+          const itemEnd = new Date(item.end).getTime();
+
+          // Check if slot overlaps with busy time
+          const overlaps = time < itemEnd && slotEnd > itemStart;
+
+          return !overlaps || item.status === 'free';
+        });
+      });
+
+      if (allFree) {
+        freeSlots.push({
+          start: slotStart,
+          end: slotEndStr,
+          availableAttendees: options.attendees,
+        });
+      }
+    }
+
+    return freeSlots;
+  }
+
+  // ============================================================================
+  // Batch Operations
+  // ============================================================================
+
+  /**
+   * Batch create events
+   *
+   * @param events - Array of event creation options
+   * @returns Batch operation result
+   */
+  async batchCreateEvents(
+    events: OutlookEventCreateOptions[]
+  ): Promise<BatchOperationResult<CalendarEvent>> {
+    const results: CalendarEvent[] = [];
+    const failed: Array<{ index: number; error: string; data: any }> = [];
+
+    for (let i = 0; i < events.length; i++) {
+      try {
+        const event = await this.createEvent(events[i]);
+        results.push(event);
+      } catch (error) {
+        failed.push({
+          index: i,
+          error: error instanceof Error ? error.message : 'Unknown error',
+          data: events[i],
+        });
+      }
+    }
+
+    return {
+      successful: results,
+      failed,
+      total: events.length,
+      successCount: results.length,
+      failureCount: failed.length,
+    };
+  }
+
+  // ============================================================================
+  // Helper Methods
+  // ============================================================================
+
+  /**
+   * Map Outlook event to CalendarEvent
+   *
+   * @param outlookEvent - Outlook event
+   * @param calendarId - Calendar ID
+   * @returns CalendarEvent
+   */
+  private mapOutlookEventToCalendarEvent(outlookEvent: any, calendarId: string): CalendarEvent {
+    return {
+      id: outlookEvent.id,
+      provider: 'outlook',
+      calendarId,
+      summary: outlookEvent.subject,
+      description: outlookEvent.body?.content,
+      location: outlookEvent.location?.displayName || outlookEvent.location,
+      start: {
+        dateTime: outlookEvent.start.dateTime,
+        timeZone: outlookEvent.start.timeZone,
+      },
+      end: {
+        dateTime: outlookEvent.end.dateTime,
+        timeZone: outlookEvent.end.timeZone,
+      },
+      attendees: outlookEvent.attendees?.map((a: any) => ({
+        email: a.emailAddress.address,
+        displayName: a.emailAddress.name,
+        optional: a.type === 'optional',
+        responseStatus: a.status?.response,
+      })),
+      organizer: outlookEvent.organizer
+        ? {
+            email: outlookEvent.organizer.emailAddress.address,
+            displayName: outlookEvent.organizer.emailAddress.name,
+          }
+        : undefined,
+      status: this.mapOutlookStatusToCalendarStatus(outlookEvent.showAs),
+      visibility: this.mapOutlookSensitivityToVisibility(outlookEvent.sensitivity),
+      reminders: {
+        useDefault: false,
+        overrides: outlookEvent.isReminderOn
+          ? [
+              {
+                method: 'popup',
+                minutes: outlookEvent.reminderMinutesBeforeStart || 15,
+              },
+            ]
+          : [],
+      },
+      recurrence: outlookEvent.recurrence ? [this.mapOutlookRecurrenceToRRule(outlookEvent.recurrence)] : undefined,
+      created: outlookEvent.createdDateTime,
+      updated: outlookEvent.lastModifiedDateTime,
+      iCalUID: outlookEvent.iCalUId,
+      htmlLink: outlookEvent.webLink,
+      metadata: {
+        isOnlineMeeting: outlookEvent.isOnlineMeeting,
+        onlineMeeting: outlookEvent.onlineMeeting,
+        categories: outlookEvent.categories,
+      },
+    };
+  }
+
+  /**
+   * Map Outlook status to calendar status
+   */
+  private mapOutlookStatusToCalendarStatus(showAs: string): 'confirmed' | 'tentative' | 'cancelled' {
+    switch (showAs) {
+      case 'tentative':
+        return 'tentative';
+      case 'busy':
+      case 'oof':
+      case 'workingElsewhere':
+        return 'confirmed';
+      default:
+        return 'confirmed';
+    }
+  }
+
+  /**
+   * Map Outlook sensitivity to visibility
+   */
+  private mapOutlookSensitivityToVisibility(sensitivity: string): 'default' | 'public' | 'private' | 'confidential' {
+    switch (sensitivity) {
+      case 'normal':
+        return 'default';
+      case 'personal':
+        return 'private';
+      case 'private':
+        return 'private';
+      case 'confidential':
+        return 'confidential';
+      default:
+        return 'default';
+    }
+  }
+
+  /**
+   * Map Outlook recurrence to RRULE
+   */
+  private mapOutlookRecurrenceToRRule(recurrence: any): string {
+    // Simplified mapping - would need full implementation for production
+    const pattern = recurrence.pattern;
+    const range = recurrence.range;
+
+    let rrule = 'RRULE:';
+
+    // Frequency
+    switch (pattern.type) {
+      case 'daily':
+        rrule += 'FREQ=DAILY';
+        break;
+      case 'weekly':
+        rrule += 'FREQ=WEEKLY';
+        break;
+      case 'absoluteMonthly':
+      case 'relativeMonthly':
+        rrule += 'FREQ=MONTHLY';
+        break;
+      case 'absoluteYearly':
+      case 'relativeYearly':
+        rrule += 'FREQ=YEARLY';
+        break;
+    }
+
+    // Interval
+    if (pattern.interval > 1) {
+      rrule += `;INTERVAL=${pattern.interval}`;
+    }
+
+    // End condition
+    if (range.type === 'endDate') {
+      rrule += `;UNTIL=${range.endDate}`;
+    } else if (range.type === 'numbered') {
+      rrule += `;COUNT=${range.numberOfOccurrences}`;
+    }
+
+    return rrule;
+  }
+
+  /**
+   * Save event to database
+   */
+  private async saveEventToDatabase(event: CalendarEvent): Promise<void> {
+    if (!this.userId) return;
+
+    await databaseAdapter.create('calendarEvent', {
+      data: {
+        externalId: event.id,
+        provider: event.provider,
+        calendarId: event.calendarId,
+        userId: this.userId,
+        summary: event.summary,
+        description: event.description,
+        location: typeof event.location === 'string' ? event.location : undefined,
+        startTime: new Date(event.start.dateTime),
+        endTime: new Date(event.end.dateTime),
+        isAllDay: false,
+        recurrence: event.recurrence,
+        status: event.status,
+        metadata: event,
+      },
+    });
+  }
+
+  /**
+   * Update event in database
+   */
+  private async updateEventInDatabase(event: CalendarEvent): Promise<void> {
+    if (!this.userId) return;
+
+    const existing = await databaseAdapter.findFirst('calendarEvent', {
+      where: {
+        externalId: event.id,
+        provider: 'outlook',
+      },
+    });
+
+    if (existing) {
+      await databaseAdapter.update('calendarEvent', {
+        where: { id: existing.id },
+        data: {
+          summary: event.summary,
+          description: event.description,
+          location: typeof event.location === 'string' ? event.location : undefined,
+          startTime: new Date(event.start.dateTime),
+          endTime: new Date(event.end.dateTime),
+          metadata: event,
+        },
+      });
+    }
+  }
+
+  /**
+   * Delete event from database
+   */
+  private async deleteEventFromDatabase(eventId: string, calendarId: string): Promise<void> {
+    await databaseAdapter.deleteMany('calendarEvent', {
+      where: {
+        externalId: eventId,
+        provider: 'outlook',
+        calendarId,
+      },
+    });
+  }
+}

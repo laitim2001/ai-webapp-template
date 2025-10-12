@@ -1,0 +1,302 @@
+/**
+ * {{PROJECT_NAME}} - database-adapter.ts 單元測試
+ * 測試多數據庫抽象層
+ */
+
+import { databaseAdapter } from '@/lib/db/database-adapter';
+import { AppError, DatabaseError } from '@/lib/errors';
+
+// Mock Prisma clients
+jest.mock('@/lib/prisma', () => ({
+  prisma: {
+    $connect: jest.fn(),
+    $disconnect: jest.fn(),
+    user: {
+      findMany: jest.fn(),
+      findUnique: jest.fn(),
+      findFirst: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn(),
+      count: jest.fn(),
+    },
+  },
+}));
+
+describe('database-adapter.ts', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  describe('findMany()', () => {
+    it('應該查詢多個記錄', async () => {
+      const mockUsers = [
+        { id: '1', name: 'User 1', email: 'user1@example.com' },
+        { id: '2', name: 'User 2', email: 'user2@example.com' },
+      ];
+
+      const { prisma } = require('@/lib/prisma');
+      prisma.user.findMany.mockResolvedValue(mockUsers);
+
+      const result = await databaseAdapter.findMany('user', {});
+
+      expect(result).toEqual(mockUsers);
+      expect(prisma.user.findMany).toHaveBeenCalledWith({});
+    });
+
+    it('應該支持 where 條件', async () => {
+      const { prisma } = require('@/lib/prisma');
+      prisma.user.findMany.mockResolvedValue([]);
+
+      await databaseAdapter.findMany('user', {
+        where: { email: 'test@example.com' },
+      });
+
+      expect(prisma.user.findMany).toHaveBeenCalledWith({
+        where: { email: 'test@example.com' },
+      });
+    });
+
+    it('應該支持分頁參數', async () => {
+      const { prisma } = require('@/lib/prisma');
+      prisma.user.findMany.mockResolvedValue([]);
+
+      await databaseAdapter.findMany('user', {
+        skip: 10,
+        take: 5,
+      });
+
+      expect(prisma.user.findMany).toHaveBeenCalledWith({
+        skip: 10,
+        take: 5,
+      });
+    });
+
+    it('應該在錯誤時拋出 DatabaseError', async () => {
+      const { prisma } = require('@/lib/prisma');
+      prisma.user.findMany.mockRejectedValue(new Error('數據庫錯誤'));
+
+      await expect(
+        databaseAdapter.findMany('user', {})
+      ).rejects.toThrow(DatabaseError);
+    });
+  });
+
+  describe('findUnique()', () => {
+    it('應該通過唯一字段查詢記錄', async () => {
+      const mockUser = { id: '1', name: 'User 1', email: 'user1@example.com' };
+      const { prisma } = require('@/lib/prisma');
+      prisma.user.findUnique.mockResolvedValue(mockUser);
+
+      const result = await databaseAdapter.findUnique('user', {
+        where: { id: '1' },
+      });
+
+      expect(result).toEqual(mockUser);
+      expect(prisma.user.findUnique).toHaveBeenCalledWith({
+        where: { id: '1' },
+      });
+    });
+
+    it('應該返回 null 對於不存在的記錄', async () => {
+      const { prisma } = require('@/lib/prisma');
+      prisma.user.findUnique.mockResolvedValue(null);
+
+      const result = await databaseAdapter.findUnique('user', {
+        where: { id: 'nonexistent' },
+      });
+
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('findFirst()', () => {
+    it('應該查詢第一條匹配記錄', async () => {
+      const mockUser = { id: '1', name: 'User 1', email: 'user1@example.com' };
+      const { prisma } = require('@/lib/prisma');
+      prisma.user.findFirst.mockResolvedValue(mockUser);
+
+      const result = await databaseAdapter.findFirst('user', {
+        where: { name: 'User 1' },
+      });
+
+      expect(result).toEqual(mockUser);
+      expect(prisma.user.findFirst).toHaveBeenCalledWith({
+        where: { name: 'User 1' },
+      });
+    });
+  });
+
+  describe('create()', () => {
+    it('應該創建新記錄', async () => {
+      const newUser = { name: 'New User', email: 'new@example.com' };
+      const createdUser = { id: '1', ...newUser };
+
+      const { prisma } = require('@/lib/prisma');
+      prisma.user.create.mockResolvedValue(createdUser);
+
+      const result = await databaseAdapter.create('user', {
+        data: newUser,
+      });
+
+      expect(result).toEqual(createdUser);
+      expect(prisma.user.create).toHaveBeenCalledWith({
+        data: newUser,
+      });
+    });
+
+    it('應該在驗證錯誤時拋出異常', async () => {
+      const { prisma } = require('@/lib/prisma');
+      prisma.user.create.mockRejectedValue(
+        new Error('Unique constraint failed')
+      );
+
+      await expect(
+        databaseAdapter.create('user', {
+          data: { email: 'duplicate@example.com' },
+        })
+      ).rejects.toThrow();
+    });
+  });
+
+  describe('update()', () => {
+    it('應該更新現有記錄', async () => {
+      const updatedUser = {
+        id: '1',
+        name: 'Updated User',
+        email: 'updated@example.com',
+      };
+
+      const { prisma } = require('@/lib/prisma');
+      prisma.user.update.mockResolvedValue(updatedUser);
+
+      const result = await databaseAdapter.update('user', {
+        where: { id: '1' },
+        data: { name: 'Updated User' },
+      });
+
+      expect(result).toEqual(updatedUser);
+      expect(prisma.user.update).toHaveBeenCalledWith({
+        where: { id: '1' },
+        data: { name: 'Updated User' },
+      });
+    });
+
+    it('應該在記錄不存在時拋出錯誤', async () => {
+      const { prisma } = require('@/lib/prisma');
+      prisma.user.update.mockRejectedValue(new Error('Record not found'));
+
+      await expect(
+        databaseAdapter.update('user', {
+          where: { id: 'nonexistent' },
+          data: { name: 'Test' },
+        })
+      ).rejects.toThrow();
+    });
+  });
+
+  describe('delete()', () => {
+    it('應該刪除記錄', async () => {
+      const deletedUser = { id: '1', name: 'Deleted User', email: 'deleted@example.com' };
+
+      const { prisma } = require('@/lib/prisma');
+      prisma.user.delete.mockResolvedValue(deletedUser);
+
+      const result = await databaseAdapter.delete('user', {
+        where: { id: '1' },
+      });
+
+      expect(result).toEqual(deletedUser);
+      expect(prisma.user.delete).toHaveBeenCalledWith({
+        where: { id: '1' },
+      });
+    });
+  });
+
+  describe('count()', () => {
+    it('應該計算記錄數', async () => {
+      const { prisma } = require('@/lib/prisma');
+      prisma.user.count.mockResolvedValue(42);
+
+      const result = await databaseAdapter.count('user', {});
+
+      expect(result).toBe(42);
+      expect(prisma.user.count).toHaveBeenCalledWith({});
+    });
+
+    it('應該支持 where 條件計數', async () => {
+      const { prisma } = require('@/lib/prisma');
+      prisma.user.count.mockResolvedValue(5);
+
+      const result = await databaseAdapter.count('user', {
+        where: { active: true },
+      });
+
+      expect(result).toBe(5);
+      expect(prisma.user.count).toHaveBeenCalledWith({
+        where: { active: true },
+      });
+    });
+  });
+
+  describe('transaction()', () => {
+    it('應該執行事務操作', async () => {
+      const { prisma } = require('@/lib/prisma');
+
+      // Mock transaction
+      prisma.$transaction = jest.fn(async (callback) => {
+        return callback(prisma);
+      });
+
+      const result = await databaseAdapter.transaction(async (tx) => {
+        // 事務操作
+        return 'success';
+      });
+
+      expect(result).toBe('success');
+      expect(prisma.$transaction).toHaveBeenCalled();
+    });
+
+    it('應該在事務失敗時回滾', async () => {
+      const { prisma } = require('@/lib/prisma');
+
+      prisma.$transaction = jest.fn(async (callback) => {
+        return callback(prisma);
+      });
+
+      await expect(
+        databaseAdapter.transaction(async () => {
+          throw new Error('事務失敗');
+        })
+      ).rejects.toThrow('事務失敗');
+    });
+  });
+
+  describe('健康檢查', () => {
+    it('應該驗證數據庫連接', async () => {
+      const { prisma } = require('@/lib/prisma');
+      prisma.$connect.mockResolvedValue(undefined);
+
+      await expect(databaseAdapter.healthCheck()).resolves.not.toThrow();
+      expect(prisma.$connect).toHaveBeenCalled();
+    });
+
+    it('應該在連接失敗時拋出錯誤', async () => {
+      const { prisma } = require('@/lib/prisma');
+      prisma.$connect.mockRejectedValue(new Error('連接失敗'));
+
+      await expect(databaseAdapter.healthCheck()).rejects.toThrow(DatabaseError);
+    });
+  });
+
+  describe('連接管理', () => {
+    it('應該正確斷開數據庫連接', async () => {
+      const { prisma } = require('@/lib/prisma');
+      prisma.$disconnect.mockResolvedValue(undefined);
+
+      await databaseAdapter.disconnect();
+
+      expect(prisma.$disconnect).toHaveBeenCalled();
+    });
+  });
+});

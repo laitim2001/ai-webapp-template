@@ -1,0 +1,221 @@
+/**
+ * Collaboration Module Type Definitions
+ *
+ * TypeScript types for real-time collaborative editing.
+ */
+
+/**
+ * Collaboration session
+ */
+export interface CollaborationSession {
+  id: string
+  documentId: string
+  userId: string
+  startedAt: Date
+  endedAt?: Date
+  isActive: boolean
+  syncStatus: SyncStatus
+  lastSyncAt: Date | null
+  changeCount: number
+  version: number
+}
+
+/**
+ * Sync status
+ */
+export type SyncStatus = 'synced' | 'syncing' | 'disconnected' | 'connecting'
+
+/**
+ * Document change
+ */
+export interface DocumentChange {
+  id?: string
+  document_id: string
+  user_id: string
+  type: 'insert' | 'delete' | 'replace'
+  position: number
+  content: string
+  length?: number
+  created_at: Date
+}
+
+/**
+ * Document version
+ */
+export interface DocumentVersion {
+  id?: string
+  document_id: string
+  version: number
+  content: string
+  created_by: string
+  created_at: Date
+  comment?: string
+}
+
+/**
+ * Conflict resolution
+ */
+export interface ConflictResolution {
+  documentId: string
+  resolvedAt: Date
+  strategy: 'crdt' | 'ot' | 'manual'
+  conflictCount: number
+  resolution: 'automatic' | 'manual'
+  finalContent: string
+}
+
+/**
+ * User presence
+ */
+export interface UserPresence {
+  userId: string
+  documentId: string
+  name: string
+  email?: string
+  avatar?: string
+  color: string
+  isOnline: boolean
+  lastSeen: Date
+  cursor: CursorPosition | null
+  selection: UserSelection | null
+  isTyping: boolean
+  joinedAt: Date
+}
+
+/**
+ * Cursor position
+ */
+export interface CursorPosition {
+  x: number
+  y: number
+  line?: number
+  column?: number
+}
+
+/**
+ * User selection
+ */
+export interface UserSelection {
+  start: {
+    line: number
+    column: number
+  }
+  end: {
+    line: number
+    column: number
+  }
+}
+
+/**
+ * Presence state
+ */
+export interface PresenceState {
+  documentId: string
+  activeUsers: UserPresence[]
+  userCount: number
+  cursors: Array<{
+    userId: string
+    cursor: CursorPosition
+  }>
+  selections: Array<{
+    userId: string
+    selection: UserSelection
+  }>
+  typingUsers: string[]
+}
+
+/**
+ * Awareness update
+ */
+export interface AwarenessUpdate {
+  added: number[]
+  updated: number[]
+  removed: number[]
+}
+
+/**
+ * Editor state
+ */
+export interface EditorState {
+  sessionId: string
+  documentId: string
+  content: string
+  version: number
+  syncStatus: SyncStatus
+  changeCount: number
+  lastSyncAt: Date | null
+}
+
+/**
+ * Collaboration event
+ */
+export type CollaborationEvent =
+  | { type: 'user-joined'; user: UserPresence }
+  | { type: 'user-left'; userId: string }
+  | { type: 'cursor-moved'; userId: string; cursor: CursorPosition }
+  | { type: 'selection-changed'; userId: string; selection: UserSelection }
+  | { type: 'typing-status'; userId: string; isTyping: boolean }
+  | { type: 'content-changed'; change: DocumentChange }
+  | { type: 'sync-status'; status: SyncStatus }
+  | { type: 'version-created'; version: DocumentVersion }
+
+/**
+ * Collaboration options
+ */
+export interface CollaborationOptions {
+  websocketUrl?: string
+  autoConnect?: boolean
+  enablePresence?: boolean
+  enableVersionControl?: boolean
+  heartbeatInterval?: number
+  presenceTimeout?: number
+}
+
+/**
+ * Database models (for Prisma schema reference)
+ */
+
+/**
+ * CollaborationSession model
+ */
+export interface CollaborationSessionModel {
+  id: string
+  document_id: string
+  user_id: string
+  started_at: Date
+  ended_at?: Date | null
+  is_active: boolean
+  sync_status: string
+  last_sync_at?: Date | null
+  change_count: number
+  version: number
+  created_at: Date
+  updated_at: Date
+}
+
+/**
+ * DocumentChange model
+ */
+export interface DocumentChangeModel {
+  id: string
+  document_id: string
+  user_id: string
+  type: string
+  position: number
+  content: string
+  length?: number | null
+  created_at: Date
+}
+
+/**
+ * DocumentVersion model
+ */
+export interface DocumentVersionModel {
+  id: string
+  document_id: string
+  version: number
+  content: string
+  created_by: string
+  created_at: Date
+  comment?: string | null
+}

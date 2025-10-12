@@ -1,0 +1,564 @@
+# 演示模式說明 (Demo Mode)
+
+**版本**: 5.0
+**創建日期**: 2025-10-11
+**狀態**: 零模組配置 (Zero Module Configuration)
+
+---
+
+## 📋 目錄
+
+- [概述](#概述)
+- [演示頁面列表](#演示頁面列表)
+- [技術架構](#技術架構)
+- [如何使用](#如何使用)
+- [添加功能模組](#添加功能模組)
+- [常見問題](#常見問題)
+
+---
+
+## 🎯 概述
+
+### 什麼是演示模式？
+
+演示模式是 **零模組配置** 下的項目狀態。當你在初始化時選擇不安裝任何功能模組，系統會生成一個包含完整 UI 設計系統和演示頁面的基礎項目。
+
+### 演示模式提供什麼？
+
+✅ **基礎項目結構**
+- Next.js 14 App Router
+- TypeScript 5 (嚴格模式)
+- Tailwind CSS 3 自定義主題
+- Prisma ORM (支持多種數據庫)
+
+✅ **完整 UI 設計系統**
+- 20+ shadcn/ui 組件
+- 響應式設計系統
+- 深色模式支持
+- 20+ 預定義動畫效果
+
+✅ **15個演示頁面**
+- 完整的 UI/UX 實現
+- 模擬數據展示
+- 無需後端即可運行
+
+✅ **演示數據層**
+- `lib/demo-data.ts` - 所有演示數據
+- `lib/demo-api.ts` - 模擬 API 函數
+- 自動延遲模擬真實網絡請求
+
+---
+
+## 📱 演示頁面列表
+
+### P0 核心頁面 (3個)
+
+#### 1. 登錄頁 `/(demo)/login`
+- **功能**: 用戶登錄演示
+- **特點**: 接受任何憑證,展示登錄流程
+- **組件**: 表單驗證、錯誤提示、加載狀態
+
+#### 2. 註冊頁 `/(demo)/register`
+- **功能**: 用戶註冊演示
+- **特點**: 完整的表單驗證、密碼確認
+- **組件**: 多步驟表單、條款同意
+
+#### 3. 主儀表板 `/(demo)/dashboard`
+- **功能**: 數據概覽和統計
+- **特點**:
+  - 4個統計卡片 (項目、用戶、文檔、收入)
+  - 月度收入圖表
+  - 最近活動列表
+  - 快速操作鏈接
+
+---
+
+### P1 基礎功能頁面 (4個)
+
+#### 4. 知識庫 `/(demo)/dashboard/knowledge`
+- **功能**: 知識庫文檔管理
+- **特點**:
+  - 文檔列表展示
+  - 分類和標籤篩選
+  - 瀏覽量、點讚數統計
+  - 狀態標記 (已發布/草稿)
+
+#### 5. 搜索頁 `/(demo)/dashboard/search`
+- **功能**: 全局搜索功能
+- **特點**:
+  - 實時搜索建議
+  - 搜索結果列表
+  - 相關度評分顯示
+  - 結果來源標記
+
+#### 6. 通知中心 `/(demo)/dashboard/notifications`
+- **功能**: 系統通知管理
+- **特點**:
+  - 通知列表 (信息、成功、警告、錯誤)
+  - 已讀/未讀狀態
+  - 批量操作
+  - 時間戳顯示
+
+#### 7. 設置頁 `/(demo)/dashboard/settings`
+- **功能**: 用戶設置和偏好
+- **特點**:
+  - 個人資料編輯
+  - 通知偏好設置
+  - 郵件/推送通知開關
+  - 每週摘要訂閱
+
+---
+
+### P2 業務功能頁面 (6個)
+
+#### 8. 客戶管理 `/(demo)/dashboard/customers`
+- **功能**: CRM 客戶管理
+- **特點**:
+  - 客戶卡片展示
+  - 聯繫信息 (郵箱、電話)
+  - 收入統計
+  - 項目數量
+  - 狀態標記 (活躍/非活躍)
+  - 行業分類
+
+#### 9. 任務管理 `/(demo)/dashboard/tasks`
+- **功能**: 任務追蹤系統
+- **特點**:
+  - 任務列表
+  - 進度條顯示
+  - 優先級標記 (高/中/低)
+  - 狀態管理 (已完成/進行中/待處理)
+  - 指派人員
+  - 截止日期
+
+#### 10. AI助手 `/(demo)/dashboard/assistant`
+- **功能**: AI 對話界面
+- **特點**:
+  - 聊天界面
+  - 用戶/助手消息區分
+  - 實時回復模擬
+  - 消息歷史記錄
+
+#### 11. 提案管理 `/(demo)/dashboard/proposals`
+- **功能**: 業務提案管理
+- **特點**:
+  - 提案列表
+  - 狀態追蹤 (草稿/審核中/已批准/已拒絕)
+  - 進度百分比
+  - 提案金額
+  - 客戶關聯
+  - 章節展示
+  - PDF 生成按鈕
+
+#### 12. 模板管理 `/(demo)/dashboard/templates`
+- **功能**: 文檔模板系統
+- **特點**:
+  - 模板庫展示
+  - 分類篩選 (提案/技術文檔/需求分析/項目管理)
+  - 公開/私有標記
+  - 使用次數統計
+  - 模板預覽和使用功能
+
+#### 13. 系統管理 `/(demo)/dashboard/admin`
+- **功能**: 系統管理後台
+- **特點**:
+  - **系統概況**: 4個監控卡片
+    - 系統健康狀態
+    - 用戶統計 (總數、今日活躍、本週新增)
+    - 存儲狀態 (使用量、文檔數)
+    - 性能指標 (響應時間、請求數、緩存命中率)
+  - **用戶管理**: 用戶列表、角色管理、狀態管理
+  - **系統日誌**: 日誌查看、級別篩選 (info/warning/error)
+  - **系統設置**: 自動備份、郵件通知、安全設置、性能監控
+
+---
+
+### API 文檔頁面 (1個)
+
+#### 14. API 文檔 `/(demo)/api-docs`
+- **功能**: RESTful API 文檔
+- **特點**:
+  - API 端點列表
+  - 按分類分組 (認證、知識庫、搜索、客戶、任務、提案、模板)
+  - HTTP 方法標記 (GET/POST/PUT/DELETE)
+  - 請求參數表格
+  - 響應示例 (JSON 格式)
+  - cURL 命令示例
+  - 一鍵複製功能
+  - 錯誤代碼說明
+
+---
+
+### 首頁 (1個)
+
+#### 15. 首頁 `/`
+- **功能**: 項目歡迎頁
+- **特點**:
+  - 項目介紹
+  - 功能卡片 (認證系統、儀表板、知識庫)
+  - 技術棧展示
+  - 快速鏈接 (指向演示頁面)
+
+---
+
+## 🏗️ 技術架構
+
+### 目錄結構
+
+```
+{{PROJECT_NAME}}/
+├── app/
+│   ├── (demo)/              # 演示頁面路由組
+│   │   ├── login/
+│   │   ├── register/
+│   │   ├── dashboard/
+│   │   │   ├── page.tsx     # 主儀表板
+│   │   │   ├── knowledge/
+│   │   │   ├── search/
+│   │   │   ├── notifications/
+│   │   │   ├── settings/
+│   │   │   ├── customers/
+│   │   │   ├── tasks/
+│   │   │   ├── assistant/
+│   │   │   ├── proposals/
+│   │   │   ├── templates/
+│   │   │   └── admin/
+│   │   └── api-docs/
+│   ├── layout.tsx           # 根布局
+│   └── page.tsx             # 首頁
+├── components/
+│   ├── ui/                  # shadcn/ui 組件 (20+)
+│   ├── demo-banner.tsx      # 演示橫幅組件
+│   └── ...
+├── lib/
+│   ├── demo-data.ts         # 📊 演示數據層
+│   ├── demo-api.ts          # 🔌 模擬 API 層
+│   └── utils.ts
+└── ...
+```
+
+### 演示數據層 (`lib/demo-data.ts`)
+
+包含所有演示數據:
+
+- `demoUser` - 用戶信息
+- `demoDashboardStats` - 儀表板統計
+- `demoRecentActivities` - 最近活動
+- `demoKnowledgeBase` - 知識庫文檔 (5個)
+- `demoSearchResults` - 搜索結果 (3個)
+- `demoNotifications` - 通知 (4個)
+- `demoSettings` - 用戶設置
+- `demoCustomers` - 客戶數據 (3個)
+- `demoTasks` - 任務數據 (3個)
+- `demoProposals` - 提案數據 (3個)
+- `demoTemplates` - 模板數據 (4個)
+- `demoAdminStats` - 系統管理統計
+- `demoSystemUsers` - 系統用戶 (4個)
+- `demoSystemLogs` - 系統日誌 (4個)
+- `demoApiEndpoints` - API 端點文檔 (9個)
+- `demoChartData` - 圖表數據 (月度收入、用戶增長、項目狀態)
+
+### 模擬 API 層 (`lib/demo-api.ts`)
+
+提供所有演示頁面的 API 函數:
+
+**認證 API**
+- `demoLogin()` - 登錄 (接受任何憑證)
+- `demoRegister()` - 註冊
+- `demoLogout()` - 登出
+- `demoGetCurrentUser()` - 獲取當前用戶
+
+**儀表板 API**
+- `demoGetDashboardStats()` - 統計數據
+- `demoGetRecentActivities()` - 最近活動
+- `demoGetChartData()` - 圖表數據
+
+**知識庫 API**
+- `demoGetKnowledgeBase()` - 文檔列表 (支持篩選)
+- `demoGetKnowledgeDocument()` - 單個文檔
+- `demoCreateKnowledgeDocument()` - 創建文檔
+
+**搜索 API**
+- `demoSearch()` - 執行搜索 (支持類型和來源篩選)
+- `demoGetSearchSuggestions()` - 搜索建議
+
+**通知 API**
+- `demoGetNotifications()` - 通知列表 (支持已讀/未讀篩選)
+- `demoMarkNotificationRead()` - 標記單個已讀
+- `demoMarkAllNotificationsRead()` - 全部標記已讀
+
+**設置 API**
+- `demoGetSettings()` - 獲取設置
+- `demoUpdateSettings()` - 更新設置
+
+**客戶 API**
+- `demoGetCustomers()` - 客戶列表 (支持狀態和行業篩選)
+- `demoGetCustomer()` - 單個客戶詳情
+
+**任務 API**
+- `demoGetTasks()` - 任務列表 (支持狀態和優先級篩選)
+- `demoCreateTask()` - 創建任務
+- `demoUpdateTask()` - 更新任務
+
+**提案 API**
+- `demoGetProposals()` - 提案列表 (支持狀態和客戶篩選)
+- `demoGetProposal()` - 單個提案詳情
+- `demoCreateProposal()` - 創建提案
+- `demoUpdateProposal()` - 更新提案
+- `demoGenerateProposal()` - 生成提案 PDF
+
+**模板 API**
+- `demoGetTemplates()` - 模板列表 (支持分類和公開性篩選)
+- `demoGetTemplate()` - 單個模板詳情
+- `demoCreateTemplate()` - 創建模板
+- `demoUseTemplate()` - 使用模板創建文檔
+
+**系統管理 API**
+- `demoGetAdminStats()` - 系統統計數據
+- `demoGetSystemUsers()` - 用戶列表 (支持角色和狀態篩選)
+- `demoGetSystemLogs()` - 系統日誌 (支持級別和數量限制)
+- `demoUpdateUserRole()` - 更新用戶角色
+- `demoSystemAction()` - 執行系統操作
+
+**工具函數**
+- `isDemoMode()` - 檢查是否演示模式
+- `getDemoModeMessage()` - 演示模式提示訊息
+
+所有 API 函數都包含:
+- ✅ 自動延遲 (200-2000ms) 模擬真實網絡請求
+- ✅ 統一的響應格式 (`{ success, data, error, message }`)
+- ✅ TypeScript 類型支持
+
+### 演示橫幅組件 (`components/demo-banner.tsx`)
+
+三種演示提示組件:
+
+1. **DemoBanner** - 頁面頂部提示框
+   ```tsx
+   <DemoBanner />
+   ```
+   顯示: "🎭 演示模式 - 此頁面使用模擬數據展示UI效果。選擇相應模組後將獲得完整功能。"
+
+2. **InlineDemoBadge** - 內聯徽章
+   ```tsx
+   <InlineDemoBadge />
+   ```
+   顯示小型徽章提示
+
+3. **DemoModeCard** - 卡片提示
+   ```tsx
+   <DemoModeCard />
+   ```
+   顯示卡片樣式的演示說明
+
+---
+
+## 🚀 如何使用
+
+### 啟動項目
+
+1. **啟動開發服務器**
+   ```bash
+   npm run dev
+   ```
+
+2. **訪問應用**
+   ```
+   http://localhost:3000
+   ```
+
+3. **瀏覽演示頁面**
+
+   從首頁點擊鏈接,或直接訪問:
+   - 登錄: `http://localhost:3000/(demo)/login`
+   - 儀表板: `http://localhost:3000/(demo)/dashboard`
+   - 知識庫: `http://localhost:3000/(demo)/dashboard/knowledge`
+   - 客戶管理: `http://localhost:3000/(demo)/dashboard/customers`
+   - 任務管理: `http://localhost:3000/(demo)/dashboard/tasks`
+   - AI助手: `http://localhost:3000/(demo)/dashboard/assistant`
+   - 提案管理: `http://localhost:3000/(demo)/dashboard/proposals`
+   - 模板管理: `http://localhost:3000/(demo)/dashboard/templates`
+   - 系統管理: `http://localhost:3000/(demo)/dashboard/admin`
+   - API文檔: `http://localhost:3000/(demo)/api-docs`
+
+### 演示頁面功能測試
+
+所有演示頁面都可以:
+
+✅ **直接訪問** - 無需登錄或認證
+✅ **查看 UI** - 完整的設計系統和組件
+✅ **交互操作** - 按鈕、表單、篩選等都有響應
+✅ **查看數據** - 展示模擬數據的效果
+
+❌ **不會保存** - 所有操作僅在前端,不會持久化
+❌ **不會連接後端** - 使用模擬 API,無真實後端調用
+
+### 自定義演示數據
+
+編輯 `lib/demo-data.ts` 修改演示數據:
+
+```typescript
+// 修改客戶數據
+export const demoCustomers = [
+  {
+    id: 'cust-001',
+    name: '你的客戶名稱',  // 👈 修改這裡
+    email: 'custom@example.com',
+    // ...
+  },
+];
+```
+
+---
+
+## ➕ 添加功能模組
+
+### 方法 1: 重新運行初始化工具
+
+```bash
+# 備份當前工作
+git add .
+git commit -m "backup before module installation"
+
+# 重新運行初始化
+node init-project.js
+# 這次選擇你想要的模組
+```
+
+### 方法 2: 手動複製模組
+
+從模板倉庫的 `02-modules/` 目錄複製模組:
+
+```bash
+# 例如添加認證模組
+cp -r /path/to/template/02-modules/module-auth/* ./
+
+# 安裝新依賴
+npm install
+
+# 更新 Prisma Schema (如果有數據庫變更)
+npx prisma generate
+npx prisma migrate dev
+```
+
+### 可用模組列表
+
+**P0 核心模組**:
+- `module-auth` - 認證系統 (JWT + Azure AD SSO)
+- `module-api-gateway` - API Gateway (12個企業級中間件)
+- `module-security` - 安全模組 (數據保護 + 審計)
+- `monitoring` - 監控系統 (OpenTelemetry + Prometheus)
+
+**P1 高優先級模組**:
+- `module-knowledge-base` - 知識庫系統 (向量搜索 + 版本控制)
+- `module-ai-integration` - AI 整合 (Azure OpenAI 封裝)
+- `module-search` - 搜索模組 (多算法向量搜索)
+- `module-workflow` - 工作流程引擎 (12狀態 + 6種設計模式)
+- `module-notification` - 通知系統 (多渠道通知)
+- `module-performance` - 性能監控 (應用級性能追蹤)
+- `module-resilience` - 韌性模組 (容錯 + 重試 + 熔斷)
+
+**P2 輔助工具模組**:
+- `module-cache` - 緩存系統 (Redis 雙層緩存)
+- `module-template` - 模板管理 (Handlebars + PDF)
+- `module-pdf` - PDF 生成 (Puppeteer)
+- `module-parsers` - 文件解析器 (PDF/Word/Excel/OCR)
+- `module-dynamics365` - Dynamics 365 整合
+- `module-customer360` - Customer 360 (客戶全景視圖)
+
+**Phase 3 業務模組**:
+- `module-meeting` - 會議管理 (排程 + Teams 整合)
+- `module-calendar` - 日曆系統 (事件管理 + 同步)
+- `module-analytics` - 分析模組 (數據分析 + 報表)
+- `module-reminder` - 提醒系統 (智能提醒引擎)
+- `module-recommendation` - 推薦引擎 (內容推薦)
+- `module-collaboration` - 協作模組 (團隊協作)
+
+**開發工具鏈**:
+- `testing` - 測試框架 (Jest + Playwright, 564+ 測試)
+- `ai-guide` - AI 助手指南
+
+---
+
+## ❓ 常見問題
+
+### Q1: 為什麼選擇零模組配置?
+
+**A**: 零模組配置讓你可以:
+- 快速啟動項目,立即查看 UI 效果
+- 評估模板的設計系統和組件質量
+- 按需添加功能,避免不必要的複雜性
+- 作為學習和參考的完整示例
+
+### Q2: 演示頁面可以用於生產環境嗎?
+
+**A**: 不建議。演示頁面設計用於:
+- UI/UX 展示和評估
+- 學習 Next.js 14 和 React 最佳實踐
+- 作為實現真實功能的參考模板
+
+生產環境應安裝相應的功能模組獲得完整實現。
+
+### Q3: 如何將演示頁面轉換為真實功能?
+
+**A**: 推薦流程:
+1. 安裝相應的功能模組 (例如 `module-auth`)
+2. 複製演示頁面的 UI 代碼
+3. 將 `demoGetXxx()` 替換為真實 API 調用
+4. 添加錯誤處理和驗證邏輯
+5. 移除 `<DemoBanner />` 組件
+
+### Q4: 演示頁面的數據會持久化嗎?
+
+**A**: 不會。所有操作僅在客戶端,刷新頁面後恢復初始狀態。
+
+### Q5: 可以修改演示數據嗎?
+
+**A**: 可以。編輯 `lib/demo-data.ts` 文件自定義所有演示數據。
+
+### Q6: 為什麼使用 `(demo)` 路由組?
+
+**A**: Next.js 14 的路由組 `(demo)` 提供:
+- 清晰的演示/生產頁面分離
+- 不影響 URL 路徑結構
+- 方便整體刪除或替換
+
+### Q7: 演示模式包含數據庫嗎?
+
+**A**: 包含 Prisma Schema,但演示頁面不使用數據庫。添加功能模組後可啟用數據庫功能。
+
+### Q8: 如何移除演示頁面?
+
+**A**: 安裝功能模組後,可以刪除:
+```bash
+rm -rf app/\(demo\)
+rm lib/demo-data.ts
+rm lib/demo-api.ts
+rm components/demo-banner.tsx
+```
+
+### Q9: 演示頁面是否支持深色模式?
+
+**A**: 是的。所有演示頁面完全支持深色模式,使用 Tailwind CSS 的 `dark:` 變體。
+
+### Q10: 可以在演示頁面上構建真實應用嗎?
+
+**A**: 可以,但更推薦:
+1. 使用演示頁面作為 UI 參考
+2. 安裝功能模組獲得完整實現
+3. 複用 UI 組件和設計系統
+4. 替換模擬 API 為真實後端調用
+
+---
+
+## 📞 獲取幫助
+
+- **文檔**: 查看 `AI-ASSISTANT-GUIDE.md` 了解項目詳情
+- **問題**: 查看 GitHub Issues
+- **討論**: 查看 GitHub Discussions
+
+---
+
+**祝你使用愉快! 🚀**
+
+如有任何問題或建議,歡迎提交 Issue 或 PR。

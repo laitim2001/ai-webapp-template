@@ -1,0 +1,179 @@
+/**
+ * Azure AD / Entra ID SSO服務
+ * 數據庫適配器版本 - 支持 PostgreSQL, MySQL, MongoDB, SQLite
+ * 
+ * 💡 Customization Point: 根據您的Azure AD配置調整角色映射
+ */
+
+import { ConfidentialClientApplication, Configuration, AuthorizationUrlRequest, AuthorizationCodeRequest } from '@azure/msal-node'
+import { databaseAdapter } from '@/lib/db/database-adapter'
+import { loginUser } from './token-service'
+
+export interface User {
+  id: number | string
+  email: string
+  role: string
+  first_name?: string
+  last_name?: string
+  azure_ad_oid?: string | null
+  email_verified?: boolean
+  last_login_at?: Date | null
+}
+
+export type UserRole = 'USER' | 'ADMIN' | 'MANAGER' | 'VIEWER'
+
+function validateAzureADConfig() {
+  const required = ['AZURE_AD_CLIENT_ID', 'AZURE_AD_TENANT_ID', 'NEXT_PUBLIC_APP_URL']
+  const missing = required.filter(key => !process.env[key])
+  if (missing.length > 0) {
+    throw new Error(\`Missing required Azure AD environment variables: \${missing.join(', ')}\`)
+  }
+}
+
+const msalConfig: Configuration = {
+  auth: {
+    clientId: process.env.AZURE_AD_CLIENT_ID || '',
+    authority: \`https://login.microsoftonline.com/\${process.env.AZURE_AD_TENANT_ID}\`,
+    clientSecret: process.env.AZURE_AD_CLIENT_SECRET,
+  },
+  system: {
+    loggerOptions: {
+      loggerCallback(loglevel: any, message: string) {
+        if (process.env.NODE_ENV === 'development') {
+          console.log(\`[MSAL] \${message}\`)
+        }
+      },
+      piiLoggingEnabled: false,
+      logLevel: 3,
+    }
+  }
+}
+
+let msalInstance: ConfidentialClientApplication | null = null
+
+function getMsalInstance(): ConfidentialClientApplication {
+  if (!msalInstance) {
+    validateAzureADConfig()
+    msalInstance = new ConfidentialClientApplication(msalConfig)
+  }
+  return msalInstance
+}
+
+interface AzureADUserInfo {
+  oid: string
+  preferred_username: string
+  name: string
+  email?: string
+  roles?: string[]
+}
+
+const REDIRECT_URI = \`\${process.env.NEXT_PUBLIC_APP_URL}/api/auth/azure-ad/callback\`
+
+export async function getAzureADLoginUrl(state: string): Promise<string> {
+  const msalClient = getMsalInstance()
+  const authCodeUrlParameters: AuthorizationUrlRequest = {
+    scopes: ['user.read', 'openid', 'profile', 'email'],
+    redirectUri: REDIRECT_URI,
+    state: state,
+    prompt: 'select_account',
+  }
+  try {
+    const authUrl = await msalClient.getAuthCodeUrl(authCodeUrlParameters)
+    return authUrl
+  } catch (error) {
+    console.error('Failed to generate Azure AD login URL:', error)
+    throw new Error('Failed to generate Azure AD login URL')
+  }
+}
+
+export async function handleAzureADCallback(
+  code: string,
+  state: string,
+  deviceContext: { deviceId?: string; ipAddress?: string; userAgent?: string } = {}
+) {
+  const msalClient = getMsalInstance()
+  const tokenRequest: AuthorizationCodeRequest = {
+    code: code,
+    scopes: ['user.read', 'openid', 'profile', 'email'],
+    redirectUri: REDIRECT_URI,
+  }
+  try {
+    const tokenResponse = await msalClient.acquireTokenByCode(tokenRequest)
+    if (!tokenResponse || !tokenResponse.account) {
+      throw new Error('Failed to acquire token from Azure AD')
+    }
+    const azureUser: AzureADUserInfo = {
+      oid: tokenResponse.account.homeAccountId.split('.')[0],
+      preferred_username: tokenResponse.account.username,
+      name: tokenResponse.account.name || tokenResponse.account.username,
+      email: tokenResponse.account.username,
+      roles: (tokenResponse.idTokenClaims as any)?.roles as string[] || []
+    }
+    const localUser = await syncAzureADUser(azureUser)
+    const tokenPair = await loginUser(localUser, deviceContext)
+    return {
+      user: { id: localUser.id, email: localUser.email, firstName: localUser.first_name, lastName: localUser.last_name, role: localUser.role },
+      tokens: tokenPair,
+      azureTokens: { accessToken: tokenResponse.accessToken, expiresOn: tokenResponse.expiresOn }
+    }
+  } catch (error) {
+    console.error('Azure AD callback error:', error)
+    throw new Error('Failed to authenticate with Azure AD')
+  }
+}
+
+async function syncAzureADUser(azureUser: AzureADUserInfo): Promise<User> {
+  const users = await databaseAdapter.findMany('user', {
+    where: { OR: [{ azure_ad_oid: azureUser.oid }, { email: azureUser.preferred_username }] },
+    take: 1
+  }) as User[]
+  let user = users[0] || null
+  if (user) {
+    const nameParts = azureUser.name.split(' ')
+    user = await databaseAdapter.update('user', {
+      where: { id: user.id },
+      data: {
+        azure_ad_oid: azureUser.oid,
+        first_name: nameParts[0] || azureUser.name,
+        last_name: nameParts.slice(1).join(' ') || '',
+        email: azureUser.preferred_username,
+        email_verified: true,
+        last_login_at: new Date()
+      }
+    }) as User
+  } else {
+    const nameParts = azureUser.name.split(' ')
+    user = await databaseAdapter.create('user', {
+      data: {
+        azure_ad_oid: azureUser.oid,
+        email: azureUser.preferred_username,
+        first_name: nameParts[0] || azureUser.name,
+        last_name: nameParts.slice(1).join(' ') || '',
+        email_verified: true,
+        role: determineUserRole(azureUser),
+        last_login_at: new Date()
+      }
+    }) as User
+    console.log(\`New user created via Azure AD SSO: \${user.email}\`)
+  }
+  return user
+}
+
+function determineUserRole(azureUser: AzureADUserInfo): UserRole {
+  if (!azureUser.roles || azureUser.roles.length === 0) return 'USER'
+  const roleMapping: Record<string, UserRole> = { 'Admin': 'ADMIN', 'Manager': 'MANAGER', 'User': 'USER', 'Viewer': 'VIEWER' }
+  for (const azureRole of azureUser.roles) {
+    if (roleMapping[azureRole]) return roleMapping[azureRole]
+  }
+  return 'USER'
+}
+
+export function getAzureADLogoutUrl(): string {
+  const tenantId = process.env.AZURE_AD_TENANT_ID
+  const postLogoutRedirectUri = \`\${process.env.NEXT_PUBLIC_APP_URL}/login\`
+  return \`https://login.microsoftonline.com/\${tenantId}/oauth2/v2.0/logout?post_logout_redirect_uri=\${encodeURIComponent(postLogoutRedirectUri)}\`
+}
+
+export function isAzureADConfigured(): boolean {
+  return !!(process.env.AZURE_AD_CLIENT_ID && process.env.AZURE_AD_TENANT_ID && process.env.NEXT_PUBLIC_APP_URL)
+}

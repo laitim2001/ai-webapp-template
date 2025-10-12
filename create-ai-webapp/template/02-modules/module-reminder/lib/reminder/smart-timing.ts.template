@@ -1,0 +1,437 @@
+/**
+ * Smart Timing
+ * 智能時機優化 - AI 優化提醒時間
+ */
+
+import { databaseAdapter } from '@/lib/db/database-adapter';
+import type {
+  Reminder,
+  UserPattern,
+  TimeWindow,
+  TimingContext,
+  TimingPrediction,
+  AnalysisOptions,
+  EvaluationOptions
+} from '@/types/reminder';
+
+/**
+ * 智能時機類
+ */
+export class SmartTiming {
+  /**
+   * 預測最佳提醒時間
+   */
+  async predictOptimalTime(
+    userId: string,
+    context: TimingContext
+  ): Promise<Date> {
+    // 分析用戶行為模式
+    const pattern = await this.analyzeUserPatterns(userId, {
+      startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // 30 days ago
+      endDate: new Date()
+    });
+
+    // 如果數據不足，使用默認時間
+    if (pattern.dataPoints < 100) {
+      return this.getDefaultTime(context);
+    }
+
+    // 獲取最佳時間窗口
+    const optimalWindows = pattern.optimalWindows;
+
+    if (optimalWindows.length === 0) {
+      return this.getDefaultTime(context);
+    }
+
+    // 根據緊急程度選擇窗口
+    let selectedWindow: TimeWindow;
+
+    if (context.urgency === 'urgent' || context.urgency === 'high') {
+      // 高優先級：選擇最近的最佳窗口
+      selectedWindow = this.findNearestWindow(optimalWindows);
+    } else {
+      // 低優先級：選擇響應率最高的窗口
+      selectedWindow = optimalWindows.reduce((best, current) =>
+        current.responseRate > best.responseRate ? current : best
+      );
+    }
+
+    // 計算具體時間
+    const optimalTime = this.calculateTimeInWindow(selectedWindow);
+
+    return optimalTime;
+  }
+
+  /**
+   * 分析用戶行為模式
+   */
+  async analyzeUserPatterns(
+    userId: string,
+    options: AnalysisOptions
+  ): Promise<UserPattern> {
+    const { startDate, endDate, minDataPoints = 50, includeWeekends = true } = options;
+
+    // 獲取用戶的提醒歷史
+    const reminders = await databaseAdapter.findMany('reminder', {
+      where: {
+        userId,
+        status: 'DELIVERED',
+        deliveredAt: {
+          gte: startDate,
+          lte: endDate
+        }
+      }
+    }) as Reminder[];
+
+    // 初始化統計數據
+    const hourCounts: Record<number, number> = {};
+    const dayOfWeekCounts: Record<number, number> = {};
+    const responseData: Array<{
+      deliveredAt: Date;
+      dismissed: boolean;
+      snoozed: boolean;
+      responseTime?: number;
+    }> = [];
+
+    // 分析每個提醒
+    for (const reminder of reminders) {
+      if (!reminder.deliveredAt) continue;
+
+      const hour = reminder.deliveredAt.getHours();
+      const dayOfWeek = reminder.deliveredAt.getDay();
+
+      // 統計活躍時段
+      hourCounts[hour] = (hourCounts[hour] || 0) + 1;
+      dayOfWeekCounts[dayOfWeek] = (dayOfWeekCounts[dayOfWeek] || 0) + 1;
+
+      // 統計響應數據
+      responseData.push({
+        deliveredAt: reminder.deliveredAt,
+        dismissed: !!reminder.dismissedAt,
+        snoozed: !!reminder.snoozedUntil,
+        responseTime: reminder.dismissedAt
+          ? reminder.dismissedAt.getTime() - reminder.deliveredAt.getTime()
+          : undefined
+      });
+    }
+
+    // 計算活躍時段
+    const activeHours = Object.entries(hourCounts)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 8)
+      .map(([hour]) => parseInt(hour));
+
+    const activeDays = Object.entries(dayOfWeekCounts)
+      .sort(([, a], [, b]) => b - a)
+      .map(([day]) => parseInt(day));
+
+    // 計算響應率
+    const totalResponses = responseData.length;
+    const dismissed = responseData.filter(r => r.dismissed).length;
+    const snoozed = responseData.filter(r => r.snoozed).length;
+    const avgResponseTime =
+      responseData
+        .filter(r => r.responseTime !== undefined)
+        .reduce((sum, r) => sum + (r.responseTime || 0), 0) /
+      (dismissed || 1);
+
+    // 計算最佳時間窗口
+    const optimalWindows = this.calculateOptimalWindows(reminders);
+
+    // 檢測偏好通道
+    const channelCounts: Record<string, number> = {};
+    for (const reminder of reminders) {
+      for (const channel of reminder.channels) {
+        if (channel.enabled) {
+          channelCounts[channel.type] = (channelCounts[channel.type] || 0) + 1;
+        }
+      }
+    }
+
+    const preferredChannels = Object.entries(channelCounts)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 3)
+      .map(([type]) => type as any);
+
+    // 檢測安靜時段
+    const quietHours = this.detectQuietHours(hourCounts);
+
+    return {
+      userId,
+      activeHours,
+      activeDays,
+      responseRate: dismissed / (totalResponses || 1),
+      optimalWindows,
+      engagement: {
+        avgResponseTime: avgResponseTime / 60000, // 轉換為分鐘
+        dismissRate: dismissed / (totalResponses || 1),
+        snoozeRate: snoozed / (totalResponses || 1)
+      },
+      preferences: {
+        preferredChannels,
+        quietHours
+      },
+      dataPoints: reminders.length,
+      lastAnalyzedAt: new Date()
+    };
+  }
+
+  /**
+   * 優化現有提醒
+   */
+  async optimizeReminders(userId: string): Promise<Reminder[]> {
+    // 獲取待調度的提醒
+    const reminders = await databaseAdapter.findMany('reminder', {
+      where: {
+        userId,
+        status: 'SCHEDULED',
+        smartTiming: true
+      }
+    }) as Reminder[];
+
+    const optimized: Reminder[] = [];
+
+    for (const reminder of reminders) {
+      try {
+        const optimalTime = await this.predictOptimalTime(userId, {
+          taskType: reminder.type,
+          urgency: reminder.priority <= 2 ? 'high' : 'medium'
+        });
+
+        // 更新提醒時間
+        const updated = await databaseAdapter.update('reminder', {
+          where: { id: reminder.id },
+          data: {
+            optimalTime,
+            scheduledAt: optimalTime
+          }
+        }) as Reminder;
+
+        optimized.push(updated);
+      } catch (error) {
+        console.error(`Error optimizing reminder ${reminder.id}:`, error);
+      }
+    }
+
+    return optimized;
+  }
+
+  /**
+   * 評估時機質量
+   */
+  async evaluateTiming(
+    userId: string,
+    options: EvaluationOptions
+  ): Promise<number> {
+    const { proposedTime, taskType, urgency, considerQuietHours = true } = options;
+
+    const pattern = await this.analyzeUserPatterns(userId, {
+      startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+      endDate: new Date()
+    });
+
+    let score = 0.5; // 基礎分數
+
+    // 檢查是否在活躍時段
+    const hour = proposedTime.getHours();
+    const dayOfWeek = proposedTime.getDay();
+
+    if (pattern.activeHours.includes(hour)) {
+      score += 0.2;
+    }
+
+    if (pattern.activeDays.includes(dayOfWeek)) {
+      score += 0.1;
+    }
+
+    // 檢查是否在最佳窗口
+    const inOptimalWindow = pattern.optimalWindows.some(
+      window =>
+        window.dayOfWeek === dayOfWeek &&
+        hour >= window.startHour &&
+        hour < window.endHour
+    );
+
+    if (inOptimalWindow) {
+      score += 0.2;
+    }
+
+    // 檢查是否在安靜時段
+    if (considerQuietHours && pattern.preferences.quietHours) {
+      const { start, end } = pattern.preferences.quietHours;
+      const inQuietHours =
+        (start < end && hour >= start && hour < end) ||
+        (start > end && (hour >= start || hour < end));
+
+      if (inQuietHours) {
+        score -= 0.3;
+      }
+    }
+
+    // 緊急程度調整
+    if (urgency === 'urgent' || urgency === 'high') {
+      // 高優先級提醒對時機要求較低
+      score += 0.1;
+    }
+
+    // 限制在 0-1 範圍
+    return Math.max(0, Math.min(1, score));
+  }
+
+  /**
+   * 獲取最佳時間窗口
+   */
+  async getOptimalWindows(userId: string): Promise<TimeWindow[]> {
+    const pattern = await this.analyzeUserPatterns(userId, {
+      startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+      endDate: new Date()
+    });
+
+    return pattern.optimalWindows;
+  }
+
+  /**
+   * 計算最佳時間窗口
+   */
+  private calculateOptimalWindows(reminders: Reminder[]): TimeWindow[] {
+    const windows: Map<string, TimeWindow> = new Map();
+
+    for (const reminder of reminders) {
+      if (!reminder.deliveredAt) continue;
+
+      const dayOfWeek = reminder.deliveredAt.getDay();
+      const hour = reminder.deliveredAt.getHours();
+      const key = `${dayOfWeek}-${hour}`;
+
+      if (!windows.has(key)) {
+        windows.set(key, {
+          dayOfWeek,
+          startHour: hour,
+          endHour: hour + 1,
+          score: 0,
+          responseRate: 0,
+          sampleSize: 0
+        });
+      }
+
+      const window = windows.get(key)!;
+      window.sampleSize++;
+
+      if (reminder.dismissedAt) {
+        window.responseRate =
+          (window.responseRate * (window.sampleSize - 1) + 1) / window.sampleSize;
+      }
+    }
+
+    // 計算分數並排序
+    const result = Array.from(windows.values())
+      .filter(w => w.sampleSize >= 5) // 至少 5 個樣本
+      .map(w => ({
+        ...w,
+        score: w.responseRate * Math.min(1, w.sampleSize / 20) // 考慮樣本大小
+      }))
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 10); // 取前 10 個
+
+    return result;
+  }
+
+  /**
+   * 檢測安靜時段
+   */
+  private detectQuietHours(hourCounts: Record<number, number>): {
+    start: number;
+    end: number;
+  } | undefined {
+    const hours = Object.entries(hourCounts).map(([hour, count]) => ({
+      hour: parseInt(hour),
+      count
+    }));
+
+    // 找到最不活躍的連續時段
+    const avgCount = hours.reduce((sum, h) => sum + h.count, 0) / hours.length;
+    const quietHours = hours.filter(h => h.count < avgCount * 0.3);
+
+    if (quietHours.length >= 4) {
+      // 找到連續的安靜時段
+      quietHours.sort((a, b) => a.hour - b.hour);
+      return {
+        start: quietHours[0].hour,
+        end: quietHours[quietHours.length - 1].hour + 1
+      };
+    }
+
+    return undefined;
+  }
+
+  /**
+   * 獲取默認時間
+   */
+  private getDefaultTime(context: TimingContext): Date {
+    const now = new Date();
+    const tomorrow = new Date(now);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    // 根據緊急程度設置時間
+    if (context.urgency === 'urgent') {
+      tomorrow.setHours(9, 0, 0, 0); // 明早 9 點
+    } else if (context.urgency === 'high') {
+      tomorrow.setHours(10, 0, 0, 0); // 明早 10 點
+    } else {
+      tomorrow.setHours(14, 0, 0, 0); // 明天下午 2 點
+    }
+
+    return tomorrow;
+  }
+
+  /**
+   * 找到最近的時間窗口
+   */
+  private findNearestWindow(windows: TimeWindow[]): TimeWindow {
+    const now = new Date();
+    const currentDay = now.getDay();
+    const currentHour = now.getHours();
+
+    // 找到最近的窗口
+    let nearest = windows[0];
+    let minDistance = Infinity;
+
+    for (const window of windows) {
+      const dayDistance = Math.abs(window.dayOfWeek - currentDay);
+      const hourDistance = Math.abs(window.startHour - currentHour);
+      const distance = dayDistance * 24 + hourDistance;
+
+      if (distance < minDistance) {
+        minDistance = distance;
+        nearest = window;
+      }
+    }
+
+    return nearest;
+  }
+
+  /**
+   * 計算窗口內的具體時間
+   */
+  private calculateTimeInWindow(window: TimeWindow): Date {
+    const now = new Date();
+    const result = new Date(now);
+
+    // 設置到目標星期幾
+    const currentDay = now.getDay();
+    const daysToAdd = (window.dayOfWeek - currentDay + 7) % 7;
+
+    if (daysToAdd === 0 && now.getHours() >= window.endHour) {
+      // 如果是今天但已過窗口，則設置為下週
+      result.setDate(result.getDate() + 7);
+    } else {
+      result.setDate(result.getDate() + daysToAdd);
+    }
+
+    // 設置到窗口中間時間
+    const midHour = Math.floor((window.startHour + window.endHour) / 2);
+    result.setHours(midHour, 0, 0, 0);
+
+    return result;
+  }
+}

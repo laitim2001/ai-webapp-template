@@ -1,0 +1,368 @@
+/**
+ * Collaborative Editing Service Tests
+ *
+ * @jest-environment node
+ */
+
+import { CollaborativeEditingService } from '../collaborative-editing'
+import { databaseAdapter } from '@/lib/db/database-adapter'
+import * as Y from 'yjs'
+
+// Mock dependencies
+jest.mock('@/lib/db/database-adapter')
+jest.mock('y-websocket')
+
+describe('CollaborativeEditingService', () => {
+  let service: CollaborativeEditingService
+  const mockDocumentId = 'doc-123'
+  const mockUserId = 'user-456'
+
+  beforeEach(() => {
+    service = new CollaborativeEditingService('ws://localhost:1234')
+    jest.clearAllMocks()
+  })
+
+  afterEach(() => {
+    jest.resetAllMocks()
+  })
+
+  describe('createSession', () => {
+    it('should create a new collaboration session', async () => {
+      const mockCreate = jest.spyOn(databaseAdapter, 'create').mockResolvedValue({
+        id: 'sess-789',
+        document_id: mockDocumentId,
+        user_id: mockUserId
+      })
+
+      const session = await service.createSession(
+        mockDocumentId,
+        mockUserId,
+        'Initial content'
+      )
+
+      expect(session).toBeDefined()
+      expect(session.documentId).toBe(mockDocumentId)
+      expect(session.userId).toBe(mockUserId)
+      expect(session.isActive).toBe(true)
+      expect(session.syncStatus).toBe('connecting')
+      expect(mockCreate).toHaveBeenCalled()
+    })
+
+    it('should initialize Yjs document with initial content', async () => {
+      jest.spyOn(databaseAdapter, 'create').mockResolvedValue({})
+
+      const initialContent = 'Hello, World!'
+      await service.createSession(mockDocumentId, mockUserId, initialContent)
+
+      const content = service.getDocumentContent(mockDocumentId)
+      expect(content).toBe(initialContent)
+    })
+
+    it('should create session without initial content', async () => {
+      jest.spyOn(databaseAdapter, 'create').mockResolvedValue({})
+
+      const session = await service.createSession(mockDocumentId, mockUserId)
+
+      expect(session).toBeDefined()
+      const content = service.getDocumentContent(mockDocumentId)
+      expect(content).toBe('')
+    })
+
+    it('should generate unique session IDs', async () => {
+      jest.spyOn(databaseAdapter, 'create').mockResolvedValue({})
+
+      const session1 = await service.createSession('doc-1', 'user-1')
+      const session2 = await service.createSession('doc-2', 'user-2')
+
+      expect(session1.id).not.toBe(session2.id)
+    })
+  })
+
+  describe('joinSession', () => {
+    it('should join an existing session', async () => {
+      jest.spyOn(databaseAdapter, 'create').mockResolvedValue({})
+      jest.spyOn(databaseAdapter, 'findFirst').mockResolvedValue({
+        version: 5
+      })
+
+      // Create initial session
+      await service.createSession(mockDocumentId, 'user-1', 'Existing content')
+
+      // Join session
+      const session = await service.joinSession(mockDocumentId, 'user-2')
+
+      expect(session).toBeDefined()
+      expect(session.documentId).toBe(mockDocumentId)
+      expect(session.userId).toBe('user-2')
+      expect(session.isActive).toBe(true)
+    })
+
+    it('should share document content across sessions', async () => {
+      jest.spyOn(databaseAdapter, 'create').mockResolvedValue({})
+      jest.spyOn(databaseAdapter, 'findFirst').mockResolvedValue({ version: 1 })
+
+      const content = 'Shared content'
+      await service.createSession(mockDocumentId, 'user-1', content)
+      await service.joinSession(mockDocumentId, 'user-2')
+
+      const retrievedContent = service.getDocumentContent(mockDocumentId)
+      expect(retrievedContent).toBe(content)
+    })
+  })
+
+  describe('leaveSession', () => {
+    it('should leave a session and mark it inactive', async () => {
+      jest.spyOn(databaseAdapter, 'create').mockResolvedValue({})
+      const mockUpdate = jest.spyOn(databaseAdapter, 'update').mockResolvedValue({})
+
+      const session = await service.createSession(mockDocumentId, mockUserId)
+      await service.leaveSession(session.id)
+
+      expect(mockUpdate).toHaveBeenCalledWith('collaborationSession', {
+        where: { id: session.id },
+        data: expect.objectContaining({
+          is_active: false,
+          ended_at: expect.any(Date)
+        })
+      })
+    })
+
+    it('should throw error when leaving non-existent session', async () => {
+      await expect(service.leaveSession('invalid-session')).rejects.toThrow(
+        'Session invalid-session not found'
+      )
+    })
+
+    it('should clean up resources when last user leaves', async () => {
+      jest.spyOn(databaseAdapter, 'create').mockResolvedValue({})
+      jest.spyOn(databaseAdapter, 'update').mockResolvedValue({})
+
+      const session = await service.createSession(mockDocumentId, mockUserId)
+      await service.leaveSession(session.id)
+
+      // Document should be cleaned up
+      expect(() => service.getDocumentContent(mockDocumentId)).toThrow()
+    })
+  })
+
+  describe('applyChanges', () => {
+    beforeEach(async () => {
+      jest.spyOn(databaseAdapter, 'create').mockResolvedValue({})
+      await service.createSession(mockDocumentId, mockUserId, 'Hello World')
+    })
+
+    it('should apply insert changes', () => {
+      service.applyChanges(mockDocumentId, mockUserId, [
+        {
+          document_id: mockDocumentId,
+          user_id: mockUserId,
+          type: 'insert',
+          position: 5,
+          content: ', Beautiful',
+          created_at: new Date()
+        }
+      ])
+
+      const content = service.getDocumentContent(mockDocumentId)
+      expect(content).toBe('Hello, Beautiful World')
+    })
+
+    it('should apply delete changes', () => {
+      service.applyChanges(mockDocumentId, mockUserId, [
+        {
+          document_id: mockDocumentId,
+          user_id: mockUserId,
+          type: 'delete',
+          position: 5,
+          length: 6,
+          content: '',
+          created_at: new Date()
+        }
+      ])
+
+      const content = service.getDocumentContent(mockDocumentId)
+      expect(content).toBe('Hello')
+    })
+
+    it('should apply replace changes', () => {
+      service.applyChanges(mockDocumentId, mockUserId, [
+        {
+          document_id: mockDocumentId,
+          user_id: mockUserId,
+          type: 'replace',
+          position: 6,
+          length: 5,
+          content: 'Universe',
+          created_at: new Date()
+        }
+      ])
+
+      const content = service.getDocumentContent(mockDocumentId)
+      expect(content).toBe('Hello Universe')
+    })
+
+    it('should apply multiple changes in order', () => {
+      service.applyChanges(mockDocumentId, mockUserId, [
+        {
+          document_id: mockDocumentId,
+          user_id: mockUserId,
+          type: 'insert',
+          position: 0,
+          content: 'Say: ',
+          created_at: new Date()
+        },
+        {
+          document_id: mockDocumentId,
+          user_id: mockUserId,
+          type: 'insert',
+          position: 16,
+          content: '!',
+          created_at: new Date()
+        }
+      ])
+
+      const content = service.getDocumentContent(mockDocumentId)
+      expect(content).toBe('Say: Hello World!')
+    })
+
+    it('should throw error for non-existent document', () => {
+      expect(() => {
+        service.applyChanges('invalid-doc', mockUserId, [])
+      }).toThrow('Document invalid-doc not found')
+    })
+  })
+
+  describe('getDocumentContent', () => {
+    it('should return current document content', async () => {
+      jest.spyOn(databaseAdapter, 'create').mockResolvedValue({})
+
+      const content = 'Test content'
+      await service.createSession(mockDocumentId, mockUserId, content)
+
+      const retrieved = service.getDocumentContent(mockDocumentId)
+      expect(retrieved).toBe(content)
+    })
+
+    it('should throw error for non-existent document', () => {
+      expect(() => service.getDocumentContent('invalid-doc')).toThrow(
+        'Document invalid-doc not found'
+      )
+    })
+  })
+
+  describe('getSyncStatus', () => {
+    it('should return sync status for session', async () => {
+      jest.spyOn(databaseAdapter, 'create').mockResolvedValue({})
+
+      const session = await service.createSession(mockDocumentId, mockUserId)
+      const status = service.getSyncStatus(session.id)
+
+      expect(status).toBe('connecting')
+    })
+
+    it('should return disconnected for non-existent session', () => {
+      const status = service.getSyncStatus('invalid-session')
+      expect(status).toBe('disconnected')
+    })
+  })
+
+  describe('createVersion', () => {
+    it('should create a new document version', async () => {
+      jest.spyOn(databaseAdapter, 'create').mockResolvedValue({
+        id: 'ver-123',
+        version: 2,
+        content: 'Test content'
+      })
+      jest.spyOn(databaseAdapter, 'findFirst').mockResolvedValue({
+        version: 1
+      })
+
+      await service.createSession(mockDocumentId, mockUserId, 'Test content')
+
+      const version = await service.createVersion(
+        mockDocumentId,
+        mockUserId,
+        'First version'
+      )
+
+      expect(version).toBeDefined()
+      expect(version.version).toBe(2)
+      expect(databaseAdapter.create).toHaveBeenCalledWith('documentVersion', {
+        data: expect.objectContaining({
+          document_id: mockDocumentId,
+          version: 2,
+          comment: 'First version'
+        })
+      })
+    })
+  })
+
+  describe('getActiveSessions', () => {
+    it('should return active sessions for document', async () => {
+      jest.spyOn(databaseAdapter, 'create').mockResolvedValue({})
+
+      const session1 = await service.createSession(mockDocumentId, 'user-1')
+      const session2 = await service.createSession(mockDocumentId, 'user-2')
+
+      const activeSessions = service.getActiveSessions(mockDocumentId)
+
+      expect(activeSessions).toHaveLength(2)
+      expect(activeSessions.map(s => s.id)).toContain(session1.id)
+      expect(activeSessions.map(s => s.id)).toContain(session2.id)
+    })
+
+    it('should not return inactive sessions', async () => {
+      jest.spyOn(databaseAdapter, 'create').mockResolvedValue({})
+      jest.spyOn(databaseAdapter, 'update').mockResolvedValue({})
+
+      const session1 = await service.createSession(mockDocumentId, 'user-1')
+      await service.createSession(mockDocumentId, 'user-2')
+
+      await service.leaveSession(session1.id)
+
+      const activeSessions = service.getActiveSessions(mockDocumentId)
+
+      expect(activeSessions).toHaveLength(1)
+      expect(activeSessions[0].id).not.toBe(session1.id)
+    })
+  })
+
+  describe('cleanupInactiveSessions', () => {
+    it('should cleanup inactive sessions', async () => {
+      jest.spyOn(databaseAdapter, 'create').mockResolvedValue({})
+      jest.spyOn(databaseAdapter, 'update').mockResolvedValue({})
+
+      const session = await service.createSession(mockDocumentId, mockUserId)
+      await service.leaveSession(session.id)
+
+      const count = await service.cleanupInactiveSessions()
+
+      expect(count).toBeGreaterThan(0)
+    })
+  })
+
+  describe('getEditorState', () => {
+    it('should return editor state for session', async () => {
+      jest.spyOn(databaseAdapter, 'create').mockResolvedValue({})
+
+      const session = await service.createSession(
+        mockDocumentId,
+        mockUserId,
+        'Test content'
+      )
+
+      const state = service.getEditorState(session.id)
+
+      expect(state).toBeDefined()
+      expect(state?.sessionId).toBe(session.id)
+      expect(state?.documentId).toBe(mockDocumentId)
+      expect(state?.content).toBe('Test content')
+      expect(state?.syncStatus).toBe('connecting')
+    })
+
+    it('should return null for non-existent session', () => {
+      const state = service.getEditorState('invalid-session')
+      expect(state).toBeNull()
+    })
+  })
+})

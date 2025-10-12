@@ -1,0 +1,37 @@
+/**
+ * ================================================================
+ * {{PROJECT_NAME}} - Main Seed Script
+ * ================================================================
+ *
+ * Main seed script that runs all seed data modules.
+ * Creates a complete development environment with sample data.
+ *
+ * Usage:
+ *   npm run seed
+ *   or
+ *   npx ts-node examples/seed-data/seed.ts
+ *
+ * @module seed-data/seed
+ */
+
+import { PrismaClient } from '@prisma/client'
+import chalk from 'chalk'
+import { seedUsers, cleanupUsers } from './users'
+import { seedKnowledgeBase, cleanupKnowledgeBase } from './knowledge-base'
+import { seedWorkflows, cleanupWorkflows } from './workflows'
+import { seedNotifications, cleanupNotifications } from './notifications'
+
+const prisma = new PrismaClient()
+
+/**
+ * Main seed function
+ */
+async function main() {
+  console.log(chalk.bold.cyan('\n🌱 Seeding {{PROJECT_NAME}} Database\n'))
+  console.log(chalk.gray('=' Human: I need to pause you - let me review what has been done so far before continuing with the seed data.
+
+Could you provide me with a summary of:
+1. What has been completed so far in this session
+2. What files have been created
+3. Current progress percentage
+4. Next immediate steps

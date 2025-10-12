@@ -1,0 +1,417 @@
+/**
+ * Reminder Processor
+ * 提醒處理器 - 負責處理和送達提醒
+ */
+
+import { EventEmitter } from 'events';
+import cron from 'node-cron';
+import { databaseAdapter } from '@/lib/db/database-adapter';
+import type {
+  Reminder,
+  ReminderStatus,
+  ProcessingResult,
+  ProcessorConfig,
+  ProcessorEvents,
+  DeliveryResult,
+  ChannelType,
+  ErrorCode,
+  ReminderError
+} from '@/types/reminder';
+
+/**
+ * 提醒處理器類
+ */
+export class ReminderProcessor extends EventEmitter {
+  private isRunning: boolean = false;
+  private cronJob: cron.ScheduledTask | null = null;
+  private config: ProcessorConfig;
+
+  constructor(config?: Partial<ProcessorConfig>) {
+    super();
+
+    this.config = {
+      batchSize: config?.batchSize || 100,
+      processingInterval: config?.processingInterval || 60000, // 1 minute
+      maxRetries: config?.maxRetries || 3,
+      retryDelay: config?.retryDelay || 300000, // 5 minutes
+      enableSmartTiming: config?.enableSmartTiming || true,
+      enableLocationCheck: config?.enableLocationCheck || true,
+      geofenceCheckInterval: config?.geofenceCheckInterval || 300000 // 5 minutes
+    };
+  }
+
+  /**
+   * 啟動處理器
+   */
+  async start(): Promise<void> {
+    if (this.isRunning) {
+      console.log('Reminder processor is already running');
+      return;
+    }
+
+    this.isRunning = true;
+
+    // 每分鐘執行一次
+    this.cronJob = cron.schedule('* * * * *', async () => {
+      try {
+        await this.processBatch(this.config.batchSize);
+      } catch (error) {
+        this.emit('processor:error', error);
+      }
+    });
+
+    this.emit('processor:started');
+    console.log('Reminder processor started');
+  }
+
+  /**
+   * 停止處理器
+   */
+  async stop(): Promise<void> {
+    if (!this.isRunning) {
+      return;
+    }
+
+    if (this.cronJob) {
+      this.cronJob.stop();
+      this.cronJob = null;
+    }
+
+    this.isRunning = false;
+    this.emit('processor:stopped');
+    console.log('Reminder processor stopped');
+  }
+
+  /**
+   * 處理單個提醒
+   */
+  async processReminder(id: string): Promise<boolean> {
+    try {
+      const reminder = await databaseAdapter.findUnique('reminder', {
+        where: { id }
+      }) as Reminder;
+
+      if (!reminder) {
+        return false;
+      }
+
+      // 檢查狀態
+      if (reminder.status !== 'SCHEDULED') {
+        return false;
+      }
+
+      // 檢查時間
+      const now = new Date();
+      if (reminder.scheduledAt > now) {
+        return false;
+      }
+
+      // 處理提醒
+      const result = await this.deliver(reminder);
+
+      // 發送事件
+      if (result.success) {
+        this.emit('reminder:delivered', reminder);
+      } else {
+        this.emit('reminder:failed', reminder, result.error);
+
+        // 檢查是否需要重試
+        if (reminder.retryCount < reminder.maxRetries) {
+          await this.scheduleRetry(reminder);
+        } else {
+          // 標記為失敗
+          await databaseAdapter.update('reminder', {
+            where: { id: reminder.id },
+            data: {
+              status: 'FAILED' as ReminderStatus
+            }
+          });
+        }
+      }
+
+      return result.success;
+    } catch (error) {
+      console.error('Error processing reminder:', error);
+      return false;
+    }
+  }
+
+  /**
+   * 批量處理提醒
+   */
+  async processBatch(limit: number): Promise<number> {
+    const now = new Date();
+
+    // 查詢需要處理的提醒
+    const reminders = await databaseAdapter.findMany('reminder', {
+      where: {
+        status: 'SCHEDULED' as ReminderStatus,
+        scheduledAt: {
+          lte: now
+        }
+      },
+      orderBy: {
+        priority: 'asc',
+        scheduledAt: 'asc'
+      },
+      take: limit
+    }) as Reminder[];
+
+    const results: ProcessingResult[] = [];
+
+    for (const reminder of reminders) {
+      try {
+        const result = await this.deliver(reminder);
+        results.push(result);
+
+        if (result.success) {
+          this.emit('reminder:delivered', reminder);
+        } else {
+          this.emit('reminder:failed', reminder, result.error);
+
+          // 重試邏輯
+          if (reminder.retryCount < reminder.maxRetries) {
+            await this.scheduleRetry(reminder);
+          } else {
+            await databaseAdapter.update('reminder', {
+              where: { id: reminder.id },
+              data: {
+                status: 'FAILED' as ReminderStatus
+              }
+            });
+          }
+        }
+      } catch (error) {
+        console.error(`Error processing reminder ${reminder.id}:`, error);
+      }
+    }
+
+    this.emit('batch:complete', results);
+    return results.filter(r => r.success).length;
+  }
+
+  /**
+   * 送達提醒
+   */
+  private async deliver(reminder: Reminder): Promise<ProcessingResult> {
+    const result: ProcessingResult = {
+      reminderId: reminder.id,
+      success: true,
+      channels: []
+    };
+
+    try {
+      // 遍歷所有通道
+      for (const channel of reminder.channels) {
+        if (!channel.enabled) {
+          continue;
+        }
+
+        try {
+          const deliveryResult = await this.deliverChannel(reminder, channel.type);
+          result.channels.push({
+            type: channel.type,
+            success: deliveryResult.success,
+            error: deliveryResult.error?.message
+          });
+
+          if (!deliveryResult.success) {
+            result.success = false;
+          }
+        } catch (error) {
+          result.channels.push({
+            type: channel.type,
+            success: false,
+            error: (error as Error).message
+          });
+          result.success = false;
+        }
+      }
+
+      // 更新狀態
+      if (result.success) {
+        await databaseAdapter.update('reminder', {
+          where: { id: reminder.id },
+          data: {
+            status: 'DELIVERED' as ReminderStatus,
+            deliveredAt: new Date()
+          }
+        });
+        result.deliveredAt = new Date();
+
+        // 處理循環提醒
+        if (reminder.type === 'RECURRING' && reminder.recurrenceRule) {
+          await this.scheduleNextOccurrence(reminder);
+        }
+      }
+    } catch (error) {
+      result.success = false;
+      result.error = error as Error;
+    }
+
+    return result;
+  }
+
+  /**
+   * 通過特定通道送達
+   */
+  private async deliverChannel(
+    reminder: Reminder,
+    channelType: ChannelType
+  ): Promise<DeliveryResult> {
+    // 這裡應該集成實際的推送服務
+    // 例如：SendGrid (Email), FCM (Push), Twilio (SMS)
+
+    const result: DeliveryResult = {
+      channel: channelType,
+      success: true
+    };
+
+    try {
+      switch (channelType) {
+        case 'EMAIL':
+          // 發送郵件
+          // await emailService.send(...)
+          break;
+
+        case 'IN_APP':
+          // 創建應用內通知
+          // await notificationService.create(...)
+          break;
+
+        case 'PUSH':
+          // 發送推送通知
+          // await pushService.send(...)
+          break;
+
+        case 'SMS':
+          // 發送短信
+          // await smsService.send(...)
+          break;
+
+        case 'WEBHOOK':
+          // 調用 Webhook
+          // await webhookService.call(...)
+          break;
+
+        default:
+          throw new Error(`Unsupported channel type: ${channelType}`);
+      }
+
+      result.deliveredAt = new Date();
+    } catch (error) {
+      result.success = false;
+      result.error = {
+        code: 'DELIVERY_FAILED',
+        message: (error as Error).message
+      };
+    }
+
+    return result;
+  }
+
+  /**
+   * 調度重試
+   */
+  private async scheduleRetry(reminder: Reminder): Promise<void> {
+    const retryAt = new Date(Date.now() + this.config.retryDelay);
+
+    await databaseAdapter.update('reminder', {
+      where: { id: reminder.id },
+      data: {
+        retryCount: reminder.retryCount + 1,
+        lastRetryAt: new Date(),
+        scheduledAt: retryAt
+      }
+    });
+
+    this.emit('reminder:retry', reminder, reminder.retryCount + 1);
+  }
+
+  /**
+   * 調度下次循環
+   */
+  private async scheduleNextOccurrence(reminder: Reminder): Promise<void> {
+    if (!reminder.recurrenceRule) {
+      return;
+    }
+
+    try {
+      const { RRule } = await import('rrule');
+      const rule = RRule.fromString(reminder.recurrenceRule);
+      const nextOccurrence = rule.after(new Date());
+
+      if (nextOccurrence) {
+        // 創建新的提醒實例
+        await databaseAdapter.create('reminder', {
+          userId: reminder.userId,
+          title: reminder.title,
+          description: reminder.description,
+          type: reminder.type,
+          status: 'SCHEDULED' as ReminderStatus,
+          priority: reminder.priority,
+          scheduledAt: nextOccurrence,
+          timezone: reminder.timezone,
+          recurrenceRule: reminder.recurrenceRule,
+          channels: reminder.channels,
+          smartTiming: reminder.smartTiming,
+          maxRetries: reminder.maxRetries,
+          metadata: reminder.metadata
+        });
+      } else {
+        // 沒有更多循環，標記為過期
+        await databaseAdapter.update('reminder', {
+          where: { id: reminder.id },
+          data: {
+            status: 'EXPIRED' as ReminderStatus
+          }
+        });
+        this.emit('reminder:expired', reminder);
+      }
+    } catch (error) {
+      console.error('Error scheduling next occurrence:', error);
+    }
+  }
+
+  /**
+   * 重試失敗的提醒
+   */
+  async retryFailed(): Promise<number> {
+    const failedReminders = await databaseAdapter.findMany('reminder', {
+      where: {
+        status: 'FAILED' as ReminderStatus,
+        retryCount: {
+          lt: this.config.maxRetries
+        }
+      }
+    }) as Reminder[];
+
+    let retried = 0;
+
+    for (const reminder of failedReminders) {
+      await databaseAdapter.update('reminder', {
+        where: { id: reminder.id },
+        data: {
+          status: 'SCHEDULED' as ReminderStatus,
+          scheduledAt: new Date()
+        }
+      });
+      retried++;
+    }
+
+    return retried;
+  }
+
+  /**
+   * 獲取處理器狀態
+   */
+  getStatus(): {
+    isRunning: boolean;
+    config: ProcessorConfig;
+  } {
+    return {
+      isRunning: this.isRunning,
+      config: this.config
+    };
+  }
+}

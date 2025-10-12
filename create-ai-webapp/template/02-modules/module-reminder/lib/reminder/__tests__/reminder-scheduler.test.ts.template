@@ -1,0 +1,563 @@
+/**
+ * Tests for ReminderScheduler
+ */
+
+import { ReminderScheduler } from '../reminder-scheduler';
+import { RRule } from 'rrule';
+import { databaseAdapter } from '@/lib/db/database-adapter';
+import type { ReminderInput, Reminder, ReminderStatus } from '@/types/reminder';
+
+jest.mock('@/lib/db/database-adapter');
+
+describe('ReminderScheduler', () => {
+  let scheduler: ReminderScheduler;
+  const mockUserId = 'user123';
+
+  beforeEach(() => {
+    scheduler = new ReminderScheduler();
+    jest.clearAllMocks();
+  });
+
+  describe('scheduleReminder', () => {
+    it('should schedule a one-time reminder', async () => {
+      const input: ReminderInput = {
+        userId: mockUserId,
+        title: 'Test Reminder',
+        description: 'Test Description',
+        type: 'ONE_TIME',
+        scheduledAt: new Date('2025-10-15T10:00:00Z'),
+        timezone: 'Asia/Taipei',
+        channels: [{ type: 'EMAIL', enabled: true }],
+        priority: 3
+      };
+
+      const mockReminder: Reminder = {
+        id: 'reminder123',
+        ...input,
+        status: 'SCHEDULED' as ReminderStatus,
+        priority: 3,
+        retryCount: 0,
+        maxRetries: 3,
+        smartTiming: false,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+
+      (databaseAdapter.create as jest.Mock).mockResolvedValue(mockReminder);
+
+      const result = await scheduler.scheduleReminder(input);
+
+      expect(result).toEqual(mockReminder);
+      expect(databaseAdapter.create).toHaveBeenCalledWith('reminder', expect.objectContaining({
+        userId: mockUserId,
+        title: 'Test Reminder',
+        status: 'SCHEDULED'
+      }));
+    });
+
+    it('should schedule a recurring reminder', async () => {
+      const rrule = new RRule({
+        freq: RRule.WEEKLY,
+        byweekday: [RRule.MO],
+        byhour: [9],
+        byminute: [0]
+      });
+
+      const input: ReminderInput = {
+        userId: mockUserId,
+        title: 'Weekly Meeting',
+        type: 'RECURRING',
+        scheduledAt: new Date('2025-10-14T09:00:00Z'),
+        recurrenceRule: rrule.toString(),
+        timezone: 'Asia/Taipei',
+        channels: [{ type: 'IN_APP', enabled: true }]
+      };
+
+      const mockReminder: Reminder = {
+        id: 'reminder124',
+        ...input,
+        status: 'SCHEDULED' as ReminderStatus,
+        priority: 3,
+        retryCount: 0,
+        maxRetries: 3,
+        smartTiming: false,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+
+      (databaseAdapter.create as jest.Mock).mockResolvedValue(mockReminder);
+
+      const result = await scheduler.scheduleReminder(input);
+
+      expect(result.recurrenceRule).toBe(rrule.toString());
+      expect(result.type).toBe('RECURRING');
+    });
+
+    it('should schedule a location-based reminder', async () => {
+      const input: ReminderInput = {
+        userId: mockUserId,
+        title: 'Check files at office',
+        type: 'LOCATION_BASED',
+        scheduledAt: new Date(),
+        locationLat: 25.0330,
+        locationLng: 121.5654,
+        locationRadius: 200,
+        channels: [{ type: 'PUSH', enabled: true }]
+      };
+
+      const mockReminder: Reminder = {
+        id: 'reminder125',
+        ...input,
+        status: 'SCHEDULED' as ReminderStatus,
+        priority: 3,
+        retryCount: 0,
+        maxRetries: 3,
+        smartTiming: false,
+        timezone: 'UTC',
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+
+      (databaseAdapter.create as jest.Mock).mockResolvedValue(mockReminder);
+
+      const result = await scheduler.scheduleReminder(input);
+
+      expect(result.locationLat).toBe(25.0330);
+      expect(result.locationLng).toBe(121.5654);
+      expect(result.locationRadius).toBe(200);
+    });
+
+    it('should reject past times for non-location reminders', async () => {
+      const input: ReminderInput = {
+        userId: mockUserId,
+        title: 'Past Reminder',
+        type: 'ONE_TIME',
+        scheduledAt: new Date('2020-01-01T10:00:00Z'),
+        channels: [{ type: 'EMAIL', enabled: true }]
+      };
+
+      await expect(scheduler.scheduleReminder(input)).rejects.toThrow('Cannot schedule reminder in the past');
+    });
+
+    it('should validate recurrence rule format', async () => {
+      const input: ReminderInput = {
+        userId: mockUserId,
+        title: 'Invalid RRule',
+        type: 'RECURRING',
+        scheduledAt: new Date('2025-10-15T10:00:00Z'),
+        recurrenceRule: 'INVALID_RRULE',
+        channels: [{ type: 'EMAIL', enabled: true }]
+      };
+
+      await expect(scheduler.scheduleReminder(input)).rejects.toThrow('Invalid recurrence rule');
+    });
+
+    it('should validate location data for location-based reminders', async () => {
+      const input: ReminderInput = {
+        userId: mockUserId,
+        title: 'Location Reminder',
+        type: 'LOCATION_BASED',
+        scheduledAt: new Date(),
+        channels: [{ type: 'PUSH', enabled: true }]
+        // Missing location data
+      };
+
+      await expect(scheduler.scheduleReminder(input)).rejects.toThrow('Location-based reminder requires location data');
+    });
+
+    it('should validate latitude and longitude ranges', async () => {
+      const input: ReminderInput = {
+        userId: mockUserId,
+        title: 'Invalid Location',
+        type: 'LOCATION_BASED',
+        scheduledAt: new Date(),
+        locationLat: 100, // Invalid
+        locationLng: 200, // Invalid
+        locationRadius: 100,
+        channels: [{ type: 'PUSH', enabled: true }]
+      };
+
+      await expect(scheduler.scheduleReminder(input)).rejects.toThrow('Invalid latitude or longitude');
+    });
+
+    it('should require at least one delivery channel', async () => {
+      const input: ReminderInput = {
+        userId: mockUserId,
+        title: 'No Channels',
+        type: 'ONE_TIME',
+        scheduledAt: new Date('2025-10-15T10:00:00Z'),
+        channels: []
+      };
+
+      await expect(scheduler.scheduleReminder(input)).rejects.toThrow('At least one delivery channel is required');
+    });
+
+    it('should check for conflicts on high-priority reminders', async () => {
+      const input: ReminderInput = {
+        userId: mockUserId,
+        title: 'High Priority',
+        type: 'ONE_TIME',
+        scheduledAt: new Date('2025-10-15T10:00:00Z'),
+        channels: [{ type: 'EMAIL', enabled: true }],
+        priority: 1
+      };
+
+      const conflictingReminder: Reminder = {
+        id: 'conflict123',
+        userId: mockUserId,
+        title: 'Existing Reminder',
+        type: 'ONE_TIME',
+        status: 'SCHEDULED' as ReminderStatus,
+        priority: 1,
+        scheduledAt: new Date('2025-10-15T10:15:00Z'),
+        timezone: 'UTC',
+        channels: [{ type: 'EMAIL', enabled: true }],
+        retryCount: 0,
+        maxRetries: 3,
+        smartTiming: false,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+
+      (databaseAdapter.findMany as jest.Mock).mockResolvedValue([conflictingReminder]);
+
+      await expect(scheduler.scheduleReminder(input)).rejects.toThrow('conflicting reminders');
+    });
+  });
+
+  describe('scheduleBatch', () => {
+    it('should schedule multiple reminders', async () => {
+      const inputs: ReminderInput[] = [
+        {
+          userId: mockUserId,
+          title: 'Reminder 1',
+          type: 'ONE_TIME',
+          scheduledAt: new Date('2025-10-15T10:00:00Z'),
+          channels: [{ type: 'EMAIL', enabled: true }]
+        },
+        {
+          userId: mockUserId,
+          title: 'Reminder 2',
+          type: 'ONE_TIME',
+          scheduledAt: new Date('2025-10-15T14:00:00Z'),
+          channels: [{ type: 'IN_APP', enabled: true }]
+        }
+      ];
+
+      (databaseAdapter.create as jest.Mock).mockImplementation((_, data) => Promise.resolve({
+        id: `reminder_${Math.random()}`,
+        ...data,
+        status: 'SCHEDULED',
+        retryCount: 0,
+        maxRetries: 3,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      }));
+
+      const result = await scheduler.scheduleBatch(inputs);
+
+      expect(result.total).toBe(2);
+      expect(result.successCount).toBe(2);
+      expect(result.failedCount).toBe(0);
+      expect(result.success).toHaveLength(2);
+    });
+
+    it('should handle partial failures', async () => {
+      const inputs: ReminderInput[] = [
+        {
+          userId: mockUserId,
+          title: 'Valid Reminder',
+          type: 'ONE_TIME',
+          scheduledAt: new Date('2025-10-15T10:00:00Z'),
+          channels: [{ type: 'EMAIL', enabled: true }]
+        },
+        {
+          userId: mockUserId,
+          title: 'Invalid Reminder',
+          type: 'ONE_TIME',
+          scheduledAt: new Date('2020-01-01T10:00:00Z'), // Past time
+          channels: [{ type: 'EMAIL', enabled: true }]
+        }
+      ];
+
+      (databaseAdapter.create as jest.Mock).mockResolvedValueOnce({
+        id: 'reminder_valid',
+        status: 'SCHEDULED',
+        retryCount: 0,
+        maxRetries: 3,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      });
+
+      const result = await scheduler.scheduleBatch(inputs);
+
+      expect(result.successCount).toBe(1);
+      expect(result.failedCount).toBe(1);
+      expect(result.failed).toHaveLength(1);
+    });
+  });
+
+  describe('updateReminder', () => {
+    it('should update a reminder', async () => {
+      const existingReminder: Reminder = {
+        id: 'reminder123',
+        userId: mockUserId,
+        title: 'Original Title',
+        type: 'ONE_TIME',
+        status: 'SCHEDULED' as ReminderStatus,
+        priority: 3,
+        scheduledAt: new Date('2025-10-15T10:00:00Z'),
+        timezone: 'UTC',
+        channels: [{ type: 'EMAIL', enabled: true }],
+        retryCount: 0,
+        maxRetries: 3,
+        smartTiming: false,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+
+      const updatedReminder: Reminder = {
+        ...existingReminder,
+        title: 'Updated Title',
+        updatedAt: new Date()
+      };
+
+      (databaseAdapter.findUnique as jest.Mock).mockResolvedValue(existingReminder);
+      (databaseAdapter.update as jest.Mock).mockResolvedValue(updatedReminder);
+
+      const result = await scheduler.updateReminder('reminder123', {
+        title: 'Updated Title'
+      });
+
+      expect(result.title).toBe('Updated Title');
+      expect(databaseAdapter.update).toHaveBeenCalledWith('reminder', expect.objectContaining({
+        where: { id: 'reminder123' },
+        data: expect.objectContaining({
+          title: 'Updated Title'
+        })
+      }));
+    });
+
+    it('should reject updates to delivered reminders', async () => {
+      const deliveredReminder: Reminder = {
+        id: 'reminder123',
+        userId: mockUserId,
+        title: 'Delivered',
+        type: 'ONE_TIME',
+        status: 'DELIVERED' as ReminderStatus,
+        priority: 3,
+        scheduledAt: new Date('2025-10-15T10:00:00Z'),
+        timezone: 'UTC',
+        channels: [{ type: 'EMAIL', enabled: true }],
+        deliveredAt: new Date(),
+        retryCount: 0,
+        maxRetries: 3,
+        smartTiming: false,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+
+      (databaseAdapter.findUnique as jest.Mock).mockResolvedValue(deliveredReminder);
+
+      await expect(scheduler.updateReminder('reminder123', { title: 'New Title' }))
+        .rejects.toThrow('Cannot update delivered reminder');
+    });
+  });
+
+  describe('cancelReminder', () => {
+    it('should cancel a reminder', async () => {
+      (databaseAdapter.update as jest.Mock).mockResolvedValue({});
+
+      await scheduler.cancelReminder('reminder123');
+
+      expect(databaseAdapter.update).toHaveBeenCalledWith('reminder', {
+        where: { id: 'reminder123' },
+        data: {
+          status: 'DISMISSED',
+          dismissedAt: expect.any(Date)
+        }
+      });
+    });
+  });
+
+  describe('snoozeReminder', () => {
+    it('should snooze a reminder for specified minutes', async () => {
+      const reminder: Reminder = {
+        id: 'reminder123',
+        userId: mockUserId,
+        title: 'Test',
+        type: 'ONE_TIME',
+        status: 'SCHEDULED' as ReminderStatus,
+        priority: 3,
+        scheduledAt: new Date(),
+        timezone: 'UTC',
+        channels: [{ type: 'EMAIL', enabled: true }],
+        retryCount: 0,
+        maxRetries: 3,
+        smartTiming: false,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+
+      (databaseAdapter.findUnique as jest.Mock).mockResolvedValue(reminder);
+      (databaseAdapter.update as jest.Mock).mockResolvedValue({
+        ...reminder,
+        status: 'SNOOZED'
+      });
+
+      const result = await scheduler.snoozeReminder('reminder123', 30);
+
+      expect(result.status).toBe('SNOOZED');
+      expect(databaseAdapter.update).toHaveBeenCalledWith('reminder', expect.objectContaining({
+        where: { id: 'reminder123' },
+        data: expect.objectContaining({
+          status: 'SNOOZED'
+        })
+      }));
+    });
+  });
+
+  describe('checkConflicts', () => {
+    it('should find conflicting reminders', async () => {
+      const conflicts: Reminder[] = [{
+        id: 'conflict1',
+        userId: mockUserId,
+        title: 'Conflict',
+        type: 'ONE_TIME',
+        status: 'SCHEDULED' as ReminderStatus,
+        priority: 1,
+        scheduledAt: new Date('2025-10-15T10:15:00Z'),
+        timezone: 'UTC',
+        channels: [{ type: 'EMAIL', enabled: true }],
+        retryCount: 0,
+        maxRetries: 3,
+        smartTiming: false,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      }];
+
+      (databaseAdapter.findMany as jest.Mock).mockResolvedValue(conflicts);
+
+      const result = await scheduler.checkConflicts(mockUserId, {
+        startTime: new Date('2025-10-15T10:00:00Z'),
+        endTime: new Date('2025-10-15T11:00:00Z'),
+        priorityThreshold: 2
+      });
+
+      expect(result).toEqual(conflicts);
+    });
+  });
+
+  describe('getUpcoming', () => {
+    it('should get upcoming reminders', async () => {
+      const upcomingReminders: Reminder[] = [
+        {
+          id: 'reminder1',
+          userId: mockUserId,
+          title: 'Soon',
+          type: 'ONE_TIME',
+          status: 'SCHEDULED' as ReminderStatus,
+          priority: 3,
+          scheduledAt: new Date('2025-10-15T10:00:00Z'),
+          timezone: 'UTC',
+          channels: [{ type: 'EMAIL', enabled: true }],
+          retryCount: 0,
+          maxRetries: 3,
+          smartTiming: false,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        }
+      ];
+
+      (databaseAdapter.findMany as jest.Mock).mockResolvedValue(upcomingReminders);
+
+      const result = await scheduler.getUpcoming(mockUserId, 20);
+
+      expect(result).toEqual(upcomingReminders);
+    });
+  });
+
+  describe('getRecurring', () => {
+    it('should get recurring reminders', async () => {
+      const recurringReminders: Reminder[] = [{
+        id: 'recurring1',
+        userId: mockUserId,
+        title: 'Weekly',
+        type: 'RECURRING',
+        status: 'SCHEDULED' as ReminderStatus,
+        priority: 3,
+        scheduledAt: new Date(),
+        timezone: 'UTC',
+        recurrenceRule: 'FREQ=WEEKLY',
+        channels: [{ type: 'EMAIL', enabled: true }],
+        retryCount: 0,
+        maxRetries: 3,
+        smartTiming: false,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      }];
+
+      (databaseAdapter.findMany as jest.Mock).mockResolvedValue(recurringReminders);
+
+      const result = await scheduler.getRecurring(mockUserId);
+
+      expect(result).toEqual(recurringReminders);
+    });
+  });
+
+  describe('calculateNextOccurrence', () => {
+    it('should calculate next occurrence for recurring reminder', async () => {
+      const rrule = new RRule({
+        freq: RRule.DAILY,
+        interval: 1,
+        count: 10
+      });
+
+      const reminder: Reminder = {
+        id: 'recurring1',
+        userId: mockUserId,
+        title: 'Daily',
+        type: 'RECURRING',
+        status: 'SCHEDULED' as ReminderStatus,
+        priority: 3,
+        scheduledAt: new Date(),
+        timezone: 'UTC',
+        recurrenceRule: rrule.toString(),
+        channels: [{ type: 'EMAIL', enabled: true }],
+        retryCount: 0,
+        maxRetries: 3,
+        smartTiming: false,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+
+      const nextOccurrence = await scheduler.calculateNextOccurrence(reminder);
+
+      expect(nextOccurrence).toBeInstanceOf(Date);
+      expect(nextOccurrence!.getTime()).toBeGreaterThan(Date.now());
+    });
+
+    it('should return null for non-recurring reminders', async () => {
+      const reminder: Reminder = {
+        id: 'onetime1',
+        userId: mockUserId,
+        title: 'One Time',
+        type: 'ONE_TIME',
+        status: 'SCHEDULED' as ReminderStatus,
+        priority: 3,
+        scheduledAt: new Date(),
+        timezone: 'UTC',
+        channels: [{ type: 'EMAIL', enabled: true }],
+        retryCount: 0,
+        maxRetries: 3,
+        smartTiming: false,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+
+      const result = await scheduler.calculateNextOccurrence(reminder);
+
+      expect(result).toBeNull();
+    });
+  });
+});

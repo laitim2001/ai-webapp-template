@@ -1,0 +1,159 @@
+'use client';
+
+/**
+ * 演示知識庫頁面
+ *
+ * 展示知識庫列表UI和搜索功能
+ */
+
+import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
+import { DemoBanner } from '@/components/demo-banner';
+import { Search, Plus, Eye, ThumbsUp, Calendar, Tag, FileText, ArrowLeft } from 'lucide-react';
+import { demoGetKnowledgeBase } from '@/lib/demo-api';
+
+export default function KnowledgePage() {
+  const [documents, setDocuments] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const response = await demoGetKnowledgeBase();
+        if (response.success && response.data) {
+          setDocuments(response.data.items || []);
+        }
+      } catch (error) {
+        console.error('Failed to fetch knowledge base:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  const filteredDocuments = documents.filter(doc =>
+    doc.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    doc.description.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  return (
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      {/* 頂部導航 */}
+      <header className="sticky top-0 z-10 border-b bg-white dark:bg-gray-800">
+        <div className="flex h-16 items-center justify-between px-6">
+          <div className="flex items-center gap-4">
+            <Button variant="ghost" size="icon" asChild>
+              <Link href="/(demo)/dashboard">
+                <ArrowLeft className="h-5 w-5" />
+              </Link>
+            </Button>
+            <h1 className="text-xl font-bold">知識庫</h1>
+          </div>
+          <Button>
+            <Plus className="mr-2 h-4 w-4" />
+            新建文檔
+          </Button>
+        </div>
+      </header>
+
+      <main className="p-6">
+        <DemoBanner />
+
+        {/* 搜索欄 */}
+        <div className="mb-6">
+          <div className="relative">
+            <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="搜索文檔..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+        </div>
+
+        {/* 文檔列表 */}
+        {isLoading ? (
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <Card key={i}>
+                <CardHeader>
+                  <Skeleton className="h-4 w-3/4" />
+                  <Skeleton className="mt-2 h-3 w-full" />
+                </CardHeader>
+                <CardContent>
+                  <Skeleton className="h-6 w-full" />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        ) : filteredDocuments.length === 0 ? (
+          <Card>
+            <CardContent className="flex flex-col items-center justify-center py-12">
+              <FileText className="mb-4 h-12 w-12 text-muted-foreground" />
+              <p className="text-muted-foreground">沒有找到文檔</p>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {filteredDocuments.map((doc) => (
+              <Card key={doc.id} className="transition-shadow hover:shadow-lg">
+                <CardHeader>
+                  <div className="mb-2 flex items-center justify-between">
+                    <Badge variant={doc.status === 'published' ? 'default' : 'secondary'}>
+                      {doc.status === 'published' ? '已發布' : '草稿'}
+                    </Badge>
+                    <span className="text-xs text-muted-foreground">{doc.category}</span>
+                  </div>
+                  <CardTitle className="line-clamp-1">{doc.title}</CardTitle>
+                  <CardDescription className="line-clamp-2">{doc.description}</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    <div className="flex flex-wrap gap-1">
+                      {doc.tags.slice(0, 3).map((tag: string, index: number) => (
+                        <Badge key={index} variant="outline" className="text-xs">
+                          <Tag className="mr-1 h-3 w-3" />
+                          {tag}
+                        </Badge>
+                      ))}
+                    </div>
+                    <div className="flex items-center justify-between text-sm text-muted-foreground">
+                      <div className="flex items-center gap-4">
+                        <span className="flex items-center gap-1">
+                          <Eye className="h-4 w-4" />
+                          {doc.views}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <ThumbsUp className="h-4 w-4" />
+                          {doc.likes}
+                        </span>
+                      </div>
+                      <span className="flex items-center gap-1">
+                        <Calendar className="h-4 w-4" />
+                        {doc.updatedAt}
+                      </span>
+                    </div>
+                    <div className="pt-2">
+                      <Button variant="outline" className="w-full" size="sm">
+                        查看文檔
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+      </main>
+    </div>
+  );
+}

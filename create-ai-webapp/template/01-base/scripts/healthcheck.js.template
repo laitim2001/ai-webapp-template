@@ -1,0 +1,338 @@
+#!/usr/bin/env node
+/**
+ * {{PROJECT_NAME}} - 健康檢查腳本
+ * 用於 Docker 健康檢查和系統監控
+ */
+
+const http = require('http');
+const { execSync } = require('child_process');
+
+// ============================================
+// 配置
+// ============================================
+
+const CONFIG = {
+  app: {
+    host: process.env.HEALTH_CHECK_HOST || 'localhost',
+    port: parseInt(process.env.PORT || '3000'),
+    path: '/api/health',
+    timeout: 5000,
+  },
+  database: {
+    enabled: process.env.DATABASE_HEALTH_CHECK !== 'false',
+    type: process.env.DATABASE_TYPE || 'postgresql',
+  },
+  redis: {
+    enabled: process.env.REDIS_HEALTH_CHECK !== 'false',
+    url: process.env.REDIS_URL,
+  },
+  verbose: process.env.HEALTH_CHECK_VERBOSE === 'true',
+};
+
+// ============================================
+// 健康檢查函數
+// ============================================
+
+/**
+ * 檢查 HTTP 端點
+ */
+function checkHttpEndpoint() {
+  return new Promise((resolve, reject) => {
+    const options = {
+      hostname: CONFIG.app.host,
+      port: CONFIG.app.port,
+      path: CONFIG.app.path,
+      method: 'GET',
+      timeout: CONFIG.app.timeout,
+    };
+
+    const req = http.request(options, (res) => {
+      let data = '';
+
+      res.on('data', (chunk) => {
+        data += chunk;
+      });
+
+      res.on('end', () => {
+        if (res.statusCode === 200) {
+          try {
+            const healthData = JSON.parse(data);
+            resolve({
+              status: 'healthy',
+              statusCode: res.statusCode,
+              data: healthData,
+            });
+          } catch (e) {
+            resolve({
+              status: 'healthy',
+              statusCode: res.statusCode,
+              data: { message: 'OK' },
+            });
+          }
+        } else {
+          reject(new Error(`HTTP ${res.statusCode}: ${data}`));
+        }
+      });
+    });
+
+    req.on('error', (error) => {
+      reject(error);
+    });
+
+    req.on('timeout', () => {
+      req.destroy();
+      reject(new Error(`Request timeout after ${CONFIG.app.timeout}ms`));
+    });
+
+    req.end();
+  });
+}
+
+/**
+ * 檢查數據庫連接
+ */
+function checkDatabase() {
+  if (!CONFIG.database.enabled) {
+    return Promise.resolve({ status: 'skipped', message: 'Database check disabled' });
+  }
+
+  const { type } = CONFIG.database;
+  const databaseUrl = process.env.DATABASE_URL;
+
+  if (!databaseUrl) {
+    return Promise.reject(new Error('DATABASE_URL not configured'));
+  }
+
+  try {
+    switch (type) {
+      case 'postgresql': {
+        const url = new URL(databaseUrl);
+        const command = `PGPASSWORD="${url.password}" psql -h ${url.hostname} -p ${url.port || 5432} -U ${url.username} -d ${url.pathname.slice(1)} -c "SELECT 1" -t -A`;
+        execSync(command, { stdio: 'pipe', timeout: 5000 });
+        return Promise.resolve({ status: 'healthy', type: 'postgresql' });
+      }
+
+      case 'mysql': {
+        const url = new URL(databaseUrl);
+        const command = `mysql -h ${url.hostname} -P ${url.port || 3306} -u ${url.username} -p${url.password} -e "SELECT 1" ${url.pathname.slice(1)}`;
+        execSync(command, { stdio: 'pipe', timeout: 5000 });
+        return Promise.resolve({ status: 'healthy', type: 'mysql' });
+      }
+
+      case 'mongodb': {
+        // MongoDB 通過 Prisma 健康端點檢查
+        return Promise.resolve({ status: 'checked_via_api', type: 'mongodb' });
+      }
+
+      case 'sqlite': {
+        const fs = require('fs');
+        const dbPath = databaseUrl.replace('file:', '');
+        if (fs.existsSync(dbPath)) {
+          return Promise.resolve({ status: 'healthy', type: 'sqlite' });
+        }
+        return Promise.reject(new Error(`SQLite database file not found: ${dbPath}`));
+      }
+
+      default:
+        return Promise.reject(new Error(`Unsupported database type: ${type}`));
+    }
+  } catch (error) {
+    return Promise.reject(error);
+  }
+}
+
+/**
+ * 檢查 Redis 連接
+ */
+function checkRedis() {
+  if (!CONFIG.redis.enabled || !CONFIG.redis.url) {
+    return Promise.resolve({ status: 'skipped', message: 'Redis check disabled or not configured' });
+  }
+
+  try {
+    const command = `redis-cli -u "${CONFIG.redis.url}" ping`;
+    const output = execSync(command, { stdio: 'pipe', timeout: 3000 }).toString().trim();
+
+    if (output === 'PONG') {
+      return Promise.resolve({ status: 'healthy' });
+    }
+
+    return Promise.reject(new Error(`Unexpected Redis response: ${output}`));
+  } catch (error) {
+    return Promise.reject(error);
+  }
+}
+
+/**
+ * 檢查系統資源
+ */
+function checkSystemResources() {
+  try {
+    const memUsage = process.memoryUsage();
+    const cpuUsage = process.cpuUsage();
+
+    return Promise.resolve({
+      status: 'healthy',
+      memory: {
+        heapUsed: Math.round(memUsage.heapUsed / 1024 / 1024),
+        heapTotal: Math.round(memUsage.heapTotal / 1024 / 1024),
+        rss: Math.round(memUsage.rss / 1024 / 1024),
+      },
+      cpu: {
+        user: cpuUsage.user,
+        system: cpuUsage.system,
+      },
+      uptime: Math.round(process.uptime()),
+    });
+  } catch (error) {
+    return Promise.reject(error);
+  }
+}
+
+// ============================================
+// 主函數
+// ============================================
+
+async function runHealthCheck() {
+  const results = {
+    timestamp: new Date().toISOString(),
+    status: 'healthy',
+    checks: {},
+  };
+
+  try {
+    // 1. 檢查 HTTP 端點 (主要檢查)
+    if (CONFIG.verbose) console.log('🔍 Checking HTTP endpoint...');
+    const httpResult = await checkHttpEndpoint();
+    results.checks.http = httpResult;
+    if (CONFIG.verbose) console.log('✅ HTTP endpoint healthy');
+
+    // 2. 檢查數據庫 (可選)
+    if (CONFIG.database.enabled) {
+      if (CONFIG.verbose) console.log('🔍 Checking database connection...');
+      try {
+        const dbResult = await checkDatabase();
+        results.checks.database = dbResult;
+        if (CONFIG.verbose) console.log('✅ Database connection healthy');
+      } catch (error) {
+        results.checks.database = { status: 'unhealthy', error: error.message };
+        if (CONFIG.verbose) console.error('❌ Database check failed:', error.message);
+      }
+    }
+
+    // 3. 檢查 Redis (可選)
+    if (CONFIG.redis.enabled && CONFIG.redis.url) {
+      if (CONFIG.verbose) console.log('🔍 Checking Redis connection...');
+      try {
+        const redisResult = await checkRedis();
+        results.checks.redis = redisResult;
+        if (CONFIG.verbose) console.log('✅ Redis connection healthy');
+      } catch (error) {
+        results.checks.redis = { status: 'unhealthy', error: error.message };
+        if (CONFIG.verbose) console.error('❌ Redis check failed:', error.message);
+      }
+    }
+
+    // 4. 檢查系統資源
+    if (CONFIG.verbose) console.log('🔍 Checking system resources...');
+    const systemResult = await checkSystemResources();
+    results.checks.system = systemResult;
+    if (CONFIG.verbose) console.log('✅ System resources OK');
+
+    // 輸出結果
+    if (CONFIG.verbose) {
+      console.log('\n📊 Health Check Results:');
+      console.log(JSON.stringify(results, null, 2));
+    }
+
+    // 退出狀態碼：0 = 健康
+    process.exit(0);
+
+  } catch (error) {
+    results.status = 'unhealthy';
+    results.error = error.message;
+
+    if (CONFIG.verbose) {
+      console.error('\n❌ Health Check Failed:');
+      console.error(JSON.stringify(results, null, 2));
+      console.error('\nError details:', error);
+    }
+
+    // 退出狀態碼：1 = 不健康
+    process.exit(1);
+  }
+}
+
+// ============================================
+// CLI 參數處理
+// ============================================
+
+function showUsage() {
+  console.log(`
+{{PROJECT_NAME}} - 健康檢查腳本
+
+用法: node healthcheck.js [選項]
+
+選項:
+    -h, --help          顯示此幫助信息
+    -v, --verbose       顯示詳細輸出
+    --host <host>       應用主機 (默認: localhost)
+    --port <port>       應用端口 (默認: 3000)
+    --no-db             跳過數據庫檢查
+    --no-redis          跳過 Redis 檢查
+
+環境變數:
+    PORT                        應用端口
+    HEALTH_CHECK_HOST           健康檢查主機
+    HEALTH_CHECK_VERBOSE        詳細輸出 (true/false)
+    DATABASE_HEALTH_CHECK       啟用數據庫檢查 (默認: true)
+    DATABASE_TYPE               數據庫類型
+    DATABASE_URL                數據庫連接字符串
+    REDIS_HEALTH_CHECK          啟用 Redis 檢查 (默認: true)
+    REDIS_URL                   Redis 連接字符串
+
+示例:
+    node healthcheck.js                     # 基本健康檢查
+    node healthcheck.js -v                  # 詳細輸出
+    node healthcheck.js --no-db --no-redis  # 僅檢查 HTTP 端點
+
+退出狀態碼:
+    0 - 健康
+    1 - 不健康
+  `);
+}
+
+// 解析 CLI 參數
+const args = process.argv.slice(2);
+for (let i = 0; i < args.length; i++) {
+  switch (args[i]) {
+    case '-h':
+    case '--help':
+      showUsage();
+      process.exit(0);
+      break;
+    case '-v':
+    case '--verbose':
+      CONFIG.verbose = true;
+      break;
+    case '--host':
+      CONFIG.app.host = args[++i];
+      break;
+    case '--port':
+      CONFIG.app.port = parseInt(args[++i]);
+      break;
+    case '--no-db':
+      CONFIG.database.enabled = false;
+      break;
+    case '--no-redis':
+      CONFIG.redis.enabled = false;
+      break;
+    default:
+      console.error(`未知選項: ${args[i]}`);
+      showUsage();
+      process.exit(1);
+  }
+}
+
+// 執行健康檢查
+runHealthCheck();

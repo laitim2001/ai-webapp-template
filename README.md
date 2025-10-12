@@ -1,13 +1,14 @@
 # 🚀 AI Web App 初始化模板
 # AI Web App Initialization Template
 
-**版本**: 5.0-rc (Release Candidate)
-**最後更新**: 2025-10-10
-**完成進度**: ~65% (Phase 0-2 差距填充完成)
+**版本**: 5.0.13 (Stable Release)
+**最後更新**: 2025-10-12
+**完成進度**: ~78% (Phase 0-3 + 演示模式完成)
 **源項目**: AI Sales Enablement Platform
 **GitHub**: https://github.com/laitim2001/ai-webapp-template
+**NPM**: `npx create-ai-webapp` ⭐ **NEW**
 
-一個生產就緒的 Next.js 14 全棧應用模板，包含企業級監控、多數據庫支持、完整 UI 設計系統和智能 CLI 工具。16個模組完整實現，250+測試覆蓋，100%中文文檔。
+一個生產就緒的 Next.js 14 全棧應用模板，包含企業級監控、多數據庫支持、完整 UI 設計系統和 NPX 腳手架工具。22個模組完整實現，564+測試覆蓋，100%中文文檔，15個演示頁面。
 
 ---
 
@@ -18,7 +19,7 @@
 - ✅ **TypeScript** - 嚴格模式
 - ✅ **多數據庫支持** - PostgreSQL / MySQL / MongoDB / SQLite
 - ✅ **企業級監控** - OpenTelemetry + Prometheus + Grafana + Azure Monitor
-- ✅ **完整 UI 系統** - 24 組件 + 20+動畫 + 完整設計系統 + 暗色模式
+- ✅ **完整 UI 系統** - 26 組件 (含 Toast 通知) + 20+動畫 + 完整設計系統 + 暗色模式
 - ✅ **智能 CLI** - 互動式項目初始化 + 錯誤處理 + 回滾機制
 - ✅ **生產就緒** - 250+測試 + 完整部署配置 + 100%中文文檔
 
@@ -97,7 +98,7 @@
 - ✅ 完整的多數據庫支持架構 (4種數據庫)
 - ✅ 企業級監控系統 (OpenTelemetry + Prometheus + Grafana)
 - ✅ 16個核心功能模組 (P0+P1完整，P2部分)
-- ✅ 24個UI組件 + 20+動畫
+- ✅ 26個UI組件 (含 Toast 通知) + 20+動畫
 - ✅ 智能CLI初始化工具 (增強版)
 - ✅ 整合測試系統 (5場景，250+測試)
 - ✅ 完整部署配置 (Docker + nginx)
@@ -133,7 +134,27 @@
 
 ## 🚀 快速開始
 
-### 方法 1: 使用 Git（推薦）
+### 方法 1: 使用 NPX（推薦） ⭐ **NEW**
+
+```bash
+# 一條命令創建項目
+npx create-ai-webapp my-awesome-app
+
+# 進入項目目錄
+cd my-awesome-app
+
+# 啟動開發服務器
+npm run dev
+```
+
+**就這麼簡單！** 🎉 互動式 CLI 會引導你完成所有配置。
+
+**零模組配置 (演示模式)**:
+如果不選擇任何模組,你將獲得 15 個完整演示頁面，可立即查看效果。
+
+訪問 `http://localhost:3000/(demo)/login` 開始探索！
+
+### 方法 2: 使用 Git Clone
 
 ```bash
 # 1. 克隆模板倉庫
@@ -141,7 +162,7 @@ git clone https://github.com/laitim2001/ai-webapp-template.git
 cd ai-webapp-template
 
 # 2. 運行初始化 CLI
-node scripts/init-project.js
+node init-project.js
 
 # 3. 按照提示配置項目
 # - 輸入項目名稱
@@ -149,19 +170,11 @@ node scripts/init-project.js
 # - 選擇功能模組
 # - 配置監控系統
 
-# 4. 進入新項目
-cd your-project-name
-
-# 5. 啟動開發服務器
+# 4. 啟動開發服務器
 npm run dev
 ```
 
-### 方法 2: 使用 NPM（未來支持）
-
-```bash
-# 未來將支持
-npx create-ai-webapp my-new-project
-```
+**注意**: Git Clone 方式會在模板倉庫內生成項目，而 NPX 方式會在獨立目錄生成乾淨的項目。
 
 ---
 
@@ -229,7 +242,16 @@ npx create-ai-webapp my-new-project
 ├── typography/         # 排版系統
 ├── spacing/            # 8px 網格系統
 ├── animations/         # 所有動畫和過渡
-└── components/         # 20+ UI 組件
+└── components/         # 26+ UI 組件
+
+01-base/components/
+├── ui/                 # 基礎 UI 組件 (26個)
+├── layout/             # 佈局組件
+│   ├── dashboard-sidebar.tsx      # 側邊欄導航（分組菜單、徽章）
+│   ├── dashboard-header.tsx       # 頂部導航（搜索、多語言、主題、通知）
+│   └── dashboard-layout.tsx       # 完整佈局容器
+└── dashboard/          # 儀表板組件
+    └── sales-chart.tsx            # 銷售趨勢圖表（純CSS實現）
 ```
 
 ### 開發工具鏈
@@ -284,6 +306,7 @@ examples/
 ### 快速指南
 - [數據庫切換指南](Docs/DATABASE-SWITCHING-GUIDE.md) - 如何在 4 種數據庫間切換
 - [UI 設計系統](01-base/UI-DESIGN-SYSTEM.md) - 完整的 UI 組件和設計規範
+- [Dashboard 組件指南](01-base/docs/DASHBOARD-COMPONENTS-GUIDE.md) - ⭐ **NEW** 專業儀表板組件使用指南
 - [模組整合指南](02-modules/MODULE-INTEGRATION-GUIDE.md) - 14 個功能模組使用指南
 
 ### 深入指南
@@ -478,40 +501,47 @@ MIT License
 
 ## 🗺️ 路線圖
 
-### v5.0-alpha (當前)
+### v5.0.13 (當前 - 2025-10-12) ✅
 - ✅ 基礎模板結構
-- ✅ 多數據庫支持
-- ✅ 企業級監控
-- ✅ 基礎 UI 系統 (23組件)
-- ✅ 14個核心模組
-- ⚠️ **狀態**: ~45%完成，適合評估
+- ✅ 多數據庫支持 (4種)
+- ✅ 企業級監控系統
+- ✅ 完整 UI 系統 (26組件，含 Toast 通知) ⭐ **NEW**
+- ✅ 22個功能模組
+- ✅ 15個演示頁面 (零模組配置)
+- ✅ **NPX 腳手架工具** (`npx create-ai-webapp`)
+- ✅ 564+測試覆蓋
+- ✅ 100%中文文檔
+- ✅ **Hotfix 週期** (v5.0.10-v5.0.13: pgvector 支援, Tailwind 依賴, Toast 組件) ⭐ **NEW**
+- 🎯 **狀態**: ~78%完成，生產就緒
 
-### v5.1-beta (計劃中 - 2-4週)
-- [ ] 補充 Security & RBAC 模組 (P0)
-- [ ] 補充 Performance & Resilience 模組 (P1)
-- [ ] 完整 Prisma Schema (34個模型)
-- [ ] 補充 lib/ 根目錄核心文件
-- [ ] API Gateway 修正 (12個中間件)
-- 🎯 **目標**: 70%完成，生產可用
+### v5.1 (計劃中 - 1-2週)
+- ✅ **發布到 NPM Registry** (2025-10-11) ⭐ **DONE**
+- ✅ **Hotfix 週期完成** (v5.0.10-v5.0.13, 2025-10-12) ⭐ **DONE**
+- [ ] 完整 E2E 測試驗證
+- [ ] 性能優化和包體積優化
+- [ ] 更多示例項目
+- [ ] 收集社群反饋
+- 🎯 **目標**: 社群推廣和優化
 
-### v5.2-stable (計劃中 - 5-6週)
-- [ ] 補充 6個業務功能模組 (P2)
+### v5.2 (計劃中 - 3-4週)
 - [ ] 補充進階 UI 組件
 - [ ] 完整 API 端點提取
-- [ ] 完整依賴項清單
-- 🎯 **目標**: 95%+完成，完整功能
+- [ ] 更多業務模組
+- [ ] GraphQL 支持 (可選)
+- 🎯 **目標**: 90%+完成
 
 ### v6.0 (未來)
-- [ ] NPM 包發布
-- [ ] 多雲支持（AWS/GCP）
+- [ ] 多雲支持（AWS/GCP/Azure）
 - [ ] 微服務架構選項
-- [ ] GraphQL 支持
+- [ ] 插件系統
+- [ ] CLI 圖形界面
 
 ---
 
-**開始使用**: `node scripts/init-project.js`  
-**文檔**: [docs/](docs/)  
+**快速開始**: `npx create-ai-webapp my-app` ⭐
+**文檔**: [docs/](docs/)
 **GitHub**: https://github.com/laitim2001/ai-webapp-template
+**NPM 包**: https://www.npmjs.com/package/create-ai-webapp ✅ **已發布**
 
 🎉 **祝你構建出色的應用！**
 

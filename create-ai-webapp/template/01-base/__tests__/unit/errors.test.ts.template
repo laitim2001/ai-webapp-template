@@ -1,0 +1,322 @@
+/**
+ * {{PROJECT_NAME}} - errors.ts 單元測試
+ * 測試自定義錯誤類和錯誤處理工具
+ */
+
+import {
+  AppError,
+  ValidationError,
+  NotFoundError,
+  UnauthorizedError,
+  ForbiddenError,
+  ConflictError,
+  DatabaseError,
+  ExternalAPIError,
+  RateLimitError,
+  handleError,
+  isAppError,
+  serializeError,
+  createValidationError,
+  createNotFoundError,
+  createUnauthorizedError,
+  createForbiddenError,
+  createConflictError,
+} from '@/lib/errors';
+
+describe('errors.ts', () => {
+  describe('AppError', () => {
+    it('應該創建帶有消息和狀態碼的基本錯誤', () => {
+      const error = new AppError('測試錯誤', 500);
+
+      expect(error.message).toBe('測試錯誤');
+      expect(error.statusCode).toBe(500);
+      expect(error.name).toBe('AppError');
+      expect(error.isOperational).toBe(true);
+    });
+
+    it('應該包含錯誤堆疊', () => {
+      const error = new AppError('測試錯誤', 500);
+
+      expect(error.stack).toBeDefined();
+      expect(error.stack).toContain('AppError');
+    });
+
+    it('應該支持可選的詳細信息', () => {
+      const details = { field: 'email', reason: '格式無效' };
+      const error = new AppError('驗證錯誤', 400, details);
+
+      expect(error.details).toEqual(details);
+    });
+
+    it('應該默認為可操作錯誤', () => {
+      const error = new AppError('測試錯誤', 500);
+
+      expect(error.isOperational).toBe(true);
+    });
+  });
+
+  describe('ValidationError', () => {
+    it('應該創建 400 狀態碼的驗證錯誤', () => {
+      const error = new ValidationError('驗證失敗');
+
+      expect(error.message).toBe('驗證失敗');
+      expect(error.statusCode).toBe(400);
+      expect(error.name).toBe('ValidationError');
+    });
+
+    it('應該支持字段詳細信息', () => {
+      const details = { field: 'email', value: 'invalid', reason: '無效格式' };
+      const error = new ValidationError('Email 驗證失敗', details);
+
+      expect(error.details).toEqual(details);
+    });
+  });
+
+  describe('NotFoundError', () => {
+    it('應該創建 404 狀態碼的未找到錯誤', () => {
+      const error = new NotFoundError('資源未找到');
+
+      expect(error.message).toBe('資源未找到');
+      expect(error.statusCode).toBe(404);
+      expect(error.name).toBe('NotFoundError');
+    });
+
+    it('應該支持資源詳細信息', () => {
+      const details = { resource: 'User', id: '123' };
+      const error = new NotFoundError('用戶未找到', details);
+
+      expect(error.details).toEqual(details);
+    });
+  });
+
+  describe('UnauthorizedError', () => {
+    it('應該創建 401 狀態碼的未授權錯誤', () => {
+      const error = new UnauthorizedError('未授權訪問');
+
+      expect(error.message).toBe('未授權訪問');
+      expect(error.statusCode).toBe(401);
+      expect(error.name).toBe('UnauthorizedError');
+    });
+  });
+
+  describe('ForbiddenError', () => {
+    it('應該創建 403 狀態碼的禁止訪問錯誤', () => {
+      const error = new ForbiddenError('禁止訪問');
+
+      expect(error.message).toBe('禁止訪問');
+      expect(error.statusCode).toBe(403);
+      expect(error.name).toBe('ForbiddenError');
+    });
+  });
+
+  describe('ConflictError', () => {
+    it('應該創建 409 狀態碼的衝突錯誤', () => {
+      const error = new ConflictError('資源已存在');
+
+      expect(error.message).toBe('資源已存在');
+      expect(error.statusCode).toBe(409);
+      expect(error.name).toBe('ConflictError');
+    });
+  });
+
+  describe('DatabaseError', () => {
+    it('應該創建 500 狀態碼的數據庫錯誤', () => {
+      const error = new DatabaseError('數據庫連接失敗');
+
+      expect(error.message).toBe('數據庫連接失敗');
+      expect(error.statusCode).toBe(500);
+      expect(error.name).toBe('DatabaseError');
+    });
+
+    it('應該包含原始錯誤', () => {
+      const originalError = new Error('連接超時');
+      const error = new DatabaseError('數據庫錯誤', { originalError });
+
+      expect(error.details.originalError).toBe(originalError);
+    });
+  });
+
+  describe('ExternalAPIError', () => {
+    it('應該創建 502 狀態碼的外部 API 錯誤', () => {
+      const error = new ExternalAPIError('外部 API 調用失敗');
+
+      expect(error.message).toBe('外部 API 調用失敗');
+      expect(error.statusCode).toBe(502);
+      expect(error.name).toBe('ExternalAPIError');
+    });
+
+    it('應該包含 API 詳細信息', () => {
+      const details = { service: 'OpenAI', endpoint: '/v1/completions', statusCode: 500 };
+      const error = new ExternalAPIError('API 錯誤', details);
+
+      expect(error.details).toEqual(details);
+    });
+  });
+
+  describe('RateLimitError', () => {
+    it('應該創建 429 狀態碼的速率限制錯誤', () => {
+      const error = new RateLimitError('速率限制超出');
+
+      expect(error.message).toBe('速率限制超出');
+      expect(error.statusCode).toBe(429);
+      expect(error.name).toBe('RateLimitError');
+    });
+
+    it('應該包含速率限制詳細信息', () => {
+      const details = { limit: 100, windowMs: 60000, retryAfter: 30 };
+      const error = new RateLimitError('超出請求限制', details);
+
+      expect(error.details).toEqual(details);
+    });
+  });
+
+  describe('isAppError()', () => {
+    it('應該正確識別 AppError 實例', () => {
+      const appError = new AppError('測試', 500);
+      const validationError = new ValidationError('測試');
+      const standardError = new Error('測試');
+
+      expect(isAppError(appError)).toBe(true);
+      expect(isAppError(validationError)).toBe(true);
+      expect(isAppError(standardError)).toBe(false);
+    });
+
+    it('應該處理 null 和 undefined', () => {
+      expect(isAppError(null)).toBe(false);
+      expect(isAppError(undefined)).toBe(false);
+    });
+  });
+
+  describe('serializeError()', () => {
+    it('應該序列化 AppError 為 JSON 格式', () => {
+      const error = new ValidationError('驗證失敗', { field: 'email' });
+      const serialized = serializeError(error);
+
+      expect(serialized).toEqual({
+        name: 'ValidationError',
+        message: '驗證失敗',
+        statusCode: 400,
+        details: { field: 'email' },
+        isOperational: true,
+      });
+    });
+
+    it('應該序列化標準錯誤為 500 錯誤', () => {
+      const error = new Error('未預期的錯誤');
+      const serialized = serializeError(error);
+
+      expect(serialized).toEqual({
+        name: 'Error',
+        message: '未預期的錯誤',
+        statusCode: 500,
+        isOperational: false,
+      });
+    });
+
+    it('應該在生產環境隱藏堆疊追蹤', () => {
+      const originalEnv = process.env.NODE_ENV;
+      process.env.NODE_ENV = 'production';
+
+      const error = new AppError('測試錯誤', 500);
+      const serialized = serializeError(error);
+
+      expect(serialized.stack).toBeUndefined();
+
+      process.env.NODE_ENV = originalEnv;
+    });
+
+    it('應該在開發環境包含堆疊追蹤', () => {
+      const originalEnv = process.env.NODE_ENV;
+      process.env.NODE_ENV = 'development';
+
+      const error = new AppError('測試錯誤', 500);
+      const serialized = serializeError(error);
+
+      expect(serialized.stack).toBeDefined();
+
+      process.env.NODE_ENV = originalEnv;
+    });
+  });
+
+  describe('工廠函數', () => {
+    describe('createValidationError()', () => {
+      it('應該創建驗證錯誤', () => {
+        const error = createValidationError('email', 'invalid@', '無效格式');
+
+        expect(error).toBeInstanceOf(ValidationError);
+        expect(error.message).toContain('email');
+        expect(error.details?.field).toBe('email');
+      });
+    });
+
+    describe('createNotFoundError()', () => {
+      it('應該創建未找到錯誤', () => {
+        const error = createNotFoundError('User', '123');
+
+        expect(error).toBeInstanceOf(NotFoundError);
+        expect(error.message).toContain('User');
+        expect(error.message).toContain('123');
+      });
+    });
+
+    describe('createUnauthorizedError()', () => {
+      it('應該創建未授權錯誤', () => {
+        const error = createUnauthorizedError('Token 過期');
+
+        expect(error).toBeInstanceOf(UnauthorizedError);
+        expect(error.message).toContain('Token 過期');
+      });
+    });
+
+    describe('createForbiddenError()', () => {
+      it('應該創建禁止訪問錯誤', () => {
+        const error = createForbiddenError('admin');
+
+        expect(error).toBeInstanceOf(ForbiddenError);
+        expect(error.message).toContain('admin');
+      });
+    });
+
+    describe('createConflictError()', () => {
+      it('應該創建衝突錯誤', () => {
+        const error = createConflictError('User', 'email', 'test@example.com');
+
+        expect(error).toBeInstanceOf(ConflictError);
+        expect(error.message).toContain('User');
+        expect(error.message).toContain('email');
+      });
+    });
+  });
+
+  describe('handleError()', () => {
+    it('應該處理 AppError 並返回正確的響應', () => {
+      const error = new ValidationError('驗證失敗');
+      const response = handleError(error);
+
+      expect(response.success).toBe(false);
+      expect(response.error).toBeDefined();
+      expect(response.error.statusCode).toBe(400);
+    });
+
+    it('應該處理標準錯誤並返回 500 響應', () => {
+      const error = new Error('未預期錯誤');
+      const response = handleError(error);
+
+      expect(response.success).toBe(false);
+      expect(response.error.statusCode).toBe(500);
+    });
+
+    it('應該在生產環境使用通用錯誤消息', () => {
+      const originalEnv = process.env.NODE_ENV;
+      process.env.NODE_ENV = 'production';
+
+      const error = new Error('內部錯誤詳情');
+      const response = handleError(error);
+
+      expect(response.error.message).not.toContain('內部錯誤詳情');
+      expect(response.error.message).toContain('內部服務器錯誤');
+
+      process.env.NODE_ENV = originalEnv;
+    });
+  });
+});

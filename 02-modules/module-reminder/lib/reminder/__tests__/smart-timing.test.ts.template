@@ -1,0 +1,389 @@
+/**
+ * Tests for SmartTiming
+ */
+
+import { SmartTiming } from '../smart-timing';
+import { databaseAdapter } from '@/lib/db/database-adapter';
+import type { Reminder, ReminderStatus, TimingContext } from '@/types/reminder';
+
+jest.mock('@/lib/db/database-adapter');
+
+describe('SmartTiming', () => {
+  let smartTiming: SmartTiming;
+  const mockUserId = 'user123';
+
+  beforeEach(() => {
+    smartTiming = new SmartTiming();
+    jest.clearAllMocks();
+  });
+
+  describe('predictOptimalTime', () => {
+    it('should predict optimal time based on user patterns', async () => {
+      const mockReminders: Reminder[] = createMockReminders(150); // Sufficient data
+
+      (databaseAdapter.findMany as jest.Mock).mockResolvedValue(mockReminders);
+
+      const context: TimingContext = {
+        taskType: 'review_document',
+        urgency: 'medium',
+        estimatedDuration: 15
+      };
+
+      const optimalTime = await smartTiming.predictOptimalTime(mockUserId, context);
+
+      expect(optimalTime).toBeInstanceOf(Date);
+      expect(optimalTime.getTime()).toBeGreaterThan(Date.now());
+    });
+
+    it('should return default time for insufficient data', async () => {
+      const mockReminders: Reminder[] = createMockReminders(20); // Insufficient
+
+      (databaseAdapter.findMany as jest.Mock).mockResolvedValue(mockReminders);
+
+      const context: TimingContext = {
+        taskType: 'review_document',
+        urgency: 'medium'
+      };
+
+      const optimalTime = await smartTiming.predictOptimalTime(mockUserId, context);
+
+      expect(optimalTime).toBeInstanceOf(Date);
+      // Should default to 2 PM tomorrow for medium urgency
+      expect(optimalTime.getHours()).toBe(14);
+    });
+
+    it('should prioritize urgency for high-priority tasks', async () => {
+      const mockReminders: Reminder[] = createMockReminders(150);
+
+      (databaseAdapter.findMany as jest.Mock).mockResolvedValue(mockReminders);
+
+      const context: TimingContext = {
+        taskType: 'urgent_task',
+        urgency: 'urgent'
+      };
+
+      const optimalTime = await smartTiming.predictOptimalTime(mockUserId, context);
+
+      // Urgent tasks should be scheduled for next morning
+      expect(optimalTime.getHours()).toBe(9);
+    });
+
+    it('should handle different urgency levels', async () => {
+      const mockReminders: Reminder[] = createMockReminders(50);
+
+      (databaseAdapter.findMany as jest.Mock).mockResolvedValue(mockReminders);
+
+      // Test urgent
+      const urgentTime = await smartTiming.predictOptimalTime(mockUserId, {
+        taskType: 'test',
+        urgency: 'urgent'
+      });
+      expect(urgentTime.getHours()).toBe(9);
+
+      // Test high
+      const highTime = await smartTiming.predictOptimalTime(mockUserId, {
+        taskType: 'test',
+        urgency: 'high'
+      });
+      expect(highTime.getHours()).toBe(10);
+
+      // Test medium
+      const mediumTime = await smartTiming.predictOptimalTime(mockUserId, {
+        taskType: 'test',
+        urgency: 'medium'
+      });
+      expect(mediumTime.getHours()).toBe(14);
+    });
+  });
+
+  describe('analyzeUserPatterns', () => {
+    it('should analyze user behavior patterns', async () => {
+      const mockReminders: Reminder[] = createMockReminders(100);
+
+      (databaseAdapter.findMany as jest.Mock).mockResolvedValue(mockReminders);
+
+      const pattern = await smartTiming.analyzeUserPatterns(mockUserId, {
+        startDate: new Date('2025-09-01'),
+        endDate: new Date('2025-10-01')
+      });
+
+      expect(pattern).toHaveProperty('userId', mockUserId);
+      expect(pattern).toHaveProperty('activeHours');
+      expect(pattern).toHaveProperty('activeDays');
+      expect(pattern).toHaveProperty('responseRate');
+      expect(pattern).toHaveProperty('optimalWindows');
+      expect(pattern).toHaveProperty('engagement');
+      expect(pattern).toHaveProperty('preferences');
+      expect(pattern).toHaveProperty('dataPoints');
+    });
+
+    it('should identify active hours', async () => {
+      const mockReminders: Reminder[] = createMockRemindersAtHours([9, 10, 14, 15]);
+
+      (databaseAdapter.findMany as jest.Mock).mockResolvedValue(mockReminders);
+
+      const pattern = await smartTiming.analyzeUserPatterns(mockUserId, {
+        startDate: new Date('2025-09-01'),
+        endDate: new Date('2025-10-01')
+      });
+
+      expect(pattern.activeHours).toContain(9);
+      expect(pattern.activeHours).toContain(10);
+      expect(pattern.activeHours).toContain(14);
+      expect(pattern.activeHours).toContain(15);
+    });
+
+    it('should calculate response rate', async () => {
+      const mockReminders: Reminder[] = [
+        ...createMockRemindersWithDismissal(50, true),
+        ...createMockRemindersWithDismissal(50, false)
+      ];
+
+      (databaseAdapter.findMany as jest.Mock).mockResolvedValue(mockReminders);
+
+      const pattern = await smartTiming.analyzeUserPatterns(mockUserId, {
+        startDate: new Date('2025-09-01'),
+        endDate: new Date('2025-10-01')
+      });
+
+      expect(pattern.responseRate).toBeCloseTo(0.5, 1);
+    });
+
+    it('should identify optimal time windows', async () => {
+      const mockReminders: Reminder[] = createMockReminders(100);
+
+      (databaseAdapter.findMany as jest.Mock).mockResolvedValue(mockReminders);
+
+      const pattern = await smartTiming.analyzeUserPatterns(mockUserId, {
+        startDate: new Date('2025-09-01'),
+        endDate: new Date('2025-10-01')
+      });
+
+      expect(pattern.optimalWindows.length).toBeGreaterThan(0);
+      pattern.optimalWindows.forEach(window => {
+        expect(window).toHaveProperty('dayOfWeek');
+        expect(window).toHaveProperty('startHour');
+        expect(window).toHaveProperty('endHour');
+        expect(window).toHaveProperty('score');
+        expect(window).toHaveProperty('responseRate');
+      });
+    });
+
+    it('should detect quiet hours', async () => {
+      const mockReminders: Reminder[] = createMockRemindersExcludingHours([22, 23, 0, 1, 2, 3, 4, 5]);
+
+      (databaseAdapter.findMany as jest.Mock).mockResolvedValue(mockReminders);
+
+      const pattern = await smartTiming.analyzeUserPatterns(mockUserId, {
+        startDate: new Date('2025-09-01'),
+        endDate: new Date('2025-10-01')
+      });
+
+      expect(pattern.preferences.quietHours).toBeDefined();
+      if (pattern.preferences.quietHours) {
+        expect(pattern.preferences.quietHours.start).toBeDefined();
+        expect(pattern.preferences.quietHours.end).toBeDefined();
+      }
+    });
+  });
+
+  describe('optimizeReminders', () => {
+    it('should optimize scheduled reminders', async () => {
+      const mockScheduledReminders: Reminder[] = [
+        {
+          id: 'reminder1',
+          userId: mockUserId,
+          title: 'Test 1',
+          type: 'SMART',
+          status: 'SCHEDULED' as ReminderStatus,
+          priority: 3,
+          scheduledAt: new Date('2025-10-15T10:00:00Z'),
+          timezone: 'UTC',
+          channels: [{ type: 'EMAIL', enabled: true }],
+          retryCount: 0,
+          maxRetries: 3,
+          smartTiming: true,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        }
+      ];
+
+      const mockHistoricalReminders: Reminder[] = createMockReminders(150);
+
+      (databaseAdapter.findMany as jest.Mock)
+        .mockResolvedValueOnce(mockScheduledReminders)
+        .mockResolvedValue(mockHistoricalReminders);
+
+      (databaseAdapter.update as jest.Mock).mockImplementation((_, { data }) =>
+        Promise.resolve({ ...mockScheduledReminders[0], ...data })
+      );
+
+      const optimized = await smartTiming.optimizeReminders(mockUserId);
+
+      expect(optimized.length).toBe(1);
+      expect(optimized[0].optimalTime).toBeDefined();
+    });
+  });
+
+  describe('evaluateTiming', () => {
+    it('should evaluate timing quality', async () => {
+      const mockReminders: Reminder[] = createMockReminders(100);
+
+      (databaseAdapter.findMany as jest.Mock).mockResolvedValue(mockReminders);
+
+      const score = await smartTiming.evaluateTiming(mockUserId, {
+        proposedTime: new Date('2025-10-15T14:00:00Z'),
+        urgency: 'medium'
+      });
+
+      expect(score).toBeGreaterThanOrEqual(0);
+      expect(score).toBeLessThanOrEqual(1);
+    });
+
+    it('should give higher scores for active hours', async () => {
+      const mockReminders: Reminder[] = createMockRemindersAtHours([14]);
+
+      (databaseAdapter.findMany as jest.Mock).mockResolvedValue(mockReminders);
+
+      const score = await smartTiming.evaluateTiming(mockUserId, {
+        proposedTime: new Date('2025-10-15T14:00:00Z')
+      });
+
+      expect(score).toBeGreaterThan(0.5);
+    });
+
+    it('should penalize quiet hours', async () => {
+      const mockReminders: Reminder[] = createMockRemindersExcludingHours([2]);
+
+      (databaseAdapter.findMany as jest.Mock).mockResolvedValue(mockReminders);
+
+      const score = await smartTiming.evaluateTiming(mockUserId, {
+        proposedTime: new Date('2025-10-15T02:00:00Z'),
+        considerQuietHours: true
+      });
+
+      expect(score).toBeLessThan(0.5);
+    });
+  });
+
+  describe('getOptimalWindows', () => {
+    it('should return optimal time windows', async () => {
+      const mockReminders: Reminder[] = createMockReminders(100);
+
+      (databaseAdapter.findMany as jest.Mock).mockResolvedValue(mockReminders);
+
+      const windows = await smartTiming.getOptimalWindows(mockUserId);
+
+      expect(Array.isArray(windows)).toBe(true);
+      windows.forEach(window => {
+        expect(window).toHaveProperty('dayOfWeek');
+        expect(window).toHaveProperty('startHour');
+        expect(window).toHaveProperty('endHour');
+        expect(window).toHaveProperty('score');
+      });
+    });
+  });
+});
+
+// Helper functions
+function createMockReminders(count: number): Reminder[] {
+  const reminders: Reminder[] = [];
+  const now = Date.now();
+
+  for (let i = 0; i < count; i++) {
+    const deliveredAt = new Date(now - Math.random() * 30 * 24 * 60 * 60 * 1000);
+    const dismissedAt = Math.random() > 0.3 ? new Date(deliveredAt.getTime() + Math.random() * 3600000) : undefined;
+
+    reminders.push({
+      id: `reminder${i}`,
+      userId: 'user123',
+      title: `Reminder ${i}`,
+      type: 'ONE_TIME',
+      status: 'DELIVERED' as ReminderStatus,
+      priority: Math.floor(Math.random() * 5) + 1,
+      scheduledAt: deliveredAt,
+      timezone: 'UTC',
+      channels: [{ type: 'EMAIL', enabled: true }],
+      retryCount: 0,
+      maxRetries: 3,
+      smartTiming: false,
+      deliveredAt,
+      dismissedAt,
+      createdAt: new Date(deliveredAt.getTime() - 1000),
+      updatedAt: deliveredAt
+    });
+  }
+
+  return reminders;
+}
+
+function createMockRemindersAtHours(hours: number[]): Reminder[] {
+  const reminders: Reminder[] = [];
+  const baseDate = new Date('2025-09-15T00:00:00Z');
+
+  hours.forEach((hour, i) => {
+    const deliveredAt = new Date(baseDate);
+    deliveredAt.setHours(hour);
+
+    for (let j = 0; j < 20; j++) {
+      reminders.push({
+        id: `reminder${i}_${j}`,
+        userId: 'user123',
+        title: `Reminder ${i}`,
+        type: 'ONE_TIME',
+        status: 'DELIVERED' as ReminderStatus,
+        priority: 3,
+        scheduledAt: deliveredAt,
+        timezone: 'UTC',
+        channels: [{ type: 'EMAIL', enabled: true }],
+        retryCount: 0,
+        maxRetries: 3,
+        smartTiming: false,
+        deliveredAt,
+        dismissedAt: new Date(deliveredAt.getTime() + 300000),
+        createdAt: deliveredAt,
+        updatedAt: deliveredAt
+      });
+    }
+  });
+
+  return reminders;
+}
+
+function createMockRemindersExcludingHours(excludedHours: number[]): Reminder[] {
+  const reminders: Reminder[] = [];
+  const allHours = Array.from({ length: 24 }, (_, i) => i);
+  const includedHours = allHours.filter(h => !excludedHours.includes(h));
+
+  return createMockRemindersAtHours(includedHours);
+}
+
+function createMockRemindersWithDismissal(count: number, dismissed: boolean): Reminder[] {
+  const reminders: Reminder[] = [];
+  const now = Date.now();
+
+  for (let i = 0; i < count; i++) {
+    const deliveredAt = new Date(now - Math.random() * 30 * 24 * 60 * 60 * 1000);
+
+    reminders.push({
+      id: `reminder${i}`,
+      userId: 'user123',
+      title: `Reminder ${i}`,
+      type: 'ONE_TIME',
+      status: 'DELIVERED' as ReminderStatus,
+      priority: 3,
+      scheduledAt: deliveredAt,
+      timezone: 'UTC',
+      channels: [{ type: 'EMAIL', enabled: true }],
+      retryCount: 0,
+      maxRetries: 3,
+      smartTiming: false,
+      deliveredAt,
+      dismissedAt: dismissed ? new Date(deliveredAt.getTime() + 300000) : undefined,
+      createdAt: deliveredAt,
+      updatedAt: deliveredAt
+    });
+  }
+
+  return reminders;
+}

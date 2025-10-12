@@ -1,0 +1,422 @@
+/**
+ * Audit Log System
+ *
+ * Comprehensive audit logging for security and compliance:
+ * - All user actions tracked
+ * - GDPR-compliant data retention
+ * - Resource access monitoring
+ * - Failed access attempt logging
+ *
+ * @module Security/AuditLog
+ */
+
+import { databaseAdapter } from '@/lib/db/database-adapter';
+
+// ============================================================================
+// Types
+// ============================================================================
+
+export interface AuditLogEntry {
+  userId: string;
+  action: string;
+  resource: string;
+  resourceId?: string;
+  success: boolean;
+  ipAddress?: string;
+  userAgent?: string;
+  metadata?: Record<string, any>;
+  timestamp?: Date;
+}
+
+export interface AuditLogQuery {
+  userId?: string;
+  action?: string;
+  resource?: string;
+  success?: boolean;
+  startDate?: Date;
+  endDate?: Date;
+  limit?: number;
+  offset?: number;
+}
+
+export interface AuditLogStats {
+  totalEvents: number;
+  successfulEvents: number;
+  failedEvents: number;
+  uniqueUsers: number;
+  eventsByAction: Record<string, number>;
+  eventsByResource: Record<string, number>;
+}
+
+// ============================================================================
+// Core Audit Log Functions
+// ============================================================================
+
+/**
+ * Log an audit event
+ */
+export async function logAuditEvent(entry: AuditLogEntry): Promise<void> {
+  try {
+    await databaseAdapter.create('auditLog', {
+      data: {
+        userId: entry.userId,
+        action: entry.action,
+        resource: entry.resource,
+        resourceId: entry.resourceId,
+        success: entry.success,
+        ipAddress: entry.ipAddress,
+        userAgent: entry.userAgent,
+        metadata: entry.metadata ? JSON.stringify(entry.metadata) : null,
+        timestamp: entry.timestamp || new Date(),
+      },
+    });
+  } catch (error) {
+    console.error('Failed to log audit event:', error);
+    // Don't throw - audit logging should not break the application
+  }
+}
+
+/**
+ * Query audit logs with filters
+ */
+export async function queryAuditLogs(
+  query: AuditLogQuery
+): Promise<any[]> {
+  const where: any = {};
+
+  if (query.userId) {
+    where.userId = query.userId;
+  }
+
+  if (query.action) {
+    where.action = query.action;
+  }
+
+  if (query.resource) {
+    where.resource = query.resource;
+  }
+
+  if (query.success !== undefined) {
+    where.success = query.success;
+  }
+
+  if (query.startDate || query.endDate) {
+    where.timestamp = {};
+    if (query.startDate) {
+      where.timestamp.gte = query.startDate;
+    }
+    if (query.endDate) {
+      where.timestamp.lte = query.endDate;
+    }
+  }
+
+  try {
+    const logs = await databaseAdapter.findMany('auditLog', {
+      where,
+      orderBy: { timestamp: 'desc' },
+      take: query.limit || 100,
+      skip: query.offset || 0,
+    });
+
+    return logs;
+  } catch (error) {
+    console.error('Failed to query audit logs:', error);
+    return [];
+  }
+}
+
+/**
+ * Get audit log statistics
+ */
+export async function getAuditLogStats(
+  startDate?: Date,
+  endDate?: Date
+): Promise<AuditLogStats> {
+  try {
+    const where: any = {};
+
+    if (startDate || endDate) {
+      where.timestamp = {};
+      if (startDate) where.timestamp.gte = startDate;
+      if (endDate) where.timestamp.lte = endDate;
+    }
+
+    // Get all logs for the period
+    const logs = await databaseAdapter.findMany('auditLog', { where });
+
+    // Calculate statistics
+    const totalEvents = logs.length;
+    const successfulEvents = logs.filter((log: any) => log.success).length;
+    const failedEvents = totalEvents - successfulEvents;
+    const uniqueUsers = new Set(logs.map((log: any) => log.userId)).size;
+
+    // Count by action
+    const eventsByAction: Record<string, number> = {};
+    logs.forEach((log: any) => {
+      eventsByAction[log.action] = (eventsByAction[log.action] || 0) + 1;
+    });
+
+    // Count by resource
+    const eventsByResource: Record<string, number> = {};
+    logs.forEach((log: any) => {
+      eventsByResource[log.resource] = (eventsByResource[log.resource] || 0) + 1;
+    });
+
+    return {
+      totalEvents,
+      successfulEvents,
+      failedEvents,
+      uniqueUsers,
+      eventsByAction,
+      eventsByResource,
+    };
+  } catch (error) {
+    console.error('Failed to get audit log stats:', error);
+    return {
+      totalEvents: 0,
+      successfulEvents: 0,
+      failedEvents: 0,
+      uniqueUsers: 0,
+      eventsByAction: {},
+      eventsByResource: {},
+    };
+  }
+}
+
+/**
+ * Get user's audit trail
+ */
+export async function getUserAuditTrail(
+  userId: string,
+  limit: number = 50
+): Promise<any[]> {
+  return queryAuditLogs({ userId, limit });
+}
+
+/**
+ * Get resource access history
+ */
+export async function getResourceAuditTrail(
+  resource: string,
+  resourceId: string,
+  limit: number = 50
+): Promise<any[]> {
+  return queryAuditLogs({ resource, limit });
+}
+
+/**
+ * Get failed access attempts
+ */
+export async function getFailedAccessAttempts(
+  hours: number = 24
+): Promise<any[]> {
+  const startDate = new Date();
+  startDate.setHours(startDate.getHours() - hours);
+
+  return queryAuditLogs({
+    success: false,
+    startDate,
+    limit: 1000,
+  });
+}
+
+/**
+ * Check for suspicious activity
+ * Returns true if suspicious patterns detected
+ */
+export async function detectSuspiciousActivity(
+  userId: string,
+  hours: number = 1
+): Promise<boolean> {
+  const startDate = new Date();
+  startDate.setHours(startDate.getHours() - hours);
+
+  const logs = await queryAuditLogs({
+    userId,
+    startDate,
+    limit: 1000,
+  });
+
+  // Check for excessive failed attempts
+  const failedAttempts = logs.filter((log: any) => !log.success).length;
+  if (failedAttempts > 10) {
+    return true;
+  }
+
+  // Check for rapid requests (potential automation)
+  if (logs.length > 100) {
+    const timestamps = logs.map((log: any) => new Date(log.timestamp).getTime());
+    const timeDiffs = timestamps.slice(1).map((t, i) => t - timestamps[i]);
+    const avgTimeDiff = timeDiffs.reduce((a, b) => a + b, 0) / timeDiffs.length;
+
+    // Average time between requests less than 1 second
+    if (avgTimeDiff < 1000) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+// ============================================================================
+// GDPR Compliance Functions
+// ============================================================================
+
+/**
+ * Export all audit logs for a user (GDPR data export)
+ */
+export async function exportUserAuditLogs(userId: string): Promise<any[]> {
+  return queryAuditLogs({ userId, limit: 10000 });
+}
+
+/**
+ * Anonymize audit logs for a user (GDPR right to be forgotten)
+ * Replaces userId with anonymized ID while preserving audit trail
+ */
+export async function anonymizeUserAuditLogs(userId: string): Promise<number> {
+  try {
+    const anonymizedId = `ANON-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+    const result = await databaseAdapter.updateMany('auditLog', {
+      where: { userId },
+      data: {
+        userId: anonymizedId,
+        metadata: JSON.stringify({ anonymized: true, originalUserId: 'REDACTED' }),
+      },
+    });
+
+    return result.count || 0;
+  } catch (error) {
+    console.error('Failed to anonymize user audit logs:', error);
+    return 0;
+  }
+}
+
+/**
+ * Delete old audit logs (data retention policy)
+ * @param daysToKeep Number of days to retain logs (default: 90)
+ */
+export async function deleteOldAuditLogs(daysToKeep: number = 90): Promise<number> {
+  try {
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.setDate() - daysToKeep);
+
+    const result = await databaseAdapter.deleteMany('auditLog', {
+      where: {
+        timestamp: {
+          lt: cutoffDate,
+        },
+      },
+    });
+
+    return result.count || 0;
+  } catch (error) {
+    console.error('Failed to delete old audit logs:', error);
+    return 0;
+  }
+}
+
+// ============================================================================
+// Convenience Functions
+// ============================================================================
+
+/**
+ * Log successful login
+ */
+export async function logLogin(userId: string, ipAddress?: string, userAgent?: string): Promise<void> {
+  await logAuditEvent({
+    userId,
+    action: 'login',
+    resource: 'auth',
+    success: true,
+    ipAddress,
+    userAgent,
+  });
+}
+
+/**
+ * Log failed login attempt
+ */
+export async function logFailedLogin(
+  userId: string,
+  reason: string,
+  ipAddress?: string,
+  userAgent?: string
+): Promise<void> {
+  await logAuditEvent({
+    userId,
+    action: 'login_failed',
+    resource: 'auth',
+    success: false,
+    ipAddress,
+    userAgent,
+    metadata: { reason },
+  });
+}
+
+/**
+ * Log logout
+ */
+export async function logLogout(userId: string): Promise<void> {
+  await logAuditEvent({
+    userId,
+    action: 'logout',
+    resource: 'auth',
+    success: true,
+  });
+}
+
+/**
+ * Log data access
+ */
+export async function logDataAccess(
+  userId: string,
+  resource: string,
+  resourceId: string,
+  action: 'read' | 'update' | 'delete' | 'create'
+): Promise<void> {
+  await logAuditEvent({
+    userId,
+    action: `${action}_${resource}`,
+    resource,
+    resourceId,
+    success: true,
+  });
+}
+
+/**
+ * Log permission denied
+ */
+export async function logPermissionDenied(
+  userId: string,
+  action: string,
+  resource: string,
+  resourceId?: string
+): Promise<void> {
+  await logAuditEvent({
+    userId,
+    action: `${action}_denied`,
+    resource,
+    resourceId,
+    success: false,
+  });
+}
+
+/**
+ * Log sensitive data access (for compliance)
+ */
+export async function logSensitiveDataAccess(
+  userId: string,
+  resource: string,
+  resourceId: string,
+  fields: string[]
+): Promise<void> {
+  await logAuditEvent({
+    userId,
+    action: 'sensitive_data_access',
+    resource,
+    resourceId,
+    success: true,
+    metadata: { fields },
+  });
+}
