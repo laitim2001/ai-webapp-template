@@ -4,11 +4,12 @@
  * 演示儀表板頁面
  *
  * 展示完整的儀表板UI,包括統計卡片、圖表和活動列表
- * 使用演示數據
+ * 使用演示數據和專業的 DashboardLayout 組件
  */
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { DashboardLayout } from '@/components/layout/dashboard-layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -111,30 +112,15 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      {/* 頂部導航欄 */}
-      <header className="sticky top-0 z-10 border-b bg-white dark:bg-gray-800">
-        <div className="flex h-16 items-center justify-between px-6">
-          <div className="flex items-center gap-4">
-            <h1 className="text-xl font-bold">儀表板</h1>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon">
-              <Search className="h-5 w-5" />
-            </Button>
-            <Button variant="ghost" size="icon">
-              <Bell className="h-5 w-5" />
-            </Button>
-            <Button variant="ghost" size="icon">
-              <Settings className="h-5 w-5" />
-            </Button>
-          </div>
-        </div>
-      </header>
+    <DashboardLayout>
+      {/* 演示模式橫幅 */}
+      <DemoBanner />
 
-      <main className="p-6">
-        {/* 演示模式橫幅 */}
-        <DemoBanner />
+      {/* 頁面標題 */}
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">儀表板</h1>
+        <p className="text-gray-500 dark:text-gray-400 mt-2">歡迎回來！這是您今天的業績概覽</p>
+      </div>
 
         {/* 快捷操作 */}
         <div className="mb-6 flex flex-wrap gap-3">
@@ -325,7 +311,6 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
         </div>
-      </main>
-    </div>
+    </DashboardLayout>
   );
 }
