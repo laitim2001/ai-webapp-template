@@ -1,8 +1,8 @@
 # NPM 發布成功報告 - create-ai-webapp
 
 **最初發布日期**: 2025-10-11 (v5.0.0)
-**當前版本**: 5.0.13
-**最新更新**: 2025-10-12 (hotfix 週期)
+**當前版本**: 5.0.15
+**最新更新**: 2025-10-13 (動態 Docker 容器命名)
 **狀態**: ✅ 成功發布並驗證 + Hotfix 修復完成
 
 ---
@@ -13,7 +13,7 @@
 
 - **包名**: `create-ai-webapp`
 - **最初版本**: `5.0.0` (2025-10-11)
-- **當前版本**: `5.0.13` (2025-10-12)
+- **當前版本**: `5.0.15` (2025-10-13)
 - **發布者**: `laitim2001 <laitim20012@gmail.com>`
 - **許可證**: MIT
 - **包大小**: ~3.2 MB
@@ -22,7 +22,7 @@
 ### NPM 地址
 
 - **主頁**: https://www.npmjs.com/package/create-ai-webapp
-- **下載地址**: https://registry.npmjs.org/create-ai-webapp/-/create-ai-webapp-5.0.13.tgz
+- **下載地址**: https://registry.npmjs.org/create-ai-webapp/-/create-ai-webapp-5.0.15.tgz
 - **GitHub**: https://github.com/laitim2001/ai-webapp-template
 
 ---
@@ -266,11 +266,23 @@ git push && git push --tags
 
 | 版本 | 日期 | 類型 | 說明 | NPM 狀態 |
 |------|------|------|------|---------|
+| 5.0.15 | 2025-10-13 | Improvement | 動態 Docker 容器命名 | ✅ 已發布 |
 | 5.0.13 | 2025-10-12 | Feature | Toast 組件 | ✅ 已發布 |
 | 5.0.12 | 2025-10-12 | Critical Fix | tailwindcss-animate 依賴 | ✅ 已發布 |
 | 5.0.11 | 2025-10-12 | Critical Fix | pgvector 索引語法 | ✅ 已發布 |
 | 5.0.10 | 2025-10-12 | Critical Fix | pgvector Docker 鏡像 | ✅ 已發布 |
 | 5.0.0 | 2025-10-11 | Initial Release | 初始發布 | ✅ 已發布 |
+
+### v5.0.15 (2025-10-13) - 動態 Docker 容器命名
+- **類型**: Improvement
+- **問題**: 固定容器名稱導致多項目衝突
+- **修復**: 容器名稱使用項目名稱前綴
+  - PostgreSQL: `{project-name}-postgres` (原: `ai-webapp-postgres`)
+  - MySQL: `{project-name}-mysql` (原: `ai-webapp-mysql`)
+  - MongoDB: `{project-name}-mongodb` (原: `ai-webapp-mongodb`)
+- **影響**: 允許同時運行多個項目的數據庫容器
+- **用戶價值**: 更好的容器管理和識別，避免名稱衝突
+- **NPM**: ✅ 已發布
 
 ### v5.0.13 (2025-10-12) - Toast 組件
 - **類型**: Feature Addition
@@ -309,15 +321,16 @@ git push && git push --tags
 
 ### Hotfix 週期總結
 
-**時間**: 2025-10-12 (發布後第二天)
-**數量**: 4 個 hotfix
-**類型**: 3 個 Critical Fix + 1 個 Feature
+**時間**: 2025-10-12 至 2025-10-13
+**數量**: 5 個版本發布
+**類型**: 3 個 Critical Fix + 1 個 Feature + 1 個 Improvement
 **主要修復**:
 1. pgvector 生態系統完整性 (Docker + Prisma)
 2. Tailwind CSS 依賴完整性
 3. UI 組件補充 (Toast 通知)
+4. Docker 容器命名優化 (避免衝突)
 
-**建議**: 所有用戶應升級到 v5.0.13 或更高版本
+**建議**: 所有用戶應升級到 v5.0.15 或更高版本
 
 ---
 
@@ -328,11 +341,11 @@ git push && git push --tags
 **驗證版本**:
 ```bash
 npm view create-ai-webapp version
-# 應顯示: 5.0.13
+# 應顯示: 5.0.15
 ```
 
 ---
 
 **最初發布報告生成時間**: 2025-10-11
-**Hotfix 更新時間**: 2025-10-12
-**報告版本**: 1.1
+**Hotfix 更新時間**: 2025-10-13
+**報告版本**: 1.2
