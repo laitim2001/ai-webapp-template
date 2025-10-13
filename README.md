@@ -303,11 +303,13 @@ examples/
 
 ## 📖 文檔
 
+**🗺️ [文檔導航地圖](DOCUMENTATION-MAP.md)** - 快速找到正確的文檔 ⭐ **NEW**
+
 ### 快速指南
 - [數據庫切換指南](Docs/DATABASE-SWITCHING-GUIDE.md) - 如何在 4 種數據庫間切換
 - [UI 設計系統](01-base/UI-DESIGN-SYSTEM.md) - 完整的 UI 組件和設計規範
 - [Dashboard 組件指南](01-base/docs/DASHBOARD-COMPONENTS-GUIDE.md) - ⭐ **NEW** 專業儀表板組件使用指南
-- [模組整合指南](02-modules/MODULE-INTEGRATION-GUIDE.md) - 14 個功能模組使用指南
+- [模組整合指南](02-modules/MODULE-INTEGRATION-GUIDE.md) - 22 個功能模組使用指南
 
 ### 深入指南
 - [監控系統文檔](00-monitoring/README.md) - 企業級監控配置
@@ -316,13 +318,11 @@ examples/
 
 ### 開發指南
 - [AI 助手指南](CLAUDE.md) - AI 助手項目指南
-- [測試框架指南](03-toolchain/toolchain-testing/README.md) - Jest + Playwright 測試
+- [項目狀態總覽](Docs/PROJECT-STATUS.md) - 當前完成度和下一步計劃
 
-### 深入分析文檔
-- [完整差距分析報告](Docs/TEMPLATE-GAP-ANALYSIS-REPORT.md) - 當前vs源項目完整對比
-- [源項目完整驗證](Docs/SOURCE-PROJECT-VERIFICATION.md) - 100%驗證報告
-- [源項目結構快照](Docs/SOURCE-PROJECT-SNAPSHOT.md) - 476文件完整分析
-- [模板vs源項目對比](Docs/TEMPLATE-VS-SOURCE-COMPARISON.md) - 詳細差距說明
+### 參考文檔
+- [源項目結構快照](Docs/SOURCE-PROJECT-SNAPSHOT-ZH-TW.md) - 源項目完整分析
+- [完整差距分析](Docs/COMPREHENSIVE-GAP-ANALYSIS-2025-10-10.md) - 待補充功能清單
 
 ---
 
