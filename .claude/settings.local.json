@@ -30,7 +30,10 @@
       "Bash(cp:*)",
       "Bash(git mv:*)",
       "Bash(git log:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(docker ps:*)",
+      "Read(//c/test-ai-webapp-new2/**)",
+      "Bash(wc:*)"
     ],
     "deny": [],
     "ask": []
