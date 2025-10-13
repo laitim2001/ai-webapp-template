@@ -21,8 +21,16 @@
 | 文檔 | 用途 | 適用對象 |
 |------|------|---------|
 | [Docs/DATABASE-SWITCHING-GUIDE.md](Docs/DATABASE-SWITCHING-GUIDE.md) | 數據庫切換指南 | 所有用戶 |
+| [Docs/DOC-MAINTENANCE-GUIDE.md](Docs/DOC-MAINTENANCE-GUIDE.md) | 文檔維護指南 | 維護者 |
 | [CLAUDE.md](CLAUDE.md) | AI 助手項目指南 | AI 助手 |
 | [02-modules/MODULE-INTEGRATION-GUIDE.md](02-modules/MODULE-INTEGRATION-GUIDE.md) | 模組整合指南 | 開發者 |
+
+### NPM 發布與維護
+| 文檔 | 用途 | 適用對象 |
+|------|------|---------|
+| [NPM-PUBLISH-SUCCESS.md](NPM-PUBLISH-SUCCESS.md) | NPM 發布記錄與統計 | 維護者 |
+| [NPX-IMPLEMENTATION-REPORT.md](NPX-IMPLEMENTATION-REPORT.md) | NPX 實施完整報告 | 維護者 |
+| [create-ai-webapp/PUBLISH-CHECKLIST.md](create-ai-webapp/PUBLISH-CHECKLIST.md) | NPM 發布檢查清單 | 維護者 |
 
 ### 設計系統
 | 文檔 | 用途 | 適用對象 |
@@ -67,21 +75,21 @@
 
 ## 🗄️ 歷史文檔 (僅供參考)
 
-這些文檔記錄開發過程，已被新文檔取代，保留作為歷史參考：
+這些文檔記錄開發過程，已被新文檔取代，保留作為歷史參考。所有歷史文檔已歸檔到 `Docs/archive/` 目錄。
 
 ### 已過時的狀態文檔
 | 文檔 | 替代文檔 | 說明 |
 |------|---------|------|
-| [CURRENT-STATUS.md](CURRENT-STATUS.md) | [Docs/PROJECT-STATUS.md](Docs/PROJECT-STATUS.md) | 2025-10-06 快照，已過時 |
-| [IMPLEMENTATION-ROADMAP.md](IMPLEMENTATION-ROADMAP.md) | [Docs/PROJECT-STATUS.md](Docs/PROJECT-STATUS.md) | 路線圖已完成 |
-| [Docs/PROJECT-STATUS-2025-10-06.md](Docs/PROJECT-STATUS-2025-10-06.md) | [Docs/PROJECT-STATUS.md](Docs/PROJECT-STATUS.md) | 舊版狀態文檔 |
+| [Docs/archive/old-status/CURRENT-STATUS.md](Docs/archive/old-status/CURRENT-STATUS.md) | [Docs/PROJECT-STATUS.md](Docs/PROJECT-STATUS.md) | 2025-10-06 快照，已過時 |
+| [Docs/archive/old-status/IMPLEMENTATION-ROADMAP.md](Docs/archive/old-status/IMPLEMENTATION-ROADMAP.md) | [Docs/PROJECT-STATUS.md](Docs/PROJECT-STATUS.md) | 路線圖已完成 |
+| [Docs/archive/old-status/PROJECT-STATUS-2025-10-06.md](Docs/archive/old-status/PROJECT-STATUS-2025-10-06.md) | [Docs/PROJECT-STATUS.md](Docs/PROJECT-STATUS.md) | 舊版狀態文檔 |
 
 ### 開發過程追蹤
 | 文檔 | 用途 | 何時查看 |
 |------|------|---------|
-| [Docs/GAP-FILLING-EXECUTION-TRACKER.md](Docs/GAP-FILLING-EXECUTION-TRACKER.md) | Phase 0-2 執行追蹤 | 查看開發歷史 |
-| [Docs/PHASE-3-EXECUTION-TRACKER.md](Docs/PHASE-3-EXECUTION-TRACKER.md) | Phase 3 執行追蹤 | 查看開發歷史 |
-| [Docs/DAY26-CLI-ANALYSIS.md](Docs/DAY26-CLI-ANALYSIS.md) | CLI 工具分析 | CLI 開發參考 |
+| [Docs/archive/dev-tracking/GAP-FILLING-EXECUTION-TRACKER.md](Docs/archive/dev-tracking/GAP-FILLING-EXECUTION-TRACKER.md) | Phase 0-2 執行追蹤 | 查看開發歷史 |
+| [Docs/archive/dev-tracking/PHASE-3-EXECUTION-TRACKER.md](Docs/archive/dev-tracking/PHASE-3-EXECUTION-TRACKER.md) | Phase 3 執行追蹤 | 查看開發歷史 |
+| [Docs/archive/dev-tracking/DAY26-CLI-ANALYSIS.md](Docs/archive/dev-tracking/DAY26-CLI-ANALYSIS.md) | CLI 工具分析 | CLI 開發參考 |
 
 ### 計劃文檔 (已完成)
 | 文檔 | 狀態 | 說明 |
@@ -89,14 +97,14 @@
 | [Docs/TEMPLATE-CREATION-FINAL-v5-COMPLETE.md](Docs/TEMPLATE-CREATION-FINAL-v5-COMPLETE.md) | ⚠️ 願景文檔 | 描述最終目標，非當前狀態 |
 | [Docs/PHASE-3-P2-MODULES-PLAN.md](Docs/PHASE-3-P2-MODULES-PLAN.md) | ✅ 已完成 | Phase 3 計劃 |
 
-### 提取計劃 (已完成)
+### 提取計劃 (已歸檔)
 | 文檔 | 狀態 | 說明 |
 |------|------|------|
-| [Docs/monitoring-extraction-plan.md](Docs/monitoring-extraction-plan.md) | ✅ 已完成 | 監控系統提取計劃 |
-| [Docs/auth-extraction-plan.md](Docs/auth-extraction-plan.md) | ✅ 已完成 | 認證系統提取計劃 |
-| [Docs/knowledge-base-extraction-plan.md](Docs/knowledge-base-extraction-plan.md) | ✅ 已完成 | 知識庫提取計劃 |
-| [Docs/search-module-extraction-plan.md](Docs/search-module-extraction-plan.md) | ✅ 已完成 | 搜索模組提取計劃 |
-| [Docs/api-gateway-extraction-plan.md](Docs/api-gateway-extraction-plan.md) | ✅ 已完成 | API Gateway 提取計劃 |
+| [Docs/archive/extraction-plans/monitoring-extraction-plan.md](Docs/archive/extraction-plans/monitoring-extraction-plan.md) | ✅ 已完成 | 監控系統提取計劃 |
+| [Docs/archive/extraction-plans/auth-extraction-plan.md](Docs/archive/extraction-plans/auth-extraction-plan.md) | ✅ 已完成 | 認證系統提取計劃 |
+| [Docs/archive/extraction-plans/knowledge-base-extraction-plan.md](Docs/archive/extraction-plans/knowledge-base-extraction-plan.md) | ✅ 已完成 | 知識庫提取計劃 |
+| [Docs/archive/extraction-plans/search-module-extraction-plan.md](Docs/archive/extraction-plans/search-module-extraction-plan.md) | ✅ 已完成 | 搜索模組提取計劃 |
+| [Docs/archive/extraction-plans/api-gateway-extraction-plan.md](Docs/archive/extraction-plans/api-gateway-extraction-plan.md) | ✅ 已完成 | API Gateway 提取計劃 |
 
 ---
 
@@ -108,6 +116,9 @@
 | **項目是什麼** | [README.md](README.md) |
 | **當前完成度** | [Docs/PROJECT-STATUS.md](Docs/PROJECT-STATUS.md) |
 | **最新變更** | [CHANGELOG.md](CHANGELOG.md) |
+| **如何維護文檔** | [Docs/DOC-MAINTENANCE-GUIDE.md](Docs/DOC-MAINTENANCE-GUIDE.md) |
+| **如何發布 NPM** | [create-ai-webapp/PUBLISH-CHECKLIST.md](create-ai-webapp/PUBLISH-CHECKLIST.md) |
+| **NPM 發布歷史** | [NPM-PUBLISH-SUCCESS.md](NPM-PUBLISH-SUCCESS.md) |
 | **如何切換數據庫** | [Docs/DATABASE-SWITCHING-GUIDE.md](Docs/DATABASE-SWITCHING-GUIDE.md) |
 | **UI 組件怎麼用** | [01-base/UI-DESIGN-SYSTEM.md](01-base/UI-DESIGN-SYSTEM.md) |
 | **儀表板組件** | [01-base/docs/DASHBOARD-COMPONENTS-GUIDE.md](01-base/docs/DASHBOARD-COMPONENTS-GUIDE.md) |
@@ -145,7 +156,13 @@ ai-webapp-template/
 │   │   └── PROJECT-STATUS.md      # 當前狀態總覽 ⭐
 │   │
 │   ├── 📚 用戶指南:
-│   │   └── DATABASE-SWITCHING-GUIDE.md  # 數據庫切換 ⭐
+│   │   ├── DATABASE-SWITCHING-GUIDE.md  # 數據庫切換 ⭐
+│   │   └── DOC-MAINTENANCE-GUIDE.md     # 文檔維護 ⭐
+│   │
+│   ├── 📦 NPM 發布:
+│   │   ├── NPM-PUBLISH-SUCCESS.md       # NPM 發布記錄 (根目錄)
+│   │   ├── NPX-IMPLEMENTATION-REPORT.md # NPX 實施報告 (根目錄)
+│   │   └── create-ai-webapp/PUBLISH-CHECKLIST.md  # 發布清單
 │   │
 │   ├── 🔍 源項目分析:
 │   │   ├── SOURCE-PROJECT-SNAPSHOT-ZH-TW.md  # 源項目快照 (中文)
@@ -164,10 +181,10 @@ ai-webapp-template/
 │   │   ├── DAY28-UI-VERIFICATION-REPORT.md   # UI 驗證
 │   │   └── DAY33-VERIFICATION-REPORT.md      # 完整驗證
 │   │
-│   └── 🗄️ 歷史追蹤 (開發過程):
-│       ├── GAP-FILLING-EXECUTION-TRACKER.md  # Phase 0-2 追蹤
-│       ├── PHASE-3-EXECUTION-TRACKER.md      # Phase 3 追蹤
-│       └── DAY26-CLI-ANALYSIS.md             # CLI 分析
+│   └── 🗄️ archive/ (歷史文檔歸檔):
+│       ├── extraction-plans/   # 已完成的提取計劃
+│       ├── dev-tracking/       # 開發過程追蹤記錄
+│       └── old-status/         # 已過時的狀態文檔
 │
 ├── 01-base/                       # 基礎模板
 │   ├── UI-DESIGN-SYSTEM.md        # UI 設計系統 ⭐
@@ -227,14 +244,41 @@ ai-webapp-template/
 - Docs/DATABASE-SWITCHING-GUIDE.md
 
 ### 不再更新 (歷史存檔)
-- CURRENT-STATUS.md
-- IMPLEMENTATION-ROADMAP.md
-- 所有提取計劃文檔
-- 所有執行追蹤文檔
+- 所有已歸檔到 `Docs/archive/` 的文檔
+- 提取計劃文檔 (Docs/archive/extraction-plans/)
+- 執行追蹤文檔 (Docs/archive/dev-tracking/)
+- 舊版狀態文檔 (Docs/archive/old-status/)
 
 ---
 
-**文檔導航地圖版本**: v1.0
+## 📋 文檔健康檢查與維護
+
+### 自動化審查系統
+
+本項目已建立完整的文檔健康檢查機制：
+
+**手動檢查**:
+```bash
+node scripts/check-docs-health.js
+```
+
+**自動化檢查** (GitHub Actions):
+- 每週一早上 9:00 (UTC) 自動執行
+- PR 涉及文檔變更時執行
+- 手動觸發 (GitHub Actions 頁面)
+
+**檢查項目**:
+- ✅ 核心文檔完整性
+- ⏰ 過時文檔檢測 (>90天)
+- 🔗 斷裂的內部鏈接
+- 🔍 重複文檔檢測
+- 🗺️ DOCUMENTATION-MAP.md 同步驗證
+
+**詳細說明**: 請參閱 [DOC-MAINTENANCE-GUIDE.md](Docs/DOC-MAINTENANCE-GUIDE.md)
+
+---
+
+**文檔導航地圖版本**: v2.0
 **創建日期**: 2025-10-13
 **最後更新**: 2025-10-13
 **維護者**: Claude Code

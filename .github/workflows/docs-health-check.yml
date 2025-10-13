@@ -1,0 +1,149 @@
+# 文檔健康檢查工作流程
+# Documentation Health Check Workflow
+
+name: Documentation Health Check
+
+# 觸發條件
+on:
+  # 每週一早上 9:00 (UTC) 自動執行
+  schedule:
+    - cron: '0 9 * * 1'
+
+  # 手動觸發
+  workflow_dispatch:
+
+  # PR 涉及文檔變更時觸發
+  pull_request:
+    paths:
+      - '**.md'
+      - 'Docs/**'
+      - 'scripts/check-docs-health.js'
+
+  # Push 到 main 分支且涉及文檔時觸發
+  push:
+    branches:
+      - main
+    paths:
+      - '**.md'
+      - 'Docs/**'
+
+jobs:
+  check-docs:
+    name: 檢查文檔健康度
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Checkout 代碼
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # 獲取完整歷史以檢查文件修改時間
+
+      # 2. 設置 Node.js
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      # 3. 執行文檔健康檢查
+      - name: Run documentation health check
+        id: health-check
+        run: |
+          node scripts/check-docs-health.js
+          echo "report_generated=true" >> $GITHUB_OUTPUT
+
+      # 4. 上傳健康報告為 artifact
+      - name: Upload health report
+        if: steps.health-check.outputs.report_generated == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: doc-health-report
+          path: Docs/doc-health-report-*.md
+          retention-days: 30
+
+      # 5. 在 PR 中評論報告摘要 (僅 PR 觸發時)
+      - name: Comment PR with report summary
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const reportFiles = fs.readdirSync('Docs')
+              .filter(f => f.startsWith('doc-health-report-'))
+              .sort()
+              .reverse();
+
+            if (reportFiles.length > 0) {
+              const reportPath = `Docs/${reportFiles[0]}`;
+              const reportContent = fs.readFileSync(reportPath, 'utf-8');
+
+              // 提取摘要部分（前100行）
+              const summary = reportContent.split('\n').slice(0, 100).join('\n');
+
+              github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: `## 📊 文檔健康檢查報告\n\n${summary}\n\n完整報告請查看 Artifacts。`
+              });
+            }
+
+      # 6. 檢查是否有嚴重問題
+      - name: Check for critical issues
+        run: |
+          REPORT_FILE=$(ls -t Docs/doc-health-report-*.md | head -1)
+
+          if [ -z "$REPORT_FILE" ]; then
+            echo "::warning::無法找到健康報告文件"
+            exit 0
+          fi
+
+          # 檢查是否有缺失的核心文檔
+          if grep -q "缺失的核心文檔" "$REPORT_FILE"; then
+            echo "::error::發現缺失的核心文檔！"
+            exit 1
+          fi
+
+          # 檢查健康度評分
+          SCORE=$(grep "整體健康度" "$REPORT_FILE" | grep -oP '\d+\.\d+' | head -1)
+
+          if [ ! -z "$SCORE" ]; then
+            echo "文檔健康度: $SCORE%"
+
+            if (( $(echo "$SCORE < 70" | bc -l) )); then
+              echo "::error::文檔健康度過低 ($SCORE%)，需要立即改進！"
+              exit 1
+            elif (( $(echo "$SCORE < 90" | bc -l) )); then
+              echo "::warning::文檔健康度 $SCORE%，建議改進"
+            else
+              echo "::notice::文檔健康度良好 ($SCORE%) ✅"
+            fi
+          fi
+
+      # 7. 自動創建 Issue (如果健康度低於 70%)
+      - name: Create issue for low health score
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const reportFiles = fs.readdirSync('Docs')
+              .filter(f => f.startsWith('doc-health-report-'))
+              .sort()
+              .reverse();
+
+            if (reportFiles.length > 0) {
+              const reportPath = `Docs/${reportFiles[0]}`;
+              const reportContent = fs.readFileSync(reportPath, 'utf-8');
+
+              // 提取建議行動部分
+              const actionsSection = reportContent.split('## 📋 建議行動')[1] || '請查看完整報告';
+
+              github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: '🏥 文檔健康度檢查失敗 - 需要立即處理',
+                body: `## 文檔健康檢查失敗\n\n**檢測時間**: ${new Date().toISOString()}\n\n## 建議行動\n\n${actionsSection}\n\n完整報告請查看 [Workflow Run](https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})`,
+                labels: ['documentation', 'maintenance', 'priority-high']
+              });
+            }

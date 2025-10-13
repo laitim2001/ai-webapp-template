@@ -690,7 +690,7 @@ function printCompletionInfo(projectInfo, databaseConfig, selectedModules, dbIni
       console.log(chalk.gray('       docker run -d -p 5432:5432 \\'));
       console.log(chalk.gray('         -e POSTGRES_PASSWORD=password \\'));
       console.log(chalk.gray('         -e POSTGRES_DB=myapp \\'));
-      console.log(chalk.gray('         --name ai-webapp-postgres \\'));
+      console.log(chalk.gray(`         --name ${projectInfo.name}-postgres \\`));
       console.log(chalk.gray('         ankane/pgvector:latest\n'));
 
     } else if (dbType === 'mysql') {
@@ -707,7 +707,7 @@ function printCompletionInfo(projectInfo, databaseConfig, selectedModules, dbIni
       console.log(chalk.gray('       docker run -d -p 3306:3306 \\'));
       console.log(chalk.gray('         -e MYSQL_ROOT_PASSWORD=password \\'));
       console.log(chalk.gray('         -e MYSQL_DATABASE=myapp \\'));
-      console.log(chalk.gray('         --name ai-webapp-mysql \\'));
+      console.log(chalk.gray(`         --name ${projectInfo.name}-mysql \\`));
       console.log(chalk.gray('         mysql:8.0\n'));
 
     } else if (dbType === 'mongodb') {
@@ -722,7 +722,7 @@ function printCompletionInfo(projectInfo, databaseConfig, selectedModules, dbIni
 
       console.log(chalk.white('     Docker (推薦):'));
       console.log(chalk.gray('       docker run -d -p 27017:27017 \\'));
-      console.log(chalk.gray('         --name ai-webapp-mongodb \\'));
+      console.log(chalk.gray(`         --name ${projectInfo.name}-mongodb \\`));
       console.log(chalk.gray('         mongo:6.0\n'));
     }
 
@@ -739,9 +739,9 @@ function printCompletionInfo(projectInfo, databaseConfig, selectedModules, dbIni
       console.log(chalk.white('     查看所有容器（包括已停止）:'));
       console.log(chalk.gray('       docker ps -a\n'));
 
-      const containerName = dbType === 'postgresql' ? 'ai-webapp-postgres'
-                          : dbType === 'mysql' ? 'ai-webapp-mysql'
-                          : 'ai-webapp-mongodb';
+      const containerName = dbType === 'postgresql' ? `${projectInfo.name}-postgres`
+                          : dbType === 'mysql' ? `${projectInfo.name}-mysql`
+                          : `${projectInfo.name}-mongodb`;
 
       console.log(chalk.white('     停止容器:'));
       console.log(chalk.gray(`       docker stop ${containerName}\n`));

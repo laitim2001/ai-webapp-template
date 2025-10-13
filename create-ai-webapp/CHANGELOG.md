@@ -19,6 +19,32 @@
 
 ---
 
+## [5.0.14] - 2025-10-13
+
+### 改進 (Improved)
+- ✅ **動態 Docker 容器命名**
+  - 容器名稱從固定改為使用項目名稱
+  - PostgreSQL: `{project-name}-postgres` (原: `ai-webapp-postgres`)
+  - MySQL: `{project-name}-mysql` (原: `ai-webapp-mysql`)
+  - MongoDB: `{project-name}-mongodb` (原: `ai-webapp-mongodb`)
+  - 避免多個項目的容器名稱衝突
+  - 改善容器管理和識別
+
+### 修改的文件 (Changed)
+- `create-ai-webapp/lib/cli.js` - 更新所有 Docker 命令使用動態容器名稱
+
+### 用戶影響
+- 👍 **更好**: 可以同時運行多個項目的數據庫容器
+- 👍 **更清晰**: 容器名稱包含項目名稱,易於識別
+- ⚠️ **注意**: 舊命令中的固定容器名稱需要更新
+
+### 遷移說明
+如果之前使用固定容器名稱 (`ai-webapp-postgres` 等),需要:
+1. 停止並刪除舊容器: `docker stop ai-webapp-postgres && docker rm ai-webapp-postgres`
+2. 使用新的項目特定容器名稱重新創建
+
+---
+
 ## [5.0.13] - 2025-10-12
 
 ### 新增 (Added)
