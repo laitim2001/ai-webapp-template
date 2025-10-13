@@ -1,6 +1,6 @@
 {
   "name": "create-ai-webapp",
-  "version": "5.0.13",
+  "version": "5.0.14",
   "description": "Create AI-powered web applications with Next.js 14, TypeScript, and enterprise-grade architecture",
   "keywords": [
     "nextjs",
